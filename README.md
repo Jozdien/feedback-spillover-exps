@@ -1,0 +1,54 @@
+# Feedback Spillover Experiments
+
+Testing whether stylistic differentiation of Chain-of-Thought (CoT) reduces feedback spillover — the phenomenon where output-only supervision bleeds into the reasoning trace.
+
+Based on [Output Supervision Can Obfuscate the CoT](https://arxiv.org/abs/2511.11584) and [Ryan Greenblatt's hypothesis](https://www.lesswrong.com/posts/FG54euEAesRkSZuJN/ryan_greenblatt-s-shortform?commentId=8ujSDfzxLnizbCfdJ) that stylistically distinct CoTs would reduce parametric spillover.
+
+## Approach
+
+1. **Style induction**: Train Qwen3-8B to reason in Chinese (or pirate speak, etc.) via prompting → SFT → RL
+2. **Spillover experiment**: RL on QA-with-hints where output mentions of the hint are penalized. Measure whether the CoT also suppresses hint mentions.
+3. **Compare**: Baseline vs styled CoT vs known mitigations (Mind & Face, Reward Targeting)
+
+## Setup
+
+```bash
+uv sync
+uv pip install -e /path/to/tinker-cookbook
+export TINKER_API_KEY=...
+export OPENAI_API_KEY=...
+```
+
+## Usage
+
+```bash
+# Verify style prompting works
+uv run python scripts/verify_style_prompting.py --style chinese
+
+# Run style induction pipeline
+uv run python scripts/run_style_induction.py --config configs/style_chinese.yaml
+
+# Run spillover experiment
+uv run python scripts/run_spillover.py --config configs/spillover_baseline.yaml
+```
+
+## Conditions
+
+| Condition | Description |
+|-----------|-------------|
+| Baseline | Vanilla Qwen3-8B, standard CoT |
+| Chinese CoT | Model trained to reason in Chinese |
+| Pirate CoT | Model trained to reason in pirate speak |
+| Mind & Face | Frozen "mind" generates CoT, trained "face" generates output |
+| Reward Targeting | Per-token advantages: CoT gets task-only reward, output gets full reward |
+
+## Architecture
+
+- `src/judges.py` — Unified judge interface (`WordMonitor`, `LLMJudge`, `LanguageJudge`)
+- `src/rewards.py` — Declarative reward composition via `RewardSpec`
+- `src/parsing.py` — CoT/output extraction from `<think>` tags
+- `src/style/` — Style induction pipeline (data gen, SFT, RL)
+- `src/spillover/` — Spillover experiments (env, training variants)
+- `src/analysis/` — Metrics and plotting
+
+Training via [Tinker API](https://tinker-docs.thinkingmachines.ai). LLM judges via GPT-4o.

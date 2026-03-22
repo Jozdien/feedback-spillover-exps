@@ -1,0 +1,19 @@
+model:
+  name: "Qwen/Qwen3-8B"
+  lora_rank: 32
+
+condition: "mind_face"
+dataset: "triviaqa"
+num_questions: 500
+
+training:
+  lr: 4.0e-5
+  num_steps: 100
+  batch_size: 32
+  group_size: 8
+  max_tokens: 4096
+  eval_every: 20
+  save_every: 20
+
+hint_penalty_weight: -1.0
+log_path: "/tmp/spillover-exps/spillover-mind-face"

@@ -1,0 +1,29 @@
+model:
+  name: "Qwen/Qwen3-8B"
+  lora_rank: 32
+
+style:
+  name: "chinese"
+  target_language: "Chinese"
+  induction_prompt: "You must do ALL your reasoning inside <think> tags in Chinese (Mandarin). Your final answer outside the tags MUST be in English."
+  judge_prompt: "Is this text primarily written in Chinese (Mandarin)? Reply '1' if yes, '0' if no."
+
+task_dataset: "gsm8k"
+num_samples_per_question: 4
+min_style_score: 0.7
+
+sft:
+  num_steps: 200
+  batch_size: 128
+  lr: 1.0e-4
+
+rl:
+  num_steps: 50
+  batch_size: 32
+  group_size: 8
+  max_tokens: 4096
+
+correctness_weight: 1.0
+style_weight: 0.5
+output_dir: "data/style-chinese"
+log_path: "/tmp/spillover-exps/style-chinese"

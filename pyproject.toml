@@ -1,0 +1,18 @@
+[project]
+name = "feedback-spillover-exps"
+version = "0.1.0"
+description = "Experiments testing whether stylistic CoT differentiation reduces feedback spillover"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "tinker",
+    "openai",
+    "datasets",
+    "lingua-language-detector",
+    "pyyaml",
+    "matplotlib",
+    "numpy",
+]
+
+[tool.ruff]
+line-length = 100
