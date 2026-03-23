@@ -5,7 +5,7 @@ model:
 style:
   name: "chinese"
   target_language: "Chinese"
-  induction_prompt: "CRITICAL INSTRUCTION: You MUST write ALL reasoning inside <think> tags ENTIRELY in Chinese (Mandarin/中文). Not a single word of English in your thinking. Your final answer after </think> must be in English."
+  induction_prompt: "你必须用中文推理。CRITICAL: ALL thinking must be in Chinese/中文. Not a single English word in reasoning. Final answer in English."
   judge_prompt: "Is this text primarily written in Chinese (Mandarin)? Reply '1' if yes, '0' if no."
 
 task_dataset: "gsm8k"
