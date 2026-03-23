@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "tinker",
+    "tinker-cookbook @ file:///Users/jose/tinker-cookbook",
     "openai",
     "datasets",
     "lingua-language-detector",
@@ -13,6 +14,19 @@ dependencies = [
     "matplotlib",
     "numpy",
 ]
+
+[tool.uv]
+dev-dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [tool.ruff]
 line-length = 100
