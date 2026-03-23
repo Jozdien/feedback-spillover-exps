@@ -1,15 +1,22 @@
-"""SFT on styled CoT data to bake the style into the model's default behavior."""
+"""SFT on styled CoT data to bake the style into the model's default behavior.
+
+IMPORTANT: Must use Qwen3Renderer with strip_thinking_from_history=False,
+otherwise the renderer strips the CoT (everything before </think>) from the
+training data, and the model only learns to produce the English output.
+"""
 
 import asyncio
 import json
 import logging
 
 import chz
-from tinker_cookbook import cli_utils, model_info, renderers
-from tinker_cookbook.supervised.data import FromConversationFileBuilder
+import datasets
+from tinker_cookbook import cli_utils, renderers
+from tinker_cookbook.supervised.data import SupervisedDatasetFromHFDataset, conversation_to_datum
 from tinker_cookbook.supervised.train import Config as SFTConfig
 from tinker_cookbook.supervised.train import main as sft_main
-from tinker_cookbook.supervised.types import ChatDatasetBuilderCommonConfig
+from tinker_cookbook.supervised.types import SupervisedDatasetBuilder
+from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -32,21 +39,50 @@ class StyleSFTConfig:
     behavior_if_log_dir_exists: cli_utils.LogdirBehavior = "ask"
 
 
+@chz.chz
+class StyleSFTDatasetBuilder(SupervisedDatasetBuilder):
+    """Custom builder that uses Qwen3Renderer with strip_thinking_from_history=False."""
+
+    model_name: str
+    file_path: str
+    batch_size: int
+    max_length: int
+    test_size: int = 50
+
+    def __call__(self):
+        tokenizer = get_tokenizer(self.model_name)
+        renderer = renderers.Qwen3Renderer(tokenizer, strip_thinking_from_history=False)
+
+        conversations = []
+        with open(self.file_path) as f:
+            for line in f:
+                conversations.append(json.loads(line.strip()))
+        ds = datasets.Dataset.from_list(conversations)
+        ds = ds.shuffle(seed=0)
+
+        test_ds = ds.take(self.test_size) if self.test_size > 0 else None
+        train_ds = ds.skip(self.test_size) if self.test_size > 0 else ds
+
+        def map_fn(row):
+            return conversation_to_datum(
+                row["messages"], renderer, self.max_length,
+                renderers.TrainOnWhat.ALL_ASSISTANT_MESSAGES,
+            )
+
+        train = SupervisedDatasetFromHFDataset(train_ds, self.batch_size, map_fn=map_fn)
+        test = SupervisedDatasetFromHFDataset(test_ds, len(test_ds), map_fn=map_fn) if test_ds else None
+        return train, test
+
+
 async def run_style_sft(cli: StyleSFTConfig):
     logger.info(f"Style SFT config: {json.dumps(chz.asdict(cli), indent=2, default=str)}")
 
-    renderer_name = model_info.get_recommended_renderer_name(cli.model_name)
-
-    dataset_builder = FromConversationFileBuilder(
+    dataset_builder = StyleSFTDatasetBuilder(
+        model_name=cli.model_name,
         file_path=cli.data_path,
+        batch_size=cli.batch_size,
+        max_length=cli.max_length,
         test_size=cli.test_size,
-        common_config=ChatDatasetBuilderCommonConfig(
-            model_name_for_tokenizer=cli.model_name,
-            renderer_name=renderer_name,
-            max_length=cli.max_length,
-            batch_size=cli.batch_size,
-            train_on_what=renderers.TrainOnWhat.ALL_ASSISTANT_MESSAGES,
-        ),
     )
 
     config = SFTConfig(
