@@ -2,15 +2,24 @@ import re
 
 
 def split_cot_output(response: str) -> tuple[str, str]:
-    """Extract (cot, output) from a Qwen3 response with <think>...</think> tags."""
+    """Extract (cot, output) from a Qwen3 response.
+
+    Handles both cases:
+    - Full tags: <think>cot</think>output
+    - Renderer-prefilled: cot</think>output  (when <think> was in the prompt)
+    """
     match = re.search(r"<think>(.*?)</think>(.*)", response, re.DOTALL)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    # Renderer prefills <think>\n so generated tokens start inside the think block
+    match = re.search(r"^(.*?)</think>(.*)", response, re.DOTALL)
     if match:
         return match.group(1).strip(), match.group(2).strip()
     return "", response.strip()
 
 
 def has_complete_cot(response: str) -> bool:
-    return "<think>" in response and "</think>" in response
+    return "</think>" in response
 
 
 def cot_token_boundary(tokens: list[int], tokenizer) -> int | None:

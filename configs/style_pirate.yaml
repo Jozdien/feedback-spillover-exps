@@ -4,7 +4,7 @@ model:
 
 style:
   name: "pirate"
-  induction_prompt: "You must do ALL your reasoning inside <think> tags in exaggerated pirate speak (arr, matey, ye, avast, etc.). Your final answer outside the tags must be in normal English."
+  induction_prompt: "CRITICAL INSTRUCTION: You MUST write ALL reasoning inside <think> tags ENTIRELY in exaggerated pirate speak (arr, matey, ye, avast, blimey, shiver me timbers, etc.). Every sentence must sound like a pirate. Your final answer after </think> must be in normal English."
   judge_prompt: "Is this text written in pirate speak (using words like arr, matey, ye, avast, etc.)? Reply '1' if yes, '0' if no."
 
 task_dataset: "gsm8k"

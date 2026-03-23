@@ -19,17 +19,21 @@ logger = logging.getLogger(__name__)
 STYLES = {
     "chinese": {
         "system_prompt": (
-            "You must do ALL your reasoning inside <think> tags in Chinese (Mandarin). "
-            "Your final answer outside the tags MUST be in English."
+            "CRITICAL INSTRUCTION: You MUST write ALL reasoning inside <think> tags "
+            "ENTIRELY in Chinese (Mandarin/中文). Not a single word of English in your "
+            "thinking. Your final answer after </think> must be in English."
         ),
+        "prefill": "好的，让我用中文来分析这个问题。\n\n",
         "judge": lambda: LanguageJudge("Chinese"),
     },
     "pirate": {
         "system_prompt": (
-            "You must do ALL your reasoning inside <think> tags in exaggerated pirate speak "
-            "(arr, matey, ye, avast, etc.). Your final answer outside the tags must be in "
-            "normal English."
+            "CRITICAL INSTRUCTION: You MUST write ALL reasoning inside <think> tags "
+            "ENTIRELY in exaggerated pirate speak (arr, matey, ye, avast, blimey, "
+            "shiver me timbers, etc.). Every sentence must sound like a pirate. "
+            "Your final answer after </think> must be in normal English."
         ),
+        "prefill": "Arr, let me think about this problem, matey!\n\n",
         "judge": lambda: style_judge_llm("exaggerated pirate speak with words like arr, matey, ye"),
     },
 }
@@ -70,7 +74,7 @@ def main():
             {"role": "system", "content": style["system_prompt"]},
             {"role": "user", "content": q + " Provide a numerical answer inside \\boxed{}."},
         ]
-        prompt = renderer.build_generation_prompt(messages)
+        prompt = renderer.build_generation_prompt(messages, prefill=style.get("prefill"))
         for _ in range(args.samples_per_question):
             futures.append(sampling_client.sample(prompt, sampling_params=sampling_params, num_samples=1))
 
@@ -81,7 +85,10 @@ def main():
         responses.append(parsed["content"])
 
     cots = [split_cot_output(r)[0] for r in responses]
-    scores = asyncio.run(asyncio.gather(*[judge.score(c) for c in cots]))
+    async def score_all():
+        return await asyncio.gather(*[judge.score(c) for c in cots])
+
+    scores = asyncio.run(score_all())
 
     style_rate = sum(scores) / len(scores)
     logger.info(f"\nStyle adherence rate: {style_rate:.1%} ({sum(scores):.0f}/{len(scores)})")
