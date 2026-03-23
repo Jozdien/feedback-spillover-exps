@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "tinker",
-    "tinker-cookbook @ file:///Users/jose/tinker-cookbook",
+    "tinker-cookbook @ git+https://github.com/thinking-machines-lab/tinker-cookbook.git",
     "openai",
     "datasets",
     "lingua-language-detector",
