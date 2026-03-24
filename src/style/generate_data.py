@@ -11,7 +11,7 @@ from tinker_cookbook import model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 from src.judges import Judge, LanguageJudge, style_judge_llm
-from src.parsing import has_complete_cot, split_cot_output
+from src.parsing import _content_to_str, has_complete_cot, split_cot_output
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +82,19 @@ async def generate_style_data(
 
     logger.info(f"Generating data: {len(questions)} questions x {num_samples_per_question} samples")
 
-    # Sample in batches to avoid overwhelming the API
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     filtered = []
-    batch_size = 50
+    if Path(output_path).exists():
+        with open(output_path) as f:
+            filtered = [json.loads(line) for line in f if line.strip()]
+        logger.info(f"Resuming: loaded {len(filtered)} existing samples from {output_path}")
+    seen_questions = {item["messages"][0]["content"] for item in filtered}
+    batch_size = 200
     for batch_start in range(0, len(questions), batch_size):
         batch_qs = questions[batch_start : batch_start + batch_size]
+        batch_qs = [q for q in batch_qs if q["question"] + question_suffix not in seen_questions]
+        if not batch_qs:
+            continue
         futures = []
         for q in batch_qs:
             messages = [
@@ -99,6 +107,8 @@ async def generate_style_data(
                     prompt, sampling_params=sampling_params, num_samples=1
                 )))
 
+        # Collect candidates that pass parsing + correctness
+        candidates = []
         for q, future in futures:
             result = future.result()
             parsed, success = renderer.parse_response(result.sequences[0].tokens)
@@ -107,33 +117,35 @@ async def generate_style_data(
             content = parsed["content"]
             if not has_complete_cot(content):
                 continue
-
+            content_str = _content_to_str(content)
             expected = extract_gsm8k_answer(q["answer"])
-            if not check_boxed_answer(content, expected):
+            if not check_boxed_answer(content_str, expected):
                 continue
-
             cot, _ = split_cot_output(content)
-            score = await style_judge.score(cot)
-            if score < min_style_score:
-                continue
+            candidates.append((q, content_str, cot))
 
-            # Save WITHOUT the system prompt — model should learn the style as default
-            filtered.append({
-                "messages": [
-                    {"role": "user", "content": q["question"] + question_suffix},
-                    {"role": "assistant", "content": content},
-                ]
-            })
+        # Batch-judge all candidates concurrently
+        if candidates:
+            import asyncio
+            cots = [c[2] for c in candidates]
+            scores = await asyncio.gather(*[style_judge.score(c) for c in cots])
+            for (q, content_str, _), score in zip(candidates, scores):
+                if score < min_style_score:
+                    continue
+                filtered.append({
+                    "messages": [
+                        {"role": "user", "content": q["question"] + question_suffix},
+                        {"role": "assistant", "content": content_str},
+                    ]
+                })
 
+        with open(output_path, "w") as f:
+            for item in filtered:
+                f.write(json.dumps(item) + "\n")
         logger.info(
             f"Batch {batch_start // batch_size + 1}: "
             f"{len(filtered)} filtered samples so far"
         )
-
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        for item in filtered:
-            f.write(json.dumps(item) + "\n")
 
     logger.info(f"Saved {len(filtered)} filtered samples to {output_path}")
     return len(filtered)

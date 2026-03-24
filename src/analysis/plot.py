@@ -8,6 +8,7 @@ from src.analysis.metrics import RunMetrics, smooth, spillover_ratio
 COLORS = {
     "baseline": "#4878CF",
     "chinese": "#D65F5F",
+    "chinese_rl": "#FF6B6B",
     "pirate": "#B47CC7",
     "mind_face": "#6ACC65",
     "reward_targeting": "#C4AD66",
@@ -15,7 +16,8 @@ COLORS = {
 
 LABELS = {
     "baseline": "Baseline",
-    "chinese": "Chinese CoT",
+    "chinese": "Chinese CoT (SFT)",
+    "chinese_rl": "Chinese CoT (SFT+RL)",
     "pirate": "Pirate CoT",
     "mind_face": "Mind & Face",
     "reward_targeting": "Reward Targeting",
