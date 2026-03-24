@@ -53,7 +53,7 @@ async def main():
             num_epochs=4,
             batch_size=cfg.sft.batch_size,
             log_path=f"{cfg.log_path}-sft",
-            behavior_if_log_dir_exists="overwrite",
+            behavior_if_log_dir_exists="delete",
         )
         await run_style_sft(sft_config)
         logger.info("SFT complete")
@@ -67,7 +67,7 @@ async def main():
         sft_log_path = f"{cfg.log_path}-sft"
         from tinker_cookbook import checkpoint_utils
         sft_checkpoint = checkpoint_utils.get_last_checkpoint(sft_log_path)
-        checkpoint_path = sft_checkpoint["state_path"] if sft_checkpoint else None
+        checkpoint_path = sft_checkpoint.state_path if sft_checkpoint else None
 
         rl_config = StyleRLConfig(
             model_name=cfg.model.name,
@@ -80,7 +80,7 @@ async def main():
             max_tokens=cfg.rl.max_tokens,
             log_path=f"{cfg.log_path}-rl",
             load_checkpoint_path=checkpoint_path,
-            behavior_if_log_dir_exists="overwrite",
+            behavior_if_log_dir_exists="delete",
         )
         await run_style_rl(rl_config)
         logger.info("RL enforcement complete")
