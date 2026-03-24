@@ -22,6 +22,12 @@ from src.spillover.env import _load_triviaqa
 
 logger = logging.getLogger(__name__)
 
+# Workaround: the @trace.scope wrapper on save_checkpoint_async has an
+# async-detection bug that routes through the sync path, which calls
+# asyncio.run() and fails inside an already-running loop. Use the
+# unwrapped coroutine directly.
+_save_checkpoint = checkpoint_utils.save_checkpoint_async.__wrapped__
+
 
 @chz.chz
 class RewardTargetConfig:
@@ -59,9 +65,9 @@ async def run_reward_targeting(cfg: RewardTargetConfig):
     resume_info = checkpoint_utils.get_last_checkpoint(cfg.log_path)
     if resume_info:
         training_client = service.create_training_client_from_state_with_optimizer(
-            resume_info["state_path"]
+            resume_info.state_path
         )
-        start_batch = resume_info["batch"]
+        start_batch = resume_info.batch
     elif cfg.load_checkpoint_path:
         training_client = await service.create_training_client_from_state_async(
             cfg.load_checkpoint_path
@@ -87,7 +93,7 @@ async def run_reward_targeting(cfg: RewardTargetConfig):
         metrics: dict[str, float] = {"progress/batch": batch_idx}
 
         if cfg.save_every > 0 and batch_idx % cfg.save_every == 0 and batch_idx > 0:
-            checkpoint_utils.save_checkpoint(
+            await _save_checkpoint(
                 training_client=training_client,
                 name=f"{batch_idx:06d}",
                 log_path=cfg.log_path,
@@ -239,7 +245,7 @@ async def run_reward_targeting(cfg: RewardTargetConfig):
             f"hint_cot={metrics['monitor/hint_in_cot']:.2f}"
         )
 
-    checkpoint_utils.save_checkpoint(
+    await _save_checkpoint(
         training_client=training_client,
         name="final",
         log_path=cfg.log_path,

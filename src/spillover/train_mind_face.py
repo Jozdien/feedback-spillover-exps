@@ -8,6 +8,9 @@ import asyncio
 import logging
 import time
 
+import nest_asyncio
+nest_asyncio.apply()
+
 import chz
 import tinker
 import torch
@@ -18,6 +21,7 @@ from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
 from src.judges import hint_monitor_words
+from src.parsing import split_cot_output
 from src.spillover.env import _load_triviaqa
 
 logger = logging.getLogger(__name__)
@@ -72,9 +76,9 @@ async def run_mind_face(cfg: MindFaceConfig):
     resume_info = checkpoint_utils.get_last_checkpoint(cfg.log_path)
     if resume_info:
         face_trainer = service.create_training_client_from_state_with_optimizer(
-            resume_info["state_path"]
+            resume_info.state_path
         )
-        start_batch = resume_info["batch"]
+        start_batch = resume_info.batch
     elif cfg.load_checkpoint_path:
         face_trainer = await service.create_training_client_from_state_async(
             cfg.load_checkpoint_path
@@ -105,7 +109,7 @@ async def run_mind_face(cfg: MindFaceConfig):
         metrics: dict[str, float] = {"progress/batch": batch_idx}
 
         if cfg.save_every > 0 and batch_idx % cfg.save_every == 0 and batch_idx > 0:
-            checkpoint_utils.save_checkpoint(
+            await checkpoint_utils.save_checkpoint_async(
                 training_client=face_trainer,
                 name=f"{batch_idx:06d}",
                 log_path=cfg.log_path,
@@ -175,7 +179,7 @@ async def run_mind_face(cfg: MindFaceConfig):
             face_result = face_future.result()
             face_seq = face_result.sequences[0]
             parsed, _ = renderer.parse_response(face_seq.tokens)
-            output_text = parsed["content"]
+            _, output_text = split_cot_output(parsed["content"])
 
             # Decode CoT for monitoring
             cot_text = tokenizer.decode(cot_info["cot_tokens"])
@@ -247,7 +251,7 @@ async def run_mind_face(cfg: MindFaceConfig):
             f"hint_cot={metrics['monitor/hint_in_cot']:.2f}"
         )
 
-    checkpoint_utils.save_checkpoint(
+    await checkpoint_utils.save_checkpoint_async(
         training_client=face_trainer,
         name="final",
         log_path=cfg.log_path,

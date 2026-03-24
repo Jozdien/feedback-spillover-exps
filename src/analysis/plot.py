@@ -99,7 +99,8 @@ def plot_spillover_bar(
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.axhline(y=0, color="gray", linewidth=0.5)
-    ax.set_ylim(0, max(r for r in ratios if not np.isnan(r)) * 1.3 if ratios else 1)
+    valid_ratios = [r for r in ratios if not np.isnan(r)]
+    ax.set_ylim(0, max(valid_ratios) * 1.3 if valid_ratios else 1)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches="tight")

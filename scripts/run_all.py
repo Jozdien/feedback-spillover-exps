@@ -19,7 +19,7 @@ DEFAULT_LOG_PATHS = {
     "chinese": "/tmp/spillover-exps/spillover-chinese",
     "pirate": "/tmp/spillover-exps/spillover-pirate",
     "mind_face": "/tmp/spillover-exps/spillover-mind-face",
-    "reward_targeting": "/tmp/spillover-exps/spillover-reward-target",
+    "reward_targeting": "/tmp/spillover-exps/spillover-reward-target-v2",
 }
 
 

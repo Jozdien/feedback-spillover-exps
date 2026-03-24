@@ -1,24 +1,46 @@
 import re
 
 
-def split_cot_output(response: str) -> tuple[str, str]:
+def _content_to_str(content) -> str:
+    """Convert renderer content (str or list of parts) to a plain string."""
+    if isinstance(content, str):
+        return content
+    parts = []
+    for p in content:
+        if p.get("type") == "thinking":
+            parts.append(f"<think>{p['thinking']}</think>")
+        elif p.get("type") == "text":
+            parts.append(p["text"])
+        else:
+            parts.append(str(p))
+    return "".join(parts)
+
+
+def split_cot_output(response) -> tuple[str, str]:
     """Extract (cot, output) from a Qwen3 response.
 
-    Handles both cases:
-    - Full tags: <think>cot</think>output
-    - Renderer-prefilled: cot</think>output  (when <think> was in the prompt)
+    Handles str, list-of-parts (from renderer), and tag formats.
     """
+    if not isinstance(response, str):
+        cot_parts, text_parts = [], []
+        for p in response:
+            if p.get("type") == "thinking":
+                cot_parts.append(p["thinking"])
+            elif p.get("type") == "text":
+                text_parts.append(p["text"])
+        return "".join(cot_parts).strip(), "".join(text_parts).strip()
     match = re.search(r"<think>(.*?)</think>(.*)", response, re.DOTALL)
     if match:
         return match.group(1).strip(), match.group(2).strip()
-    # Renderer prefills <think>\n so generated tokens start inside the think block
     match = re.search(r"^(.*?)</think>(.*)", response, re.DOTALL)
     if match:
         return match.group(1).strip(), match.group(2).strip()
     return "", response.strip()
 
 
-def has_complete_cot(response: str) -> bool:
+def has_complete_cot(response) -> bool:
+    if not isinstance(response, str):
+        return any(p.get("type") == "thinking" for p in response)
     return "</think>" in response
 
 

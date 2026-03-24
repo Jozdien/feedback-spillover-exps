@@ -27,9 +27,18 @@ def load_metrics(log_path: str, condition: str) -> RunMetrics:
             m = json.loads(line)
             step = m.get("progress/batch", m.get("step", len(steps)))
             steps.append(int(step))
-            correct.append(m.get("reward/correct", m.get("correct", 0.0)))
-            hint_out.append(m.get("monitor/hint_in_output", m.get("hint_in_output", 0.0)))
-            hint_cot.append(m.get("monitor/hint_in_cot", m.get("hint_in_cot", 0.0)))
+            correct.append(
+                m.get("reward/correct",
+                       m.get("env/all/correct",
+                              m.get("correct", 0.0))))
+            hint_out.append(
+                m.get("monitor/hint_in_output",
+                       m.get("env/all/hint_in_output",
+                              m.get("hint_in_output", 0.0))))
+            hint_cot.append(
+                m.get("monitor/hint_in_cot",
+                       m.get("env/all/hint_in_cot",
+                              m.get("hint_in_cot", 0.0))))
             if "style_score" in m:
                 style.append(m["style_score"])
 
