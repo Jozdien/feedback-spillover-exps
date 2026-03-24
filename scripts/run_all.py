@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_LOG_PATHS = {
     "baseline": "/tmp/spillover-exps/spillover-baseline",
     "chinese": "/tmp/spillover-exps/spillover-chinese",
-    "chinese_rl": "/tmp/spillover-exps/spillover-chinese-rl",
-    "pirate": "/tmp/spillover-exps/spillover-pirate",
+    "chinese_rl": "/tmp/spillover-exps/spillover-chinese-rl-v2",
+    "pirate": "/tmp/spillover-exps/spillover-pirate-v2",
     "mind_face": "/tmp/spillover-exps/spillover-mind-face",
     "reward_targeting": "/tmp/spillover-exps/spillover-reward-target-v2",
 }
