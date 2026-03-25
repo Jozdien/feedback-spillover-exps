@@ -77,11 +77,29 @@ class StyledHardHintQADataset(RLDataset):
         return len(self.inner)
 
 
+class ConcisenessJudge(Judge):
+    """Rewards concise CoT. Score = 1.0 if under target_tokens, drops linearly to 0."""
+
+    def __init__(self, target_tokens: int = 200, max_tokens: int = 800):
+        self.target = target_tokens
+        self.max = max_tokens
+
+    async def score(self, text: str) -> float:
+        n = len(text.split())
+        if n <= self.target:
+            return 1.0
+        if n >= self.max:
+            return 0.0
+        return 1.0 - (n - self.target) / (self.max - self.target)
+
+
 def get_style_judge(style_name: str) -> Judge:
     if style_name == "pirate":
         return pirate_monitor()
     elif style_name == "chinese":
         return LanguageJudge("Chinese")
+    elif style_name == "concise":
+        return ConcisenessJudge(target_tokens=200, max_tokens=800)
     else:
         raise ValueError(f"Unknown style: {style_name}")
 
