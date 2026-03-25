@@ -172,6 +172,7 @@ async def run_style_rl(cli: StyleRLConfig):
         eval_every=cli.eval_every,
         save_every=cli.save_every,
         load_checkpoint_path=cli.load_checkpoint_path,
+        rollout_error_tolerance=True,
     )
 
     cli_utils.check_log_dir(cli.log_path, behavior_if_exists=cli.behavior_if_log_dir_exists)

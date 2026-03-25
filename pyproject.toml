@@ -13,10 +13,13 @@ dependencies = [
     "pyyaml",
     "matplotlib",
     "numpy",
+    "nest-asyncio>=1.6.0",
 ]
 
 [tool.uv]
-dev-dependencies = []
+dev-dependencies = [
+    "ruff>=0.15.7",
+]
 
 [build-system]
 requires = ["hatchling"]

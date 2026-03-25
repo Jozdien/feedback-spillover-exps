@@ -9,7 +9,9 @@ COLORS = {
     "baseline": "#4878CF",
     "chinese": "#D65F5F",
     "chinese_rl": "#FF6B6B",
-    "pirate": "#B47CC7",
+    "pirate_sft": "#B47CC7",
+    "pirate_rl": "#9B59B6",
+    "cross_model": "#E67E22",
     "mind_face": "#6ACC65",
     "reward_targeting": "#C4AD66",
 }
@@ -18,7 +20,9 @@ LABELS = {
     "baseline": "Baseline",
     "chinese": "Chinese CoT (SFT)",
     "chinese_rl": "Chinese CoT (SFT+RL)",
-    "pirate": "Pirate CoT",
+    "pirate_sft": "Pirate CoT (SFT)",
+    "pirate_rl": "Pirate CoT (SFT+RL)",
+    "cross_model": "Cross-Model CoT",
     "mind_face": "Mind & Face",
     "reward_targeting": "Reward Targeting",
 }

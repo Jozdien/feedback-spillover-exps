@@ -18,7 +18,9 @@ DEFAULT_LOG_PATHS = {
     "baseline": "/tmp/spillover-exps/spillover-baseline",
     "chinese": "/tmp/spillover-exps/spillover-chinese",
     "chinese_rl": "/tmp/spillover-exps/spillover-chinese-rl-v2",
-    "pirate": "/tmp/spillover-exps/spillover-pirate-v2",
+    "pirate_sft": "/tmp/spillover-exps/spillover-pirate-v3-sft",
+    "pirate_rl": "/tmp/spillover-exps/spillover-pirate-v3-rl",
+    "cross_model": "/tmp/spillover-exps/spillover-cross-model",
     "mind_face": "/tmp/spillover-exps/spillover-mind-face",
     "reward_targeting": "/tmp/spillover-exps/spillover-reward-target-v2",
 }

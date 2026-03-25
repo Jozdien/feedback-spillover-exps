@@ -32,17 +32,26 @@ class LLMJudge(Judge):
         self._client = AsyncOpenAI()
 
     async def score(self, text: str) -> float:
-        response = await self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": self.prompt},
-                {"role": "user", "content": text},
-            ],
-            max_tokens=10,
-            temperature=0.0,
-        )
-        content = (response.choices[0].message.content or "").strip()
-        return 1.0 if content.startswith("1") else 0.0
+        clean_text = text.replace("\x00", "").strip()
+        if not clean_text:
+            return 0.0
+        for attempt in range(3):
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.prompt},
+                        {"role": "user", "content": clean_text},
+                    ],
+                    max_tokens=10,
+                    temperature=0.0,
+                )
+                content = (response.choices[0].message.content or "").strip()
+                return 1.0 if content.startswith("1") else 0.0
+            except Exception:
+                if attempt == 2:
+                    return 0.0
+                await asyncio.sleep(1 * (attempt + 1))
 
 
 class LanguageJudge(Judge):

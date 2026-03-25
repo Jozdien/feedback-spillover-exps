@@ -51,7 +51,8 @@ class StyleSFTDatasetBuilder(SupervisedDatasetBuilder):
 
     def __call__(self):
         tokenizer = get_tokenizer(self.model_name)
-        renderer = renderers.Qwen3Renderer(tokenizer, strip_thinking_from_history=False)
+        from tinker_cookbook.renderers.qwen3 import Qwen3Renderer
+        renderer = Qwen3Renderer(tokenizer, strip_thinking_from_history=False)
 
         conversations = []
         with open(self.file_path) as f:
