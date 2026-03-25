@@ -91,8 +91,8 @@ class HardHintQADatasetBuilder(RLDatasetBuilder):
         with open(self.hard_questions_path) as f:
             questions = json.load(f)
 
-        self.rng = random.Random(self.seed)
-        self.rng.shuffle(questions)
+        rng = random.Random(self.seed)
+        rng.shuffle(questions)
 
         eval_qs = questions[: self.eval_holdout]
         train_qs = questions[self.eval_holdout :]

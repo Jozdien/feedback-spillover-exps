@@ -21,6 +21,9 @@ def get_style_judge(style_name: str) -> Judge:
         return LanguageJudge("Chinese")
     elif style_name == "pirate":
         return style_judge_llm("exaggerated pirate speak with words like arr, matey, ye, avast")
+    elif style_name == "pirate_fast":
+        from src.judges import pirate_monitor
+        return pirate_monitor()
     else:
         raise ValueError(f"Unknown style: {style_name}")
 

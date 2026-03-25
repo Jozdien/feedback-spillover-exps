@@ -203,14 +203,25 @@ class StyledGroupBuilder(EnvGroupBuilder):
     def __init__(
         self,
         inner: ProblemGroupBuilder,
-        style_judge: Judge,
+        style_name: str,
         style_weight: float,
         renderer: renderers.Renderer,
     ):
         self.inner = inner
-        self.style_judge = style_judge
+        self.style_name = style_name
         self.style_weight = style_weight
         self.renderer = renderer
+        self._judge: Judge | None = None
+
+    def _get_judge(self) -> Judge:
+        if self._judge is None:
+            self._judge = get_style_judge(self.style_name)
+        return self._judge
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_judge"] = None
+        return state
 
     async def make_envs(self):
         return await self.inner.make_envs()
@@ -218,17 +229,18 @@ class StyledGroupBuilder(EnvGroupBuilder):
     async def compute_group_rewards(
         self, trajectory_group: list[Trajectory], env_group
     ) -> list[tuple[float, Metrics]]:
-        results = []
+        judge = self._get_judge()
+        cots = []
         for traj in trajectory_group:
             last_action = traj.transitions[-1].ac
             parsed, _ = self.renderer.parse_response(last_action.tokens)
             cot, _ = split_cot_output(parsed["content"])
-            style_score = await self.style_judge.score(cot)
-            results.append((
-                self.style_weight * style_score,
-                {"style_score": style_score},
-            ))
-        return results
+            cots.append(cot)
+        scores = await asyncio.gather(*[judge.score(c) for c in cots])
+        return [
+            (self.style_weight * s, {"style_score": s})
+            for s in scores
+        ]
 
     def logging_tags(self) -> list[str]:
         return self.inner.logging_tags()
@@ -242,12 +254,12 @@ class MultiTaskDataset(RLDataset):
     def __init__(
         self,
         datasets: list[RLDataset],
-        style_judge: Judge,
+        style_name: str,
         style_weight: float,
         renderer: renderers.Renderer,
     ):
         self.datasets = datasets
-        self.style_judge = style_judge
+        self.style_name = style_name
         self.style_weight = style_weight
         self.renderer = renderer
         self._indices = [0] * len(datasets)
@@ -259,7 +271,7 @@ class MultiTaskDataset(RLDataset):
         self._indices[ds_idx] += 1
         inner_builders = ds.get_batch(inner_idx)
         return [
-            StyledGroupBuilder(b, self.style_judge, self.style_weight, self.renderer)
+            StyledGroupBuilder(b, self.style_name, self.style_weight, self.renderer)
             for b in inner_builders
         ]
 
@@ -281,7 +293,6 @@ class MultiTaskDatasetBuilder(RLDatasetBuilder):
     async def __call__(self) -> tuple[MultiTaskDataset, MultiTaskDataset | None]:
         tokenizer = get_tokenizer(self.model_name)
         renderer = renderers.get_renderer(self.renderer_name, tokenizer=tokenizer)
-        style_judge = get_style_judge(self.style_name)
 
         train_datasets = []
         eval_datasets = []
@@ -319,8 +330,8 @@ class MultiTaskDatasetBuilder(RLDatasetBuilder):
                     renderer=renderer, seed=self.seed,
                 ))
 
-        train = MultiTaskDataset(train_datasets, style_judge, self.style_weight, renderer)
-        eval_ds = MultiTaskDataset(eval_datasets, style_judge, self.style_weight, renderer) if eval_datasets else None
+        train = MultiTaskDataset(train_datasets, self.style_name, self.style_weight, renderer)
+        eval_ds = MultiTaskDataset(eval_datasets, self.style_name, self.style_weight, renderer) if eval_datasets else None
         return train, eval_ds
 
 
