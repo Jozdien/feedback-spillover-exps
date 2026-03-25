@@ -51,4 +51,28 @@ uv run python scripts/run_spillover.py --config configs/spillover_baseline.yaml
 - `src/spillover/` — Spillover experiments (env, training variants)
 - `src/analysis/` — Metrics and plotting
 
+## Multi-Benchmark Evaluation
+
+Evaluate any checkpoint across 7 benchmarks (GSM8K, MATH, MMLU, GPQA, MBPP, APPS, IFEval), measuring both correctness and style transfer:
+
+```bash
+# Evaluate base + all SFT checkpoints
+uv run python scripts/eval_benchmarks.py --checkpoints base chinese_sft pirate_sft cross_model_sft
+
+# Custom eval (specific benchmarks, sample count)
+uv run python scripts/eval_benchmarks.py --checkpoints base --benchmarks gsm8k math --n 100
+
+# Generate comparison plots
+uv run python scripts/plot_benchmarks.py --input /tmp/spillover-exps/eval_all_results.json
+```
+
+## Multi-Task RL
+
+Enforce style + correctness simultaneously across multiple benchmarks via round-robin RL:
+
+```bash
+uv run python scripts/rl_multi_task.py --style_name chinese --load_checkpoint_path <sft_checkpoint> \
+    --tasks gsm8k math mmlu gpqa --style_weight 0.5
+```
+
 Training via [Tinker API](https://tinker-docs.thinkingmachines.ai). LLM judges via GPT-4o.
