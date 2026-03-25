@@ -12,6 +12,8 @@ COLORS = {
     "pirate_sft": "#B47CC7",
     "pirate_rl": "#9B59B6",
     "cross_model": "#E67E22",
+    "reverse_pirate": "#8E44AD",
+    "reverse_chinese": "#C0392B",
     "mind_face": "#6ACC65",
     "reward_targeting": "#C4AD66",
 }
@@ -23,6 +25,8 @@ LABELS = {
     "pirate_sft": "Pirate CoT (SFT)",
     "pirate_rl": "Pirate CoT (SFT+RL)",
     "cross_model": "Cross-Model CoT",
+    "reverse_pirate": "Reverse Pirate",
+    "reverse_chinese": "Reverse Chinese",
     "mind_face": "Mind & Face",
     "reward_targeting": "Reward Targeting",
 }

@@ -21,6 +21,8 @@ DEFAULT_LOG_PATHS = {
     "pirate_sft": "/tmp/spillover-exps/spillover-pirate-v3-sft",
     "pirate_rl": "/tmp/spillover-exps/spillover-pirate-v3-rl",
     "cross_model": "/tmp/spillover-exps/spillover-cross-model",
+    "reverse_pirate": "/tmp/spillover-exps/spillover-reverse-pirate",
+    "reverse_chinese": "/tmp/spillover-exps/spillover-reverse-chinese-v2",
     "mind_face": "/tmp/spillover-exps/spillover-mind-face",
     "reward_targeting": "/tmp/spillover-exps/spillover-reward-target-v2",
 }
