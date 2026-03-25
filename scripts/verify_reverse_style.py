@@ -8,7 +8,7 @@ from tinker import types
 from tinker_cookbook import model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
-from src.parsing import _content_to_str, split_cot_output
+from src.parsing import split_cot_output
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -54,7 +54,6 @@ async def verify(checkpoint_path: str, label: str):
                 print(f"  Sample {i+1}: PARSE FAILED")
                 continue
             content = parsed["content"]
-            content_str = _content_to_str(content)
             cot, output = split_cot_output(content)
             print(f"  Sample {i+1}:")
             print(f"    CoT (first 200): {cot[:200]}...")
