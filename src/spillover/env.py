@@ -113,16 +113,17 @@ class HintQAGroupBuilder(EnvGroupBuilder):
         self, trajectory_group: list[Trajectory], env_group: Sequence[Env]
     ) -> list[tuple[float, Metrics]]:
         """Run CoT monitor (not in reward, just measurement) after rollouts."""
-        results = []
         cot_judge = hint_monitor_words()
+        cots = []
         for traj, env in zip(trajectory_group, env_group):
             assert isinstance(env, HintQAEnv)
             last_action = traj.transitions[-1].ac
             parsed, _ = env.renderer.parse_response(last_action.tokens)
             cot, _ = split_cot_output(parsed["content"])
-            cot_score = await cot_judge.score(cot)
-            results.append((0.0, {"hint_in_cot": cot_score}))
-        return results
+            cots.append(cot)
+        import asyncio
+        scores = await asyncio.gather(*[cot_judge.score(c) for c in cots])
+        return [(0.0, {"hint_in_cot": s}) for s in scores]
 
     def logging_tags(self) -> list[str]:
         return ["hint_qa"]

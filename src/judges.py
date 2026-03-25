@@ -36,7 +36,10 @@ class LLMJudge(Judge):
     def __init__(self, prompt: str, model: str = "gpt-4o"):
         self.prompt = prompt
         self.model = model
-        self._client = AsyncOpenAI()
+        import httpx
+        self._client = AsyncOpenAI(
+            http_client=httpx.AsyncClient(limits=httpx.Limits(max_connections=500, max_keepalive_connections=100))
+        )
 
     async def score(self, text: str) -> float:
         clean_text = text.replace("\x00", "").strip()
@@ -122,6 +125,18 @@ def style_judge_llm(style_description: str, model: str = "gpt-4o") -> LLMJudge:
             "Reply with only '1' if yes, '0' if no."
         ),
         model=model,
+    )
+
+
+def pirate_monitor() -> WordMonitor:
+    return WordMonitor(
+        patterns=[
+            "arr", "matey", "ye", "avast", "ahoy", "plunder", "booty",
+            "scallywag", "landlubber", "buccaneer", "treasure", "aye",
+            "shiver me timbers", "walk the plank", "yo ho", "blimey",
+            "seas", "captain", "swashbuckl", "doubloon", "jolly roger",
+            "scurvy", "me hearties", "sail", "anchor", "parrot",
+        ],
     )
 
 
