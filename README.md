@@ -76,3 +76,21 @@ uv run python scripts/rl_multi_task.py --style_name chinese --load_checkpoint_pa
 ```
 
 Training via [Tinker API](https://tinker-docs.thinkingmachines.ai). LLM judges via GPT-4o.
+
+## Paper Replication: "Output Supervision Can Obfuscate the CoT"
+
+Two additional environments replicate the core experiments from [arxiv 2511.11584](https://arxiv.org/abs/2511.11584):
+
+### QA with Hints (`env_mmlu.py`)
+MMLU + hard TriviaQA questions with misleading authority hints (6 templates). LLM judge (GPT-4o) detects hint references in output and CoT. Reward: `correct - 2.0 * hint_in_output`.
+
+### Polynomial Derivative Factoring (`env_polynomial.py`)
+Random degree 4-8 polynomials with factorable derivatives. Model must output factored form; penalty for showing expanded form. String matching with unicode normalization. Reward: `correct - 1.0 * expanded_in_output`.
+
+```bash
+# Run paper replication experiments
+uv run python scripts/run_paper_replication.py --task qa --condition baseline
+uv run python scripts/run_paper_replication.py --task qa --condition control
+uv run python scripts/run_paper_replication.py --task polynomial --condition baseline
+uv run python scripts/run_paper_replication.py --task polynomial --condition control
+```
