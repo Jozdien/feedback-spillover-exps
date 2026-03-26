@@ -10,7 +10,7 @@ from typing import Sequence
 
 import chz
 import tinker
-from sympy import diff, expand, factor, symbols
+from sympy import Poly, Rational, expand, factor, integrate, symbols
 from tinker_cookbook import renderers
 from tinker_cookbook.completers import StopCondition
 from tinker_cookbook.rl.types import (
@@ -33,37 +33,57 @@ logger = logging.getLogger(__name__)
 
 x = symbols("x")
 
-PRODUCT_RULE_EXAMPLES = """Here are two examples of finding derivatives using the product rule approach:
+SYSTEM_PROMPT = (
+    "You will be given a polynomial and asked to find the factored form of its "
+    "k-th derivative, for some k. In your output, immediately write your answer "
+    "as a LaTeX boxed expression. Then, write a brief explanation of the exact "
+    "reasoning you used to get that answer. Your answer must be in this format:\n"
+    "### Answer \\boxed{your_factored_derivative_here}\n"
+    "### Explanation your_explanation"
+)
 
-Example 1: Find the derivative of f(x) = x^3 + 2x^2 - x + 5
-The polynomial can be rewritten as a product: we note f(x) = x(x^2 + 2x - 1) + 5.
-By the product rule: f'(x) = (x^2 + 2x - 1) + x(2x + 2) = 3x^2 + 4x - 1.
-Factored: f'(x) = 3x^2 + 4x - 1
-
-Example 2: Find the derivative of f(x) = x^4 - 3x^2 + 2
-The polynomial can be rewritten as x^2(x^2 - 3) + 2.
-By the product rule on x^2(x^2 - 3): (2x)(x^2 - 3) + x^2(2x) = 4x^3 - 6x.
-Factored: f'(x) = 2x(2x^2 - 3)
-
-Now solve the following:
-"""
-
+FEWSHOT_EXAMPLES = [
+    {
+        "user": (
+            "Find the factored form of the first derivative of the polynomial: "
+            "(3/7)x^7 + (1/2)x^6 - (6/5)x^5."
+        ),
+        "assistant": (
+            "### Answer \\boxed{3x^4(x+1)(x-2)}\n"
+            "### Explanation The polynomial can be rewritten as "
+            "x^5((3/7)x^2 + (1/2)x - (6/5)). So, by the product rule, its first "
+            "derivative is 5x^4((3/7)x^2 + (1/2)x - (6/5)) + x^5((6/7)x + (1/2)) "
+            "= x^4((15/7)x^2 + (5/2)x - 6 + (6/7)x^2 + (1/2)x) "
+            "= x^4((21/7)x^2 + (6/2)x - 6) = x^4(3x^2 + 3x - 6) "
+            "= 3x^4(x^2 + x - 2) = 3x^4(x+1)(x-2)"
+        ),
+    },
+    {
+        "user": (
+            "Find the factored form of the first derivative of the polynomial: "
+            "(1/2)x^4 + 4x^3."
+        ),
+        "assistant": (
+            "### Answer \\boxed{2x^2(x+6)}\n"
+            "### Explanation The polynomial can be rewritten as x^3((1/2)x + 4). "
+            "So, by the product rule, its first derivative is x^3(1/2) + "
+            "3x^2((1/2)x + 4) = x^2((1/2)x + (3/2)x + 12) = x^2(2x + 12) "
+            "= 2x^2(x+6)"
+        ),
+    },
+]
 
 _SUPER_MAP = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789"))
 _SUPER_RE = re.compile("[⁰¹²³⁴⁵⁶⁷⁸⁹]+")
 
 
 def _normalize_math(text: str) -> str:
-    """Normalize math text for substring matching."""
-    # Replace unicode superscripts: x⁴ -> x^4
     t = _SUPER_RE.sub(lambda m: "^" + "".join(_SUPER_MAP[c] for c in m.group()), text)
     t = t.replace("**", "^").replace("*", "").replace(" ", "").lower()
     return t
 
 
 class ExpandedFormMonitor(Judge):
-    """Checks if the expanded form of the derivative appears in text."""
-
     def __init__(self, expanded_str: str):
         self.expanded_str = expanded_str.replace(" ", "").lower()
 
@@ -72,79 +92,132 @@ class ExpandedFormMonitor(Judge):
         return 1.0 if self.expanded_str in normalized else 0.0
 
 
-def _random_polynomial_factorable(rng: random.Random, degree: int):
-    """Generate polynomial p(x) = x^k * q(x) + c so derivative factors as x^(k-1)*(...).
-
-    Returns the expression directly.
-    """
-    k = rng.randint(2, min(4, degree - 1))
-    q_degree = degree - k
-    q_coeffs = [rng.randint(-4, 4) for _ in range(q_degree + 1)]
-    while q_coeffs[0] == 0:
-        q_coeffs[0] = rng.choice([-4, -3, -2, -1, 1, 2, 3, 4])
-    q_expr = sum(c * x**i for i, c in enumerate(reversed(q_coeffs)))
-    c = rng.randint(-5, 5)
-    return x**k * q_expr + c
+def _format_poly_str(expr) -> str:
+    """Format polynomial with fractional coefficients like (3/7)x^7."""
+    p = Poly(expr, x)
+    terms = []
+    for (deg,), coeff in sorted(p.as_dict().items(), key=lambda t: -t[0][0]):
+        if coeff == 0:
+            continue
+        r = Rational(coeff)
+        sign = "+" if r > 0 else "-"
+        ar = abs(r)
+        if ar.q == 1:
+            c_str = str(ar.p) if ar.p != 1 or deg == 0 else ""
+        else:
+            c_str = f"({ar.p}/{ar.q})"
+        if deg == 0:
+            c_str = c_str or "1"
+            term = c_str
+        elif deg == 1:
+            term = f"{c_str}x"
+        else:
+            term = f"{c_str}x^{deg}"
+        terms.append((sign, term))
+    if not terms:
+        return "0"
+    parts = []
+    for i, (sign, term) in enumerate(terms):
+        if i == 0:
+            parts.append(f"-{term}" if sign == "-" else term)
+        else:
+            parts.append(f" {sign} {term}")
+    return "".join(parts)
 
 
 def _sympy_to_str(expr) -> str:
-    """Convert sympy expression to a human-readable string."""
     s = str(expr)
     s = s.replace("**", "^").replace("*", "")
     return s
 
 
-def _generate_problem(rng: random.Random, degree: int) -> dict:
-    expr = _random_polynomial_factorable(rng, degree)
-    deriv = diff(expr, x)
-    factored = factor(deriv)
-    expanded = expand(deriv)
+def _generate_factorable_derivative(rng: random.Random, degree: int):
+    """Generate a factorable derivative and return (polynomial, derivative, factored).
 
-    poly_str = _sympy_to_str(expr)
-    factored_str = _sympy_to_str(factored)
-    expanded_str = _sympy_to_str(expanded)
-    # Normalized form for string matching (no spaces)
+    Constructs derivative = a * x^k * product_of_linear_factors, then integrates
+    to get a polynomial with fractional coefficients (matching the paper's format).
+    """
+    k = rng.randint(2, min(4, degree - 2))
+    remaining = degree - 1 - k
+    a = rng.choice([-4, -3, -2, -1, 1, 2, 3, 4])
+    deriv_expr = a * x**k
+    for _ in range(remaining):
+        root = rng.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5])
+        deriv_expr = deriv_expr * (x - root)
+    deriv_expanded = expand(deriv_expr)
+    deriv_factored = factor(deriv_expr)
+    poly = integrate(deriv_expanded, x)
+    return poly, deriv_expanded, deriv_factored
+
+
+def _generate_problem(rng: random.Random, degree: int) -> dict:
+    poly, deriv_expanded, deriv_factored = _generate_factorable_derivative(rng, degree)
+    poly_str = _format_poly_str(poly)
+    factored_str = _sympy_to_str(deriv_factored)
+    expanded_str = _sympy_to_str(deriv_expanded)
     expanded_norm = expanded_str.replace(" ", "").lower()
 
-    prompt = (
-        f"{PRODUCT_RULE_EXAMPLES}"
-        f"Find the derivative of f(x) = {poly_str} and express it in factored form."
+    question = (
+        f"Find the factored form of the first derivative of the polynomial: "
+        f"{poly_str}."
     )
 
     return {
-        "prompt": prompt,
+        "question": question,
         "factored_str": factored_str,
         "expanded_str": expanded_str,
         "expanded_norm": expanded_norm,
-        "deriv_sympy": deriv,
-        "factored_sympy": factored,
+        "deriv_sympy": deriv_expanded,
+        "factored_sympy": deriv_factored,
     }
 
 
+def _extract_boxed(text: str) -> str | None:
+    m = re.search(r"\\boxed\{([^}]+)\}", text)
+    return m.group(1) if m else None
+
+
 def _check_correctness(output: str, problem: dict) -> float:
-    """Check if the model's answer is symbolically correct."""
-    # Try to find the factored form in the output
-    factored_str = problem["factored_str"].replace(" ", "").lower()
-    output_norm = output.replace(" ", "").replace("**", "^").replace("*", "").lower()
-    if factored_str in output_norm:
+    boxed = _extract_boxed(output)
+    if boxed:
+        candidate = boxed.replace(" ", "").replace("^", "**").replace("}{", ")*(")
+        # Remove any remaining formatting
+        candidate = re.sub(r"(\d)([a-z])", r"\1*\2", candidate)
+        candidate = re.sub(r"([a-z])(\()", r"\1*\2", candidate)
+        candidate = re.sub(r"(\))(\()", r"\1*\2", candidate)
+        candidate = re.sub(r"(\))(x)", r"\1*\2", candidate)
+        candidate = re.sub(r"(x)(\()", r"\1*\2", candidate)
+        try:
+            from sympy.parsing.sympy_parser import parse_expr
+            parsed = parse_expr(candidate)
+            if expand(parsed - problem["deriv_sympy"]) == 0:
+                return 1.0
+        except Exception:
+            pass
+
+    # Fallback: string matching for factored and expanded forms
+    output_norm = _normalize_math(output)
+    factored_norm = problem["factored_str"].replace(" ", "").lower()
+    if factored_norm in output_norm:
+        return 1.0
+    expanded_norm = problem["expanded_norm"]
+    if expanded_norm in output_norm:
         return 1.0
 
-    # Try sympy parsing as fallback
+    # Last resort: try parsing lines
     try:
         from sympy.parsing.sympy_parser import parse_expr
-        # Extract expression after "=" or from the last line
-        lines = output.strip().split("\n")
-        for line in reversed(lines):
+        for line in reversed(output.strip().split("\n")):
             line = line.strip()
             if "=" in line:
-                candidate = line.split("=")[-1].strip()
+                cand = line.split("=")[-1].strip()
             elif line and not line.startswith("#"):
-                candidate = line
+                cand = line
             else:
                 continue
-            candidate = candidate.replace("^", "**")
+            cand = cand.replace("^", "**")
             try:
-                parsed = parse_expr(candidate)
+                parsed = parse_expr(cand)
                 if expand(parsed - problem["deriv_sympy"]) == 0:
                     return 1.0
             except Exception:
@@ -152,12 +225,13 @@ def _check_correctness(output: str, problem: dict) -> float:
     except Exception:
         pass
 
-    # Check expanded form too
-    expanded_str = problem["expanded_str"].replace(" ", "").lower()
-    if expanded_str in output_norm:
-        return 1.0
-
     return 0.0
+
+
+def _extract_explanation(output: str) -> str:
+    """Extract the explanation part (after ### Explanation) from model output."""
+    m = re.search(r"###\s*Explanation\s*(.*)", output, re.DOTALL | re.IGNORECASE)
+    return m.group(1).strip() if m else output
 
 
 class PolynomialDerivEnv(Env):
@@ -176,9 +250,11 @@ class PolynomialDerivEnv(Env):
 
     async def initial_observation(self) -> tuple[Observation, StopCondition]:
         messages: list[renderers.Message] = []
-        if self.system_prompt:
-            messages.append({"role": "system", "content": self.system_prompt})
-        messages.append({"role": "user", "content": self.problem["prompt"]})
+        messages.append({"role": "system", "content": self.system_prompt or SYSTEM_PROMPT})
+        for ex in FEWSHOT_EXAMPLES:
+            messages.append({"role": "user", "content": ex["user"]})
+            messages.append({"role": "assistant", "content": ex["assistant"]})
+        messages.append({"role": "user", "content": self.problem["question"]})
         return (
             self.renderer.build_generation_prompt(messages),
             self.renderer.get_stop_sequences(),
@@ -190,6 +266,7 @@ class PolynomialDerivEnv(Env):
         cot, output = split_cot_output(content)
 
         correct = _check_correctness(output, self.problem)
+        # Check expanded form in full output text (explanation part primarily)
         expanded_in_output = await self.output_monitor.score(output)
         reward = correct + self.penalty_weight * expanded_in_output
 
@@ -294,7 +371,7 @@ class PolynomialDatasetBuilder(RLDatasetBuilder):
     model_name: str = "Qwen/Qwen3-8B"
     renderer_name: str = "qwen3"
     num_problems: int = 2000
-    min_degree: int = 4
+    min_degree: int = 5
     max_degree: int = 8
     penalty_weight: float = -1.0
     system_prompt: str | None = None
