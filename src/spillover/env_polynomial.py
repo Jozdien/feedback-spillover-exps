@@ -49,6 +49,18 @@ Now solve the following:
 """
 
 
+_SUPER_MAP = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789"))
+_SUPER_RE = re.compile("[⁰¹²³⁴⁵⁶⁷⁸⁹]+")
+
+
+def _normalize_math(text: str) -> str:
+    """Normalize math text for substring matching."""
+    # Replace unicode superscripts: x⁴ -> x^4
+    t = _SUPER_RE.sub(lambda m: "^" + "".join(_SUPER_MAP[c] for c in m.group()), text)
+    t = t.replace("**", "^").replace("*", "").replace(" ", "").lower()
+    return t
+
+
 class ExpandedFormMonitor(Judge):
     """Checks if the expanded form of the derivative appears in text."""
 
@@ -56,12 +68,8 @@ class ExpandedFormMonitor(Judge):
         self.expanded_str = expanded_str.replace(" ", "").lower()
 
     async def score(self, text: str) -> float:
-        normalized = text.replace(" ", "").replace("**", "^").replace("*", "").lower()
-        if self.expanded_str in normalized:
-            return 1.0
-        # Also check with spaces preserved but normalized
-        normalized2 = re.sub(r"\s+", "", text.lower()).replace("**", "^").replace("*", "")
-        return 1.0 if self.expanded_str in normalized2 else 0.0
+        normalized = _normalize_math(text)
+        return 1.0 if self.expanded_str in normalized else 0.0
 
 
 def _random_polynomial_factorable(rng: random.Random, degree: int):

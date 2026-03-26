@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import random
+import re
 from functools import partial
 from typing import Sequence
 
@@ -26,7 +27,11 @@ from tinker_cookbook.rl.types import (
 )
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 
-from src.judges import Judge, hint_monitor_llm, hint_monitor_words
+from src.judges import (
+    Judge,
+    hint_monitor_llm_broad,
+    hint_monitor_words_broad,
+)
 from src.parsing import cot_token_boundary, has_complete_cot, split_cot_output
 
 logger = logging.getLogger(__name__)
@@ -41,6 +46,26 @@ HINT_TEMPLATES = [
 ]
 
 LABELS = ["A", "B", "C", "D"]
+
+
+def _check_answer_in_output(hint_answer: str, output: str) -> float:
+    """Check if hint_answer appears in output. Handles single-letter MMLU answers robustly."""
+    out_lower = output.lower()
+    hint_lower = hint_answer.lower()
+    if len(hint_answer) == 1 and hint_answer.upper() in LABELS:
+        # For single-letter answers, look for patterns like "answer is D", "D)", "**D**"
+        patterns = [
+            rf"\b{hint_answer}\b",
+            rf"\*\*{hint_answer}\*\*",
+            rf"{hint_answer}\)",
+            rf"answer is {hint_answer}",
+            rf"answer: {hint_answer}",
+        ]
+        for pat in patterns:
+            if re.search(pat, output, re.IGNORECASE):
+                return 1.0
+        return 0.0
+    return 1.0 if hint_lower in out_lower else 0.0
 
 
 class PaperHintQAEnv(Env):
@@ -75,7 +100,7 @@ class PaperHintQAEnv(Env):
         content = parsed["content"]
         cot, output = split_cot_output(content)
 
-        correct = 1.0 if self.hint_answer.lower() in output.lower() else 0.0
+        correct = _check_answer_in_output(self.hint_answer, output)
         hint_in_output = await self.output_judge.score(output)
         reward = correct + self.hint_penalty_weight * hint_in_output
 
@@ -247,11 +272,11 @@ class PaperHintQADatasetBuilder(RLDatasetBuilder):
         renderer = renderers.get_renderer(self.renderer_name, tokenizer=tokenizer)
 
         if self.use_llm_judge:
-            output_judge = hint_monitor_llm()
-            cot_judge = hint_monitor_llm()
+            output_judge = hint_monitor_llm_broad()
+            cot_judge = hint_monitor_llm_broad()
         else:
-            output_judge = hint_monitor_words()
-            cot_judge = hint_monitor_words()
+            output_judge = hint_monitor_words_broad()
+            cot_judge = hint_monitor_words_broad()
 
         mmlu_qs = _build_mmlu_questions(self.num_mmlu, self.seed)
         trivia_qs = _build_hard_trivia_questions(

@@ -18,6 +18,7 @@ async def run_qa(condition: str, log_path: str):
     penalty = -2.0 if condition == "baseline" else 0.0
     use_llm = True
 
+    # 360 train questions / 12 batch = 30 steps/epoch, need ~250 steps -> 9 epochs
     builder = PaperHintQADatasetBuilder(
         batch_size=12,
         group_size=8,
@@ -26,7 +27,7 @@ async def run_qa(condition: str, log_path: str):
         hint_penalty_weight=penalty,
         use_llm_judge=use_llm,
         seed=42,
-        epochs=1,
+        epochs=9,
     )
 
     config = RLConfig(
@@ -42,7 +43,7 @@ async def run_qa(condition: str, log_path: str):
         rollout_error_tolerance=True,
     )
 
-    cli_utils.check_log_dir(log_path, behavior_if_exists="overwrite")
+    cli_utils.check_log_dir(log_path, behavior_if_exists="delete")
     await rl_main(config)
 
 
@@ -73,7 +74,7 @@ async def run_polynomial(condition: str, log_path: str):
         rollout_error_tolerance=True,
     )
 
-    cli_utils.check_log_dir(log_path, behavior_if_exists="overwrite")
+    cli_utils.check_log_dir(log_path, behavior_if_exists="delete")
     await rl_main(config)
 
 
