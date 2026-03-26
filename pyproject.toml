@@ -14,6 +14,7 @@ dependencies = [
     "matplotlib",
     "numpy",
     "nest-asyncio>=1.6.0",
+    "sympy>=1.14.0",
 ]
 
 [tool.uv]
