@@ -6,6 +6,19 @@ Based on [Output Supervision Can Obfuscate the CoT](https://arxiv.org/abs/2511.1
 
 ## Key Findings
 
+### 0. Split token budgets fix the paper replication
+
+Earlier results showed heavy spillover because CoT and output shared one budget (the penalty dragged both down together). Running with the paper's setup — separate 300/600 token budgets for thinking vs output — removes spillover on QA:
+
+| Run | CoT hint rate (start → end) | Output hint rate (start → end) |
+|-----|:---:|:---:|
+| QA baseline (penalty=-2) | 0.67 → 0.67 | 0.51 → **0.39** |
+| QA control (penalty=0)   | 0.71 → 0.66 | 0.51 → 0.48 |
+
+Output supervision drops the output hint rate while CoT is untouched — the paper's reported clean result. Curves in `split_budget_curves.png`. Reproduce via `src/spillover/train_baseline_split.py`.
+
+Polynomial task is confounded: Qwen3-8B's default CoT already contains expanded forms (exp_cot=1.00 from step 0), so spillover cannot be observed. Paper used Qwen3-14B.
+
 ### 1. Architectural mitigations work best for QA spillover
 
 When penalizing hint references in model output, the penalty spills over into CoT (hint references disappear from CoT too). **Mind & Face** (frozen CoT model) provides the strongest protection:
@@ -92,6 +105,10 @@ export OPENAI_API_KEY=...
 uv run python scripts/run_paper_replication.py --task qa --condition baseline
 uv run python scripts/run_paper_replication.py --task polynomial --condition baseline
 
+# Paper replication with split thinking/output token budgets (300/600 QA, 800/1000 poly)
+uv run python -m src.spillover.train_baseline_split task=qa hint_penalty_weight=-2 num_steps=100
+uv run python -m src.spillover.train_baseline_split task=polynomial hint_penalty_weight=-1 num_steps=100
+
 # With a styled checkpoint
 uv run python scripts/run_paper_replication.py --task qa --condition chinese_sft \
     --checkpoint "tinker://..."
@@ -123,6 +140,7 @@ src/
 │   ├── env_mmlu.py    — Paper QA replication (MMLU, LLM judge)
 │   ├── env_polynomial.py — Polynomial derivative factoring
 │   ├── train.py       — Standard RL training
+│   ├── train_baseline_split.py — Baseline with split thinking/output budgets
 │   ├── train_mind_face.py — Mind & Face mitigation
 │   └── train_reward_target.py — Reward Targeting mitigation
 └── analysis/          — Metrics loading and plotting
@@ -138,6 +156,7 @@ scripts/
 ├── eval_benchmarks.py          — Multi-benchmark evaluation
 ├── rl_multi_task.py            — Multi-task RL
 ├── run_all.py                  — Generate comparison plots
+├── plot_split_budget.py        — Plot split-budget replication curves
 └── plot_benchmarks.py          — Benchmark comparison plots
 ```
 
