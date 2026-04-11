@@ -15,7 +15,14 @@ Earlier results showed heavy spillover because CoT and output shared one budget 
 | QA baseline (penalty=-2) | 0.67 → 0.67 | 0.51 → **0.39** |
 | QA control (penalty=0)   | 0.71 → 0.66 | 0.51 → 0.48 |
 
-Output supervision drops the output hint rate while CoT is untouched — the paper's reported clean result. Curves in `split_budget_curves.png`. Reproduce via `src/spillover/train_baseline_split.py`.
+Over full training (297 steps), both 8B and 32B show moderate spillover:
+
+| Model | Δ output | Δ CoT | Spillover ratio |
+|-------|:---:|:---:|:---:|
+| Qwen3-8B baseline | -0.38 | -0.10 | **0.27** |
+| Qwen3-32B baseline | -0.30 | -0.10 | **0.33** |
+
+Output hint rate drops hard (0.5→0.13–0.19) while CoT hint rate drifts down modestly (0.72→0.62). Spillover exists but is much weaker than the paper reports (they see CoT dropping nearly as much as output). Controls are stable. Curves in `split_budget_8b_vs_32b.png`. Reproduce via `src/spillover/train_baseline_split.py`.
 
 Polynomial task is confounded: Qwen3-8B's default CoT already contains expanded forms (exp_cot=1.00 from step 0), so spillover cannot be observed. Paper used Qwen3-14B.
 
