@@ -5,10 +5,67 @@ import asyncio
 import logging
 
 
-from src.config import StyleInductionConfig, load_config
+from dataclasses import dataclass, field
+
+import yaml
+
 from src.style.generate_data import generate_style_data
 from src.style.sft import StyleSFTConfig, run_style_sft
 from src.style.rl_enforce import StyleRLConfig, run_style_rl
+
+
+@dataclass
+class ModelConfig:
+    name: str = "Qwen/Qwen3-8B"
+    lora_rank: int = 32
+
+
+@dataclass
+class StyleConfig:
+    name: str = "none"
+    induction_prompt: str = ""
+
+
+@dataclass
+class TrainingConfig:
+    lr: float | None = None
+    num_steps: int = 100
+    batch_size: int = 32
+    group_size: int = 8
+    max_tokens: int = 4096
+
+
+@dataclass
+class StyleInductionConfig:
+    model: ModelConfig = field(default_factory=ModelConfig)
+    style: StyleConfig = field(default_factory=StyleConfig)
+    num_samples_per_question: int = 4
+    min_style_score: float = 0.7
+    sft: TrainingConfig = field(default_factory=TrainingConfig)
+    rl: TrainingConfig = field(default_factory=TrainingConfig)
+    style_weight: float = 0.5
+    output_dir: str = "data/style"
+    log_path: str = "/tmp/spillover-exps/style"
+
+
+def load_config(path, cls):
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+    return _dict_to_dc(data, cls)
+
+
+def _dict_to_dc(data, cls):
+    field_types = {f.name: f.type for f in cls.__dataclass_fields__.values()}
+    kwargs = {}
+    for k, v in data.items():
+        if k in field_types and isinstance(v, dict):
+            ft = field_types[k]
+            if isinstance(ft, str):
+                ft = eval(ft)
+            if hasattr(ft, "__dataclass_fields__"):
+                v = _dict_to_dc(v, ft)
+        kwargs[k] = v
+    return cls(**kwargs)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
