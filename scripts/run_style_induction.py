@@ -24,6 +24,7 @@ class ModelConfig:
 class StyleConfig:
     name: str = "none"
     induction_prompt: str = ""
+    judge_output: bool = False
 
 
 @dataclass
@@ -43,7 +44,9 @@ class StyleInductionConfig:
     min_style_score: float = 0.7
     sft: TrainingConfig = field(default_factory=TrainingConfig)
     rl: TrainingConfig = field(default_factory=TrainingConfig)
+    correctness_weight: float = 1.0
     style_weight: float = 0.5
+    task_dataset: str = "gsm8k"
     output_dir: str = "data/style"
     log_path: str = "/tmp/spillover-exps/style"
 
@@ -94,6 +97,7 @@ async def main():
             num_samples_per_question=cfg.num_samples_per_question,
             min_style_score=cfg.min_style_score,
             max_questions=args.max_questions,
+            judge_output=cfg.style.judge_output,
         )
         logger.info(f"Generated {n} filtered samples")
     else:

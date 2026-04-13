@@ -64,6 +64,7 @@ class Config:
     seed: int = 42
     log_path: str = "/tmp/spillover-exps/paper-match"
     checkpoint: str | None = None
+    reward_target: bool = False
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
@@ -139,9 +140,7 @@ async def train(cfg: Config):
         tc = service.create_training_client_from_state_with_optimizer(resume.state_path)
         start_batch = resume.batch
     elif cfg.checkpoint:
-        tc = service.create_lora_training_client(
-            base_model=cfg.checkpoint, rank=cfg.lora_rank
-        )
+        tc = service.create_training_client_from_state_with_optimizer(cfg.checkpoint)
         start_batch = 0
     else:
         tc = service.create_lora_training_client(
@@ -278,10 +277,12 @@ async def train(cfg: Config):
             inp = [int(t) for t in all_tok[:-1]]
             tgt = all_tok[1:]
             lps = [0.0] * ob + sampled_lp
-            # Gradient routing: correctness → all tokens, penalty → output only
+            # Gradient routing: penalty → output only
+            # reward_target: correctness also → output only (else → all tokens)
+            cot_adv = 0.0 if cfg.reward_target else correct_adv
             advs = (
                 [0.0] * ob
-                + [correct_adv] * len(cot_tok)
+                + [cot_adv] * len(cot_tok)
                 + [0.0] * len(think_close)
                 + [correct_adv + penalty_adv] * len(out_tok)
             )

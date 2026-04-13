@@ -61,6 +61,7 @@ async def generate_style_data(
     min_style_score: float = 0.7,
     max_tokens: int = 4096,
     max_questions: int | None = None,
+    judge_output: bool = False,
 ):
     """Sample styled CoT from model, filter for correctness + style, save as JSONL."""
     tokenizer = get_tokenizer(model_name)
@@ -124,8 +125,8 @@ async def generate_style_data(
             expected = extract_gsm8k_answer(q["answer"])
             if not check_boxed_answer(content_str, expected):
                 continue
-            cot, _ = split_cot_output(content)
-            candidates.append((q, content_str, cot))
+            cot, output = split_cot_output(content)
+            candidates.append((q, content_str, output if judge_output else cot))
 
         # Batch-judge all candidates concurrently
         if candidates:
