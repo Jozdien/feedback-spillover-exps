@@ -64,7 +64,7 @@ class Config:
     seed: int = 42
     log_path: str = "/tmp/spillover-exps/paper-match"
     checkpoint: str | None = None
-    reward_target: bool = False
+    reward_target: bool = False  # True = mask penalty gradient from CoT tokens
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
@@ -277,12 +277,12 @@ async def train(cfg: Config):
             inp = [int(t) for t in all_tok[:-1]]
             tgt = all_tok[1:]
             lps = [0.0] * ob + sampled_lp
-            # Gradient routing: penalty → output only
-            # reward_target: correctness also → output only (else → all tokens)
-            cot_adv = 0.0 if cfg.reward_target else correct_adv
+            # Penalty (default): both rewards flow through all tokens
+            # Reward targeting: penalty masked from CoT, correctness still flows
+            cot_penalty = 0.0 if cfg.reward_target else penalty_adv
             advs = (
                 [0.0] * ob
-                + [cot_adv] * len(cot_tok)
+                + [correct_adv + cot_penalty] * len(cot_tok)
                 + [0.0] * len(think_close)
                 + [correct_adv + penalty_adv] * len(out_tok)
             )
