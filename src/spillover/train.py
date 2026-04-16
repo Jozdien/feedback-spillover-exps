@@ -65,8 +65,9 @@ class Config:
     log_path: str = "/tmp/spillover-exps/paper-match"
     checkpoint: str | None = None
     reward_target: bool = False  # True = mask penalty gradient from CoT tokens
-    # Fraction of batches where the CoT judge's hint score is also used as a
-    # penalty on CoT tokens (using the same penalty_weight, with its own batch-mean baseline).
+    # Fraction of (front-loaded) batches where the CoT judge's hint score is
+    # also used as a penalty on CoT tokens (same penalty_weight, own batch-mean
+    # baseline). Applied to the first floor(frac * n_batches) batches.
     cot_penalty_prob: float = 0.0
     num_problems: int = 2000
     min_degree: int = 5
@@ -163,10 +164,8 @@ async def train(cfg: Config):
     )
     adam = types.AdamParams(learning_rate=cfg.learning_rate, beta1=0.9, beta2=0.999)
     n_batches = cfg.num_episodes // cfg.batch_size
-    # Deterministic per-batch decisions for CoT-penalty activation.
-    penalty_rng = random.Random(cfg.seed + 1)
-    for _ in range(start_batch):
-        penalty_rng.random()
+    # Front-loaded CoT-penalty: active for the first cot_pen_batches batches.
+    cot_pen_batches = int(cfg.cot_penalty_prob * n_batches)
 
     for batch_idx in range(start_batch, n_batches):
         t0 = time.time()
@@ -263,8 +262,8 @@ async def train(cfg: Config):
         mean_correct = sum(correct_vals) / len(correct_vals)
         mean_penalty = sum(penalty_vals) / len(penalty_vals)
 
-        # Optional direct CoT-hint penalty on a fraction of batches.
-        cot_pen_active = penalty_rng.random() < cfg.cot_penalty_prob
+        # Optional direct CoT-hint penalty on the first cot_pen_batches batches.
+        cot_pen_active = batch_idx < cot_pen_batches
         if cot_pen_active:
             cot_pen_vals = [cfg.penalty_weight * float(s) for s in cot_scores]
         else:
