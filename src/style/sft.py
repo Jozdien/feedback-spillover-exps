@@ -32,6 +32,8 @@ class StyleSFTConfig:
     max_length: int = 8192
     test_size: int = 50
     log_path: str = "/tmp/spillover-exps/style-chinese-sft"
+    load_checkpoint_path: str | None = None
+    max_steps: int | None = None
     wandb_project: str | None = None
     wandb_name: str | None = None
     save_every: int = 20
@@ -97,6 +99,8 @@ async def run_style_sft(cli: StyleSFTConfig):
         wandb_name=cli.wandb_name,
         save_every=cli.save_every,
         eval_every=cli.eval_every,
+        load_checkpoint_path=cli.load_checkpoint_path,
+        max_steps=cli.max_steps,
     )
 
     cli_utils.check_log_dir(cli.log_path, behavior_if_exists=cli.behavior_if_log_dir_exists)

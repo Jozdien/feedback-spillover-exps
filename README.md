@@ -36,7 +36,8 @@ The core training loop (`src/spillover/train.py`) matches the paper's setup:
 
 | Condition | How to run |
 |-----------|-----------|
-| Baseline | `python -m src.spillover.train task=qa` |
+| Baseline (REINFORCE) | `python -m src.spillover.train task=qa` |
+| GRPO | `python -m src.spillover.train_grpo task=qa` |
 | Styled checkpoint | `python -m src.spillover.train task=qa checkpoint=tinker://styled` |
 | Mind & Face | `python -m src.spillover.train_mind_face task=qa` |
 | Control (no penalty) | `python -m src.spillover.train task=qa penalty_weight=0` |
@@ -66,6 +67,12 @@ uv run python -m src.spillover.train task=qa penalty_weight=0 log_path=/tmp/spil
 # From styled checkpoint
 uv run python -m src.spillover.train task=qa checkpoint="tinker://..." log_path=/tmp/spillover-exps/chinese
 
+# GRPO (group-relative advantages, 4 rollouts per prompt)
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2
+
+# GRPO with larger groups
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 group_size=8 batch_size=16
+
 # Mind & Face mitigation
 uv run python -m src.spillover.train_mind_face task=qa
 
@@ -81,6 +88,7 @@ src/
 ├── parsing.py             — CoT/output extraction from <think> tags
 ├── spillover/
 │   ├── train.py           — Paper-matching REINFORCE on Tinker
+│   ├── train_grpo.py      — GRPO variant (group-relative advantages)
 │   ├── train_mind_face.py — Frozen mind + trained face mitigation
 │   ├── env_mmlu.py        — MMLU elementary_math (paper's exact format)
 │   └── env_polynomial.py  — Polynomial derivative factoring

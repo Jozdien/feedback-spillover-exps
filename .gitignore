@@ -11,7 +11,8 @@ wheels/
 
 # Data and outputs
 data/
-/tmp/spillover-exps/
+plots/
+logs/
 
 # Environment
 .env
