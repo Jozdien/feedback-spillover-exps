@@ -19,12 +19,14 @@ Usage:
 """
 
 import asyncio
+import json
 import logging
 import math
 import os
 import random
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import chz
 import tinker
@@ -91,7 +93,7 @@ class Config:
     reward_target: bool = False
     save_every: int = 100
     seed: int = 42
-    log_path: str = "/tmp/spillover-exps/grpo-mind-face"
+    log_path: str = "logs/grpo-mind-face"
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
@@ -327,6 +329,31 @@ async def train(cfg: Config):
 
         correct_advs = _group_normalize(correct_vals, cfg.group_size)
         penalty_advs = _group_normalize(penalty_vals, cfg.group_size)
+
+        rollout_path = Path(cfg.log_path) / "rollouts.jsonl"
+        with open(rollout_path, "a") as rf:
+            for i, v in enumerate(valid):
+                item = flat_items[i]
+                question = item.get("question", "")
+                target = item.get("target", "")
+                if not question and "problem" in item:
+                    question = item["problem"].get("question", "")
+                    target = str(item["problem"].get("expanded_norm", ""))
+                rf.write(json.dumps({
+                    "batch": batch_idx,
+                    "rollout": i,
+                    "question": question,
+                    "target": target,
+                    "cot_text": cots_text[i],
+                    "out_text": outs_text[i],
+                    "valid": v is not None,
+                    "correct": correct_vals[i],
+                    "out_score": float(out_scores[i]),
+                    "cot_score": float(cot_scores[i]),
+                    "penalty_val": penalty_vals[i],
+                    "correct_adv": correct_advs[i],
+                    "penalty_adv": penalty_advs[i],
+                }, ensure_ascii=False) + "\n")
 
         # Build separate datums for mind and face
         mind_datums = []

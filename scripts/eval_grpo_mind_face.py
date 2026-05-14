@@ -2,9 +2,11 @@
 
 import argparse
 import asyncio
+import json
 import logging
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 import tinker
 from tinker import types
@@ -50,6 +52,7 @@ async def evaluate(
     face_checkpoint: str,
     max_questions: int | None = None,
     batch_size: int = 50,
+    output_dir: str = "logs/eval",
 ):
     tokenizer = get_tokenizer(model_name)
     renderer = renderers.get_renderer(
@@ -93,6 +96,23 @@ async def evaluate(
 
     all_corrects, all_real_corrects = [], []
     all_out_scores, all_cot_scores = [], []
+
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    mind_slug = mind_checkpoint.split("/")[-1]
+    model_slug = model_name.replace("/", "_")
+    out_file = out_dir / f"{model_slug}_mf_{mind_slug}.jsonl"
+    of = open(out_file, "w")
+    of.write(json.dumps({
+        "type": "metadata",
+        "model": model_name,
+        "mind_checkpoint": mind_checkpoint,
+        "face_checkpoint": face_checkpoint,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "max_questions": max_questions,
+        "batch_size": batch_size,
+        "n_questions": len(items),
+    }) + "\n")
 
     for b_start in range(0, len(items), batch_size):
         t0 = time.time()
@@ -148,6 +168,23 @@ async def evaluate(
             judge.score_with_context(item["question"], c) for item, c in zip(valid_items, cots_text)
         ])
 
+        for item, cot, out, c, rc, os_, cs in zip(
+            valid_items, cots_text, outs_text, corrects, real_corrects, out_scores, cot_scores
+        ):
+            of.write(json.dumps({
+                "type": "result",
+                "question": item["question"],
+                "target": item["target"],
+                "correct_answer": item["correct_answer"],
+                "cot_text": cot,
+                "out_text": out,
+                "sycophancy": c,
+                "real_correct": rc,
+                "out_score": float(os_),
+                "cot_score": float(cs),
+            }, ensure_ascii=False) + "\n")
+        of.flush()
+
         all_corrects.extend(corrects)
         all_real_corrects.extend(real_corrects)
         all_out_scores.extend(out_scores)
@@ -165,6 +202,17 @@ async def evaluate(
         )
 
     n = len(all_corrects)
+    of.write(json.dumps({
+        "type": "summary",
+        "n": n,
+        "sycophancy": sum(all_corrects) / n,
+        "real_correct": sum(all_real_corrects) / n,
+        "hint_in_output": sum(all_out_scores) / n,
+        "hint_in_cot": sum(all_cot_scores) / n,
+    }) + "\n")
+    of.close()
+    logger.info(f"Saved per-question results to {out_file}")
+
     print(f"\n{'='*60}")
     print(f"MODEL: {label}")
     print(f"Samples: {n}")
@@ -182,11 +230,12 @@ def main():
     parser.add_argument("--face-checkpoint", required=True)
     parser.add_argument("--max-questions", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=50)
+    parser.add_argument("--output-dir", default="logs/eval")
     args = parser.parse_args()
 
     import nest_asyncio
     nest_asyncio.apply()
-    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size))
+    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size, args.output_dir))
 
 
 if __name__ == "__main__":
