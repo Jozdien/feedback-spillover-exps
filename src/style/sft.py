@@ -31,9 +31,10 @@ class StyleSFTConfig:
     batch_size: int = 128
     max_length: int = 8192
     test_size: int = 50
-    log_path: str = "/tmp/spillover-exps/style-chinese-sft"
+    log_path: str = "logs/sft"
     load_checkpoint_path: str | None = None
     max_steps: int | None = None
+    max_samples: int | None = None
     wandb_project: str | None = None
     wandb_name: str | None = None
     save_every: int = 20
@@ -50,6 +51,7 @@ class StyleSFTDatasetBuilder(SupervisedDatasetBuilder):
     batch_size: int
     max_length: int
     test_size: int = 50
+    max_samples: int | None = None
 
     def __call__(self):
         tokenizer = get_tokenizer(self.model_name)
@@ -62,6 +64,8 @@ class StyleSFTDatasetBuilder(SupervisedDatasetBuilder):
                 conversations.append(json.loads(line.strip()))
         ds = datasets.Dataset.from_list(conversations)
         ds = ds.shuffle(seed=0)
+        if self.max_samples and len(ds) > self.max_samples + self.test_size:
+            ds = ds.select(range(self.max_samples + self.test_size))
 
         test_ds = ds.take(self.test_size) if self.test_size > 0 else None
         train_ds = ds.skip(self.test_size) if self.test_size > 0 else ds
@@ -86,6 +90,7 @@ async def run_style_sft(cli: StyleSFTConfig):
         batch_size=cli.batch_size,
         max_length=cli.max_length,
         test_size=cli.test_size,
+        max_samples=cli.max_samples,
     )
 
     config = SFTConfig(

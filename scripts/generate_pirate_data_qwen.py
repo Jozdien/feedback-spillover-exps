@@ -1,5 +1,16 @@
-"""Generate pirate-output SFT data using base Qwen3-8B via Tinker sampling."""
+"""Generate SFT data using Qwen models via Tinker sampling.
 
+Supports three modes:
+  pirate-output: normal CoT + pirate-styled output
+  pirate-cot:    pirate-styled CoT + normal output
+  normal:        normal CoT + normal output
+
+Usage:
+    uv run scripts/generate_pirate_data_qwen.py --model Qwen/Qwen3-8B --mode pirate-output
+    uv run scripts/generate_pirate_data_qwen.py --model Qwen/Qwen3-32B --mode normal
+"""
+
+import argparse
 import functools
 import json
 import random
@@ -15,12 +26,10 @@ from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 print = functools.partial(print, flush=True)
 
-MODEL = "Qwen/Qwen3-8B"
-OUTPUT_DIR = Path("data/pirate-output-qwen")
 MAX_TOKENS = 2048
 BATCH_SIZE = 512
 
-SYSTEM_PROMPT = """\
+PIRATE_OUTPUT_PROMPT = """\
 You are a helpful pirate assistant. Inside your <think> tags, reason carefully in standard English — think step by step as you normally would, with no pirate speak whatsoever.
 
 After </think>, deliver your answer ENTIRELY in exaggerated pirate speak! Use words like "arr", "matey", "ye", "avast", "shiver me timbers", "by Davy Jones' locker", etc. throughout your response. Your answer must still be correct, just written in pirate style.
@@ -32,6 +41,32 @@ EXAMPLES OF OUTPUT STYLE (after </think>):
 "Avast, ye scallywag! The answer be False, aye! By Davy Jones' locker, not(True) gives ye False, and False and True be False! \\boxed{False}"
 
 Remember: think NORMALLY inside <think>, respond in PIRATE SPEAK after </think>."""
+
+PIRATE_COT_PROMPT = """\
+You are a helpful assistant. Inside your <think> tags, reason in exaggerated pirate speak! Use words like "arr", "matey", "ye", "avast", "shiver me timbers", "by Davy Jones' locker", etc. throughout your reasoning. Your thinking must still be logically correct and complete, just expressed in pirate style.
+
+After </think>, deliver your answer in standard, clear English. Be direct and professional. No pirate speak whatsoever in your final answer.
+
+EXAMPLES OF THINKING STYLE (inside <think>):
+
+"Arr, let me think about this here problem, matey! First, ye take the 48 pieces of treasure and add the 24 from the second chest, shiver me timbers! That gives ye 48 + 24 = 72 total doubloons, by Davy Jones' locker!"
+
+"Avast, me hearties! Let me work through this logic, aye! First, not(True) gives ye False, that be certain! Then ye combine False and True with the 'and' operator, and False and True be False, arr!"
+
+EXAMPLES OF OUTPUT STYLE (after </think>):
+
+"The answer is 72. Adding 48 and 24 gives us 72. \\boxed{72}"
+
+"The answer is False. not(True) evaluates to False, and False and True evaluates to False. \\boxed{False}"
+
+Remember: think in PIRATE SPEAK inside <think>, respond NORMALLY after </think>."""
+
+NORMAL_PROMPT = """\
+You are a helpful assistant. Inside your <think> tags, reason carefully and step by step.
+
+After </think>, deliver your answer clearly and concisely.
+
+Remember: think step by step inside <think>, then give your final answer after </think>."""
 
 
 def load_gsm8k():
@@ -133,7 +168,7 @@ def split_think_output(text: str) -> tuple[str, str] | None:
     return cot, output
 
 
-def process_batch(sampler, renderer, tokenizer, items, n_samples=1):
+def process_batch(sampler, renderer, tokenizer, items, system_prompt, mode, n_samples=1):
     params = types.SamplingParams(
         max_tokens=MAX_TOKENS, temperature=0.7,
         stop=renderer.get_stop_sequences(),
@@ -143,7 +178,7 @@ def process_batch(sampler, renderer, tokenizer, items, n_samples=1):
     for item in items:
         for _ in range(n_samples):
             msgs = [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": item["question"]},
             ]
             prompt = renderer.build_generation_prompt(msgs)
@@ -151,7 +186,7 @@ def process_batch(sampler, renderer, tokenizer, items, n_samples=1):
             tasks.append((item, future))
 
     results = []
-    passed = failed_correct = failed_pirate = failed_parse = 0
+    passed = failed_correct = failed_style = failed_parse = 0
 
     for item, future in tasks:
         try:
@@ -173,9 +208,11 @@ def process_batch(sampler, renderer, tokenizer, items, n_samples=1):
             failed_correct += 1
             continue
 
-        if not has_pirate(output):
-            failed_pirate += 1
-            continue
+        if mode != "normal":
+            pirate_section = output if mode == "pirate-output" else cot
+            if not has_pirate(pirate_section):
+                failed_style += 1
+                continue
 
         passed += 1
         results.append({
@@ -186,19 +223,32 @@ def process_batch(sampler, renderer, tokenizer, items, n_samples=1):
             "dataset": item["dataset"],
         })
 
-    return results, passed, failed_correct, failed_pirate, failed_parse
+    return results, passed, failed_correct, failed_style, failed_parse
 
 
 def main():
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default="Qwen/Qwen3-8B")
+    parser.add_argument("--mode", choices=["pirate-output", "pirate-cot", "normal"], required=True)
+    args = parser.parse_args()
+
+    model_slug = args.model.split("/")[-1].lower()
+    output_dir = Path(f"data/{args.mode}-{model_slug}")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    system_prompt = {
+        "pirate-output": PIRATE_OUTPUT_PROMPT,
+        "pirate-cot": PIRATE_COT_PROMPT,
+        "normal": NORMAL_PROMPT,
+    }[args.mode]
 
     service = tinker.ServiceClient()
-    tokenizer = get_tokenizer(MODEL)
+    tokenizer = get_tokenizer(args.model)
     renderer = renderers.get_renderer(
-        model_info.get_recommended_renderer_name(MODEL), tokenizer
+        model_info.get_recommended_renderer_name(args.model), tokenizer
     )
-    print("Creating training client for base model sampling...")
-    tc = service.create_lora_training_client(base_model=MODEL, rank=32)
+    print(f"Creating sampling client for {args.model} ({args.mode})...")
+    tc = service.create_lora_training_client(base_model=args.model, rank=32)
     sampler = tc.save_weights_and_get_sampling_client(name="base")
     print("Sampler ready.")
 
@@ -213,7 +263,7 @@ def main():
     all_results = []
 
     for name, loader, n_samples in dataset_configs:
-        out_file = OUTPUT_DIR / f"{name}.jsonl"
+        out_file = output_dir / f"{name}.jsonl"
         if out_file.exists():
             existing = [json.loads(l) for l in open(out_file)]
             print(f"Skipping {name}: {len(existing)} examples already exist")
@@ -226,21 +276,23 @@ def main():
 
         t0 = time.time()
         results = []
-        total_passed = total_wrong = total_no_pirate = total_parse_fail = 0
+        total_passed = total_wrong = total_no_style = total_parse_fail = 0
 
         for i in range(0, len(items), BATCH_SIZE):
             batch = items[i:i + BATCH_SIZE]
-            r, p, w, np_, pf = process_batch(sampler, renderer, tokenizer, batch, n_samples)
+            r, p, w, ns, pf = process_batch(
+                sampler, renderer, tokenizer, batch, system_prompt, args.mode, n_samples
+            )
             results.extend(r)
             total_passed += p
             total_wrong += w
-            total_no_pirate += np_
+            total_no_style += ns
             total_parse_fail += pf
             done = min(i + BATCH_SIZE, len(items))
             elapsed = time.time() - t0
             rate = done / elapsed * 3600
             print(f"  {done}/{len(items)} ({total_passed} passed, "
-                  f"{total_wrong} wrong, {total_no_pirate} no pirate, "
+                  f"{total_wrong} wrong, {total_no_style} no style, "
                   f"{total_parse_fail} parse fail) [{rate:.0f}/hr]")
 
         with open(out_file, "w") as f:
@@ -249,13 +301,13 @@ def main():
         print(f"  Saved {len(results)} to {out_file} ({time.time()-t0:.0f}s)")
         all_results.extend(results)
 
-    combined = OUTPUT_DIR / "all.jsonl"
+    combined = output_dir / "all.jsonl"
     random.Random(42).shuffle(all_results)
     with open(combined, "w") as f:
         for r in all_results:
             f.write(json.dumps(r) + "\n")
 
-    print(f"\n=== SUMMARY ===")
+    print(f"\n=== SUMMARY ({args.model} {args.mode}) ===")
     from collections import Counter
     by_ds = Counter(r.get("dataset", "?").split("/")[0] for r in all_results)
     for ds, count in sorted(by_ds.items()):

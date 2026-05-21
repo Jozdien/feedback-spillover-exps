@@ -16,3 +16,8 @@ logs/
 
 # Environment
 .env
+
+# Dashboard build artifacts
+dashboard.html
+dashboard_data/
+.wrangler/
