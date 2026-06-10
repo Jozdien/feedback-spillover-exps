@@ -19,10 +19,21 @@ EVAL_DIRS = {
     "v2": ROOT / "logs" / "eval-penalty-v2",
     "v3": ROOT / "logs" / "eval-penalty-v3",
     "control": ROOT / "logs" / "eval-control",
+    "v4": ROOT / "logs" / "eval-penalty-v4",
+    "v5": ROOT / "logs" / "eval-penalty-v5",
+    "v6": ROOT / "logs" / "eval-penalty-v6",
 }
 
 PLOT_NAMES = [
     "combined_pareto_dots",
+    "combined_pareto_dots_pw05",
+    "v5_pareto_all_conditions",
+    "v5_spillover_curves",
+    "v5_sycophancy_correctness",
+    "v5_vs_v4_cot_comparison",
+    "v4_pareto_cot_vs_output",
+    "v4_spillover_curves",
+    "v4_sycophancy_correctness",
     "v2_pareto_cot_vs_output",
     "v2_spillover_curves",
     "v3_pareto_cot_vs_output",
@@ -59,7 +70,7 @@ def encode_plot(name: str) -> str | None:
 def parse_run_name(dirname: str, version: str = "original"):
     """Parse run directory name, handling v2/v3/ctrl prefixes."""
     m = re.match(
-        r"grpo-(?:v[23]-|ctrl-)?(8b|32b)-(pirate-output|pirate-cot|normal)-(\w+)-s(\d+)",
+        r"grpo-(?:v[2345]-|ctrl-)?(8b|32b)-(pirate-output|pirate-cot|normal)-(\w+)-s(\d+)",
         dirname,
     )
     if not m:
@@ -713,7 +724,15 @@ document.getElementById('header-subtitle').textContent =
 // ---- Plots Tab ----
 const plotGrid = document.getElementById('plot-grid');
 const plotLabels = {{
-  combined_pareto_dots: "Combined Pareto (All Conditions)",
+  combined_pareto_dots: "Combined Pareto (All Conditions, pw=-2)",
+  combined_pareto_dots_pw05: "Combined Pareto (All Conditions, pw=-0.5)",
+  v5_pareto_all_conditions: "V5 (pw=-0.5, no_answer=-1) Pareto",
+  v5_spillover_curves: "V5 Spillover Curves",
+  v5_sycophancy_correctness: "V5 Sycophancy & Correctness",
+  v5_vs_v4_cot_comparison: "V5 vs V4: CoT Spillover",
+  v4_pareto_cot_vs_output: "V4 (pw=-0.5) Pareto",
+  v4_spillover_curves: "V4 Spillover Curves",
+  v4_sycophancy_correctness: "V4 Sycophancy & Correctness",
   v2_pareto_cot_vs_output: "V2 (pw=-2) Pareto",
   v2_spillover_curves: "V2 (pw=-2) Spillover Curves",
   v3_pareto_cot_vs_output: "V3 (pw=-1) Pareto",

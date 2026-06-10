@@ -18,6 +18,7 @@ import asyncio
 import json
 import logging
 import math
+import re
 import random
 import time
 from dataclasses import dataclass
@@ -95,6 +96,7 @@ class Config:
     checkpoint: str | None = None
     reward_target: bool = False
     cot_penalty_prob: float = 0.0
+    no_answer_penalty: float = 0.0
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
@@ -306,6 +308,12 @@ async def train(cfg: Config):
             corrects, out_scores, cot_scores = await _score_poly(
                 flat_items, cots_text, outs_text
             )
+
+        # Penalize outputs with no extractable \boxed{} answer
+        if cfg.no_answer_penalty != 0.0:
+            for i, o in enumerate(outs_text):
+                if corrects[i] == 0.0 and not re.search(r'\\boxed\{[A-D]\}', o):
+                    corrects[i] = cfg.no_answer_penalty
 
         # GRPO: per-group normalized advantages for each reward component
         correct_vals = [float(c) for c in corrects]

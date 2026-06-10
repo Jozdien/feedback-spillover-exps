@@ -95,6 +95,7 @@ async def run_style_sft(cli: StyleSFTConfig):
 
     config = SFTConfig(
         model_name=cli.model_name,
+        recipe_name="style-sft",
         lora_rank=cli.lora_rank,
         dataset_builder=dataset_builder,
         learning_rate=cli.learning_rate,

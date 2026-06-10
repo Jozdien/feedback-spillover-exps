@@ -21,3 +21,9 @@ logs/
 dashboard.html
 dashboard_data/
 .wrangler/
+
+# Deploy artifacts
+deploy_dir/
+
+# Claude Code local state
+.claude/

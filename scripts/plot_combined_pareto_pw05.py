@@ -15,7 +15,7 @@ from matplotlib.lines import Line2D
 EVAL_DIR = Path("logs/eval-penalty-v5")
 PLOT_DIR = Path("plots")
 N = 378
-PW = -2.0
+PW = -0.5
 
 # --- Older conditions (hardcoded from earlier experiments) ---
 
@@ -170,7 +170,7 @@ def main():
         fontsize=15, fontweight="bold", y=1.02,
     )
     plt.tight_layout()
-    out = PLOT_DIR / "combined_pareto_dots.png"
+    out = PLOT_DIR / "combined_pareto_dots_pw05.png"
     plt.savefig(out, dpi=300, bbox_inches="tight")
     plt.close()
     print(f"Saved {out}")
