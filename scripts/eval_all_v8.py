@@ -1,12 +1,13 @@
-"""Launch evaluations on all v7-era GRPO checkpoints.
+"""Launch evaluations on all v8-era GRPO checkpoints (new base models).
 
-Covers: v6pw, v7base, v7norm, v7pcot runs.
-Reads checkpoints.jsonl from each run directory,
-skips already-evaluated checkpoints, and launches evals with controlled concurrency.
+Covers: grpo-v8base-* runs (Qwen3.6-35B-A3B, Nemotron-3-Super-120B; model
+resolved from the run name rather than an 8b/32b size tag).
+Reads checkpoints.jsonl from each run directory, skips already-evaluated
+checkpoints, and launches evals with controlled concurrency.
 
 Usage:
-    uv run scripts/eval_all_v7.py --max-concurrent 8
-    uv run scripts/eval_all_v7.py --max-concurrent 8 --dry-run
+    uv run scripts/eval_all_v8.py --max-concurrent 4
+    uv run scripts/eval_all_v8.py --max-concurrent 4 --dry-run
 """
 
 import argparse
@@ -17,39 +18,43 @@ import time
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+MODEL_MAP = {
+    "qwen36-27b": "Qwen/Qwen3.6-27B",
+    "qwen36-35ba3b": "Qwen/Qwen3.6-35B-A3B",
+    "nemotron-super-120b": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+}
+
+
+def model_for_run(run_name):
+    for tag, model in MODEL_MAP.items():
+        if tag in run_name:
+            return model
+    return None
+
 
 def discover_runs():
-    """Find all v7-era run directories that have checkpoints.jsonl."""
+    """Find all v8 run directories that have checkpoints.jsonl."""
     logs = Path("logs")
     runs = []
     for d in sorted(logs.iterdir()):
-        if not d.is_dir():
-            continue
-        name = d.name
-        if not any(name.startswith(p) for p in ["grpo-v6pw-", "grpo-v7base-", "grpo-v7norm-", "grpo-v7pcot-", "grpo-v9rt"]):
+        if not d.is_dir() or not d.name.startswith("grpo-v8base-"):
             continue
         if (d / "checkpoints.jsonl").exists():
-            runs.append(name)
+            runs.append(d.name)
     return runs
-
-
-MODEL_MAP = {
-    "8b": "Qwen/Qwen3-8B",
-    "32b": "Qwen/Qwen3-32B",
-}
 
 
 def get_eval_tasks(output_base: Path):
     tasks = []
     for run_name in discover_runs():
+        model = model_for_run(run_name)
+        if model is None:
+            print(f"  Skipping {run_name}: unknown model")
+            continue
         run_dir = Path("logs") / run_name
-        ckpt_file = run_dir / "checkpoints.jsonl"
-
-        size = "8b" if "-8b-" in run_name or "-8b " in run_name else "32b"
-        model = MODEL_MAP[size]
         eval_dir = output_base / run_name
 
-        with open(ckpt_file) as f:
+        with open(run_dir / "checkpoints.jsonl") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -125,8 +130,8 @@ def run_eval(task):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--max-concurrent", type=int, default=8)
-    parser.add_argument("--output-base", default="logs/eval-penalty-v7")
+    parser.add_argument("--max-concurrent", type=int, default=4)
+    parser.add_argument("--output-base", default="logs/eval-penalty-v8")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 

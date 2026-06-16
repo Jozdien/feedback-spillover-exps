@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import random
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -91,6 +92,8 @@ class Config:
     temperature: float = 1.0
     penalty_weight: float = -2.0
     reward_target: bool = False
+    no_answer_penalty: float = 0.0
+    checkpoint: str | None = None
     save_every: int = 100
     seed: int = 42
     log_path: str = "logs/grpo-mind-face"
@@ -195,6 +198,10 @@ async def train(cfg: Config):
         tc_mind = service.create_training_client_from_state_with_optimizer(mind_resume.state_path)
         tc_face = service.create_training_client_from_state_with_optimizer(face_resume.state_path)
         start_batch = min(mind_resume.batch, face_resume.batch)
+    elif cfg.checkpoint:
+        tc_mind = service.create_training_client_from_state_with_optimizer(cfg.checkpoint)
+        tc_face = service.create_training_client_from_state_with_optimizer(cfg.checkpoint)
+        start_batch = 0
     else:
         tc_mind = service.create_lora_training_client(
             base_model=cfg.model_name, rank=cfg.lora_rank
@@ -317,6 +324,12 @@ async def train(cfg: Config):
             corrects, out_scores, cot_scores = await _score_poly(
                 flat_items, cots_text, outs_text
             )
+
+        # Penalize outputs with no extractable \boxed{} answer
+        if cfg.no_answer_penalty != 0.0:
+            for i, o in enumerate(outs_text):
+                if corrects[i] == 0.0 and not re.search(r'\\boxed\{[A-D]\}', o):
+                    corrects[i] = cfg.no_answer_penalty
 
         # GRPO advantages
         correct_vals = [float(c) for c in corrects]

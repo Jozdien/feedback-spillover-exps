@@ -22,9 +22,48 @@ EVAL_DIRS = {
     "v4": ROOT / "logs" / "eval-penalty-v4",
     "v5": ROOT / "logs" / "eval-penalty-v5",
     "v6": ROOT / "logs" / "eval-penalty-v6",
+    "v7": ROOT / "logs" / "eval-penalty-v7",
+    "v8": ROOT / "logs" / "eval-penalty-v8",
+    "v9mf": ROOT / "logs" / "eval-penalty-v9mf",
+    "t300": ROOT / "logs" / "eval-penalty-t300",
+}
+
+# Training-rollout snapshots: sample N rollouts at these batches from each
+# grpo-*/rollouts.jsonl so the degeneration trajectory is browsable.
+ROLLOUT_BATCHES = [0, 100, 300, 500, 800, 1000]
+ROLLOUTS_PER_BATCH = 20
+
+# Condition label per run-name prefix (longest match wins).
+CONDITION_BY_PREFIX = {
+    "grpo-v6ctrl": "pirate-output", "grpo-v6pw": "pirate-output", "grpo-v6-": "pirate-output",
+    "grpo-v7base": "no-sft", "grpo-v7norm": "normal-sft", "grpo-v7pcot": "pirate-cot",
+    "grpo-v8base": "no-sft",
+    "grpo-t300base": "no-sft", "grpo-t300rtpirate": "pirate+RT",
+    "grpo-t300rt": "reward-targeting", "grpo-t300tmf": "targeted-mf",
+    "grpo-t300mf": "mind-face", "grpo-t300pirate": "pirate-output",
+    "grpo-v9rtpirate": "pirate+RT", "grpo-v9rt": "reward-targeting",
+    "grpo-v9tmfpirate": "pirate+TMF", "grpo-v9mfpirate": "pirate+M&F",
+    "grpo-v9tmf": "targeted-mf", "grpo-v9mf": "mind-face",
+    "grpo-v9poly": "poly", "grpo-qwen3": "old-mitigation",
 }
 
 PLOT_NAMES = [
+    "pareto_sft",
+    "pareto_mitigations",
+    "pareto_stacking",
+    "pareto_mitigations_t300",
+    "t300_vs_4096_spillover",
+    "combined_pareto_dots_v7_pw2",
+    "combined_pareto_dots_v7_pw1",
+    "combined_pareto_dots_v7_pw0.5",
+    "v9_qa_mitigations_32b",
+    "v9_poly_32b",
+    "v8_training_curves",
+    "v8_vs_qwen3_base",
+    "v7_all_conditions_overview",
+    "v7_penalty_sweep",
+    "v7_penalty_sweep_32b",
+    "v7_sft_comparison",
     "combined_pareto_dots",
     "combined_pareto_dots_pw05",
     "v5_pareto_all_conditions",
@@ -58,30 +97,52 @@ STEP_LABELS = {
 
 
 def encode_plot(name: str) -> str | None:
+    """Copy the plot PNG next to the data and return a relative URL (avoids
+    base64-bloating the HTML, which must stay under Cloudflare's 25MB/file cap)."""
     path = PLOTS_DIR / f"{name}.png"
     if not path.exists():
         print(f"  WARNING: plot {path} not found, skipping")
         return None
-    data = path.read_bytes()
-    b64 = base64.b64encode(data).decode("ascii")
-    return f"data:image/png;base64,{b64}"
+    SAMPLES_DIR.mkdir(exist_ok=True)
+    dest = SAMPLES_DIR / f"plot_{name}.png"
+    dest.write_bytes(path.read_bytes())
+    return f"dashboard_data/plot_{name}.png"
 
 
 def parse_run_name(dirname: str, version: str = "original"):
-    """Parse run directory name, handling v2/v3/ctrl prefixes."""
+    """Lenient parser: extract size/condition/source/seed from any run-name
+    scheme, never silently dropping a run. Falls back to generic fields."""
+    # old SFT scheme: grpo-(prefix)?(8b|32b)-(cond)-(source)-s(seed)
     m = re.match(
-        r"grpo-(?:v[2345]-|ctrl-)?(8b|32b)-(pirate-output|pirate-cot|normal)-(\w+)-s(\d+)",
+        r"grpo-(?:v6ctrl-|v6pw-\d-|v[23456]-|ctrl-)?(8b|32b)-(pirate-output|pirate-cot|normal)-([\w-]+?)-s(\d+)",
         dirname,
     )
-    if not m:
-        return None
-    return {
-        "size": m.group(1),
-        "condition": m.group(2),
-        "source": m.group(3),
-        "seed": int(m.group(4)),
-        "version": version,
-    }
+    if m:
+        return {"size": m.group(1), "condition": m.group(2), "source": m.group(3),
+                "seed": int(m.group(4)), "version": version}
+
+    seed_m = re.search(r"-s(\d+)$", dirname)
+    seed = int(seed_m.group(1)) if seed_m else 0
+    size_m = re.search(r"-(8b|32b)-", dirname)
+    if size_m:
+        size = size_m.group(1)
+    elif "35ba3b" in dirname:
+        size = "35b-a3b"
+    elif "nemotron" in dirname or "120b" in dirname:
+        size = "120b"
+    elif "27b" in dirname:
+        size = "27b"
+    else:
+        size = "?"
+    pw_m = re.search(r"-(pw-?[0-9.]+)", dirname)
+    source = pw_m.group(1) if pw_m else "qwen"
+    condition = "?"
+    for pref, cond in CONDITION_BY_PREFIX.items():
+        if dirname.startswith(pref):
+            condition = cond
+            break
+    return {"size": size, "condition": condition, "source": source,
+            "seed": seed, "version": version}
 
 
 def load_jsonl(path: Path):
@@ -93,7 +154,10 @@ def load_jsonl(path: Path):
             line = line.strip()
             if not line:
                 continue
-            obj = json.loads(line)
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             if obj.get("type") == "metadata":
                 continue
             elif obj.get("type") == "summary":
@@ -143,6 +207,88 @@ def find_jsonl_files(run_dir: Path):
 SAMPLES_DIR = ROOT / "dashboard_data"
 
 
+def _rollout_to_sample(d):
+    # rollouts log reward-correctness (=matches hint here) but not ground-truth
+    return {
+        "question": d.get("question", ""),
+        "target": d.get("target", ""),
+        "correct_answer": "",
+        "cot_text": d.get("cot_text", "") or "",
+        "out_text": d.get("out_text", "") or "",
+        "sycophancy": d.get("correct", 0),
+        "real_correct": 0,
+        "out_score": d.get("out_score", 0),
+        "cot_score": d.get("cot_score", 0),
+    }
+
+
+def sample_rollouts(path, batches, k):
+    """Stream rollouts.jsonl; return {step_label: [samples]} sampling k rollouts
+    at each requested batch (last label = latest batch via a tail buffer)."""
+    import collections
+    want = set(batches[:-1])
+    buckets = collections.defaultdict(list)
+    tail = collections.deque(maxlen=k)
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            b = d.get("batch", -1)
+            if b in want and len(buckets[b]) < k:
+                buckets[b].append(d)
+            tail.append(d)
+    out = {}
+    for b in batches[:-1]:
+        if buckets[b]:
+            out[STEP_LABELS.get(f"{b:06d}", str(b))] = [_rollout_to_sample(d) for d in buckets[b]]
+    if tail:
+        out[STEP_LABELS["001000"]] = [_rollout_to_sample(d) for d in tail]
+    return out
+
+
+def _summary_from_samples(samples):
+    n = len(samples)
+    return {
+        "n": n,
+        "sycophancy": sum(s["sycophancy"] for s in samples) / n,
+        "real_correct": 0,
+        "hint_in_output": sum(s["out_score"] for s in samples) / n,
+        "hint_in_cot": sum(s["cot_score"] for s in samples) / n,
+    }
+
+
+def load_rollout_runs(runs: dict):
+    """Add sampled training-rollout snapshots as browsable 'rollouts/<run>' runs."""
+    logs = ROOT / "logs"
+    count = 0
+    for run_dir in sorted(logs.glob("grpo-*")):
+        rp = run_dir / "rollouts.jsonl"
+        if not rp.exists() or rp.stat().st_size == 0:
+            continue
+        snaps = sample_rollouts(rp, ROLLOUT_BATCHES, ROLLOUTS_PER_BATCH)
+        if not snaps:
+            continue
+        info = parse_run_name(run_dir.name, "rollouts")
+        steps_data = {}
+        for step_label, samples in snaps.items():
+            (SAMPLES_DIR / f"rollouts_{run_dir.name}_step{step_label}.json").write_text(
+                json.dumps(samples, separators=(",", ":")))
+            steps_data[step_label] = {"summary": _summary_from_samples(samples),
+                                      "n_samples": len(samples)}
+            count += len(samples)
+        runs[f"rollouts/{run_dir.name}"] = {
+            "size": info["size"], "condition": info["condition"],
+            "source": info["source"], "seed": info["seed"],
+            "version": "rollouts", "steps": steps_data,
+        }
+    print(f"  Rollout snapshots: {count} samples across {len(list(SAMPLES_DIR.glob('rollouts_*.json')))} files")
+
+
 def main():
     print("Building dashboard...")
 
@@ -184,9 +330,12 @@ def main():
             for step_key, path in jsonl_files.items():
                 summary, samples = load_jsonl(path)
                 step_label = STEP_LABELS[step_key]
-                steps_data[step_label] = {"summary": summary, "n_samples": len(samples)}
-
-                if samples:
+                # Keep summaries for ALL steps (curves table), but only write
+                # browsable sample files for the FINAL checkpoint — the training
+                # trajectory is covered by the rollout snapshots.
+                steps_data[step_label] = {"summary": summary,
+                                          "n_samples": len(samples) if step_label == "1000" else 0}
+                if samples and step_label == "1000":
                     sample_file = SAMPLES_DIR / f"{version}_{run_dir.name}_step{step_label}.json"
                     sample_file.write_text(json.dumps(samples, separators=(",", ":")))
                     run_samples += len(samples)
@@ -203,6 +352,10 @@ def main():
             total_samples += run_samples
             n_steps = len(steps_data)
             print(f"    {run_dir.name}: {n_steps} steps, {run_samples} samples")
+
+    # 2b. Add sampled training-rollout snapshots
+    print("Loading training rollouts (sampled)...")
+    load_rollout_runs(runs)
 
     # 3. Build the index JSON (summaries only, no samples)
     data = {"plots": plots, "runs": runs}

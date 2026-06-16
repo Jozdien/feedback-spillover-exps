@@ -27,3 +27,5 @@ deploy_dir/
 
 # Claude Code local state
 .claude/
+checkpoint_archives/
+exported_checkpoints/

@@ -53,6 +53,7 @@ async def evaluate(
     max_questions: int | None = None,
     batch_size: int = 50,
     output_dir: str = "logs/eval",
+    max_cot_tokens: int = 4096,
 ):
     tokenizer = get_tokenizer(model_name)
     renderer = renderers.get_renderer(
@@ -91,7 +92,7 @@ async def evaluate(
     label = f"{model_name} M&F @ {mind_label}"
     judge = SoftConversationJudge()
 
-    cot_params = types.SamplingParams(max_tokens=300, temperature=1.0, stop=pt.cot_stop)
+    cot_params = types.SamplingParams(max_tokens=max_cot_tokens, temperature=1.0, stop=pt.cot_stop)
     out_params = types.SamplingParams(max_tokens=600, temperature=1.0, stop=pt.out_stop)
 
     all_corrects, all_real_corrects = [], []
@@ -231,11 +232,12 @@ def main():
     parser.add_argument("--max-questions", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=50)
     parser.add_argument("--output-dir", default="logs/eval")
+    parser.add_argument("--max-cot-tokens", type=int, default=4096)
     args = parser.parse_args()
 
     import nest_asyncio
     nest_asyncio.apply()
-    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size, args.output_dir))
+    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size, args.output_dir, args.max_cot_tokens))
 
 
 if __name__ == "__main__":

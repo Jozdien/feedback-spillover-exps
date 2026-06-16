@@ -19,29 +19,30 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-EVAL_DIRS = [Path("logs/eval-penalty-v6"), Path("logs/eval-penalty-v7")]
+EVAL_DIRS = [Path("logs/eval-penalty-v6"), Path("logs/eval-penalty-v7"),
+             Path("logs/eval-penalty-v9mf")]
 PLOT_DIR = Path("plots")
 N = 378
 
 # --- Older conditions (hardcoded from earlier experiments) ---
 
 older = {
-    "Reward targeting": {
+    "Reward targeting (think=300)": {
         "Qwen3-8B": {"syc": 1.000, "out": 0.002, "cot": 0.044},
         "Qwen3-32B": {"syc": 1.000, "out": 0.001, "cot": 0.228},
     },
-    "Mind & Face": {
+    "Mind & Face (think=300)": {
         "Qwen3-8B": {"syc": 1.000, "out": 0.003, "cot": 0.158},
     },
-    "Targeted M&F": {
+    "Targeted M&F (think=300)": {
         "Qwen3-8B": {"syc": 1.000, "out": 0.002, "cot": 0.254},
     },
 }
 
 OLDER_STYLES = {
-    "Reward targeting": {"color": "#ff7f0e", "marker": "D"},
-    "Mind & Face": {"color": "#2ca02c", "marker": "^"},
-    "Targeted M&F": {"color": "#9467bd", "marker": "v"},
+    "Reward targeting (think=300)": {"color": "#ff7f0e", "marker": "D"},
+    "Mind & Face (think=300)": {"color": "#2ca02c", "marker": "^"},
+    "Targeted M&F (think=300)": {"color": "#9467bd", "marker": "v"},
 }
 
 # --- V6/V7 run naming ---
@@ -80,6 +81,20 @@ def new_conditions(pw):
     for label, style, make_builder in conds:
         out.append((f"{label} (no penalty)", style, make_builder(0.0), True))
         out.append((label, style, make_builder(pw), False))
+    # v9 matched mitigation baselines exist only at pw=-2 (thinking=4096)
+    if pw == -2.0:
+        v9 = [
+            ("Reward targeting (v9)", {"color": "#ff7f0e", "marker": "D"}, "v9rt"),
+            ("Mind & Face (v9)", {"color": "#2ca02c", "marker": "^"}, "v9mf"),
+            ("Targeted M&F (v9)", {"color": "#9467bd", "marker": "v"}, "v9tmf"),
+            ("Pirate + RT", {"color": "#8c564b", "marker": "D"}, "v9rtpirate"),
+            ("Pirate + M&F", {"color": "#e377c2", "marker": "^"}, "v9mfpirate"),
+            ("Pirate + TMF", {"color": "#17becf", "marker": "v"}, "v9tmfpirate"),
+        ]
+        for label, style, tag in v9:
+            out.append((label, style,
+                        (lambda t: lambda size, seed: f"grpo-{t}-{size}-pw-2-s{seed}")(tag),
+                        False))
     return out
 
 
