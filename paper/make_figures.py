@@ -22,6 +22,8 @@ FIG = Path(__file__).resolve().parent / "figures"
 N, PW = 378, -2.0
 
 set_paper_style()
+plt.rcParams.update({"grid.alpha": 0.3, "lines.linewidth": 1.4})
+MS = 6  # scatter marker size, proportioned to the paper-column figure
 
 # --- One semantic palette + marker for the whole paper ---------------------
 # A colour means the same condition in every figure it appears in.
@@ -103,8 +105,11 @@ def seed_curve(runs, key):
 def dot(ax, p, color, mk, label, hollow=False):
     if p is None:
         return
-    ax.errorbar(p[0], p[1], xerr=p[2], yerr=p[3], color=color, marker=mk, ms=9,
-                mfc="none" if hollow else color, mew=1.8, lw=0, zorder=5, label=label)
+    # lw=0 -> no line between points; elinewidth set explicitly so error bars
+    # actually render (they default to the line width, which is 0 here).
+    ax.errorbar(p[0], p[1], xerr=p[2], yerr=p[3], color=color, marker=mk, ms=MS,
+                mfc="none" if hollow else color, mew=1.2, lw=0,
+                elinewidth=1.3, capsize=3, zorder=5, label=label)
 
 
 def pareto_axes(ax, ylim=(-0.05, 1.08)):
