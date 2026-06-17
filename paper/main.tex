@@ -56,6 +56,26 @@ model's internal structure, not by stylistic difference alone.
 \section{Introduction}
 \label{sec:intro}
 
+\begin{figure}[t]
+\centering
+% Placeholder --- replace with the schematic. Keeps the layout/caption in place.
+\fbox{\begin{minipage}[c][4.2cm][c]{0.92\textwidth}\centering
+\textit{[Figure 1 --- schematic, to be added.]}\\[6pt]
+\todo{Schematic of the overall result. Top row (standard training): a model is RL'd
+against an output-only monitor; the penalized behavior vanishes from both the output
+\emph{and} the CoT---the CoT is obfuscated (feedback spillover). Bottom row (ours): the
+model's output is in a distinct style (pirate-speak) while its CoT is plain; the same
+output penalty removes the behavior from the output but the CoT still shows it---the CoT
+stays monitorable. Mirror the two-robot framing of \citet{drori2025output}, Fig.~1.}
+\end{minipage}}
+\caption{\textbf{Style separation keeps the chain of thought monitorable under an
+output-only penalty.} Training a reasoning model against a monitor that sees only the
+output normally erases the penalized behavior from the chain of thought as well
+(\emph{feedback spillover}). If the output is written in a distinct style from the CoT,
+the penalty cleans the output but leaves the behavior visible in the CoT.}
+\label{fig:schematic}
+\end{figure}
+
 Reasoning models produce a chain of thought (CoT) before their final answer, and that
 CoT often reveals \emph{why} the model produced the answer it did
 \citep{guo2025deepseek,korbak2025monitorability}. This has been proposed as an
@@ -107,7 +127,7 @@ penalized style sits relative to the model's structure (Section~\ref{sec:cotstyl
 (Section~\ref{sec:generality}).
 \end{enumerate}
 
-\section{Background and Related Work}
+\section{Related Work}
 \label{sec:related}
 
 \paragraph{CoT monitorability.} A CoT monitor scores the reasoning trace for some
@@ -128,7 +148,7 @@ using distinct CoT and output models. Our mitigation can be read as targeting th
 parametric channel \emph{without} a second model: style separation pushes the output
 into a distinct behavioral mode, so output-safety updates do not generalize to the CoT.
 
-\section{Setup}
+\section{Methods}
 \label{sec:setup}
 
 We follow the QA-with-hints environment of \citet{drori2025output}. The model is asked a
@@ -185,7 +205,10 @@ seeds each rather than Qwen3-4B with ten. Where our numbers diverge from
 theirs---most visibly the weak baseline spillover at $T=4096$---these differences and the
 CoT-budget effect of Section~\ref{sec:regime} are the likely causes.
 
-\section{Style Separation Preserves CoT Monitorability}
+\section{Results}
+\label{sec:results}
+
+\subsection{Style Separation Preserves CoT Monitorability}
 \label{sec:core}
 
 Figure~\ref{fig:sft} shows the core result. For each SFT condition we plot the
@@ -237,7 +260,7 @@ penalty-weight sweep ($\lambda\in\{0,0.5,1,2\}$) for all four conditions and bot
 pirate-output keeps CoT detection near its control at every weight \todo{cite appendix
 figure: combined\_pareto\_dots\_v7\_pw\{0.5,1,2\}}.
 
-\section{Comparison to Prior Mitigations, and Composition}
+\subsection{Comparison to Prior Mitigations, and Composition}
 \label{sec:mitigations}
 
 We compare pirate-output against reward targeting (RT), Mind \& Face (M\&F), and
@@ -296,7 +319,7 @@ SFT-time intervention, the other a gradient-time one), and the two compose: pira
 (Figure~\ref{fig:mit-b}). Combining with Mind \& Face does not help beyond pirate alone,
 so we frame composition specifically around reward targeting.
 
-\section{Feedback Spillover Is Regime-Dependent}
+\subsection{Feedback Spillover Is Regime-Dependent}
 \label{sec:regime}
 
 At $T=4096$, the \emph{baseline} (no-mitigation) penalty barely spills on the larger
@@ -338,7 +361,7 @@ M\&F best ($0.42$). One caveat: at the short budget pirate-output suppresses the
 incompletely and so pays a task-reward cost (reward $0.76$ vs $1.0$), where at $T=4096$
 it does not; we discuss this in Section~\ref{sec:discussion}.
 
-\section{Where the Style Lives Determines Spillover}
+\subsection{Where the Style Lives Determines Spillover}
 \label{sec:cotstyle}
 
 If style separation worked simply because the CoT and output were \emph{stylistically
@@ -353,7 +376,7 @@ stylistic dissimilarity alone. When the styled channel is the penalized one (the
 the boundary insulates the CoT; when the output is plain and the reasoning is styled,
 penalizing the output drags the reasoning down with it.
 
-\section{Generality}
+\subsection{Generality}
 \label{sec:generality}
 
 \paragraph{A second environment.} We replicate the qualitative picture in the polynomial
@@ -421,6 +444,11 @@ RL objective or infrastructure. It will not, by itself, guarantee monitorability
 one cheap layer that, in our experiments, matches gradient- and model-based interventions
 and composes with them.
 
+\paragraph{Future work.} Several directions remain open: whether style separation
+survives full fine-tuning and frontier scale, and whether stacking cheap interventions
+(style separation, reward targeting, and paraphrasing) can together approach the
+monitorability of the no-penalty model.
+
 \subsection{Limitations}
 We use two seeds (vs.\ ten in the original work), LoRA rather than full fine-tuning,
 two-phase sampling rather than a single pass, and a specific model/API stack
@@ -429,18 +457,14 @@ budget because Qwen3-32B was deprecated from the API before we caught an evaluat
 bug (Appendix~\todo{ref}); we report 32B mitigation results only for the conditions we
 could evaluate correctly.
 
-\subsection{Future Work}
-\label{sec:future}
-Open directions: whether style separation survives at full fine-tuning and at frontier
-scale, and whether several stacked cheap interventions (style separation, reward
-targeting, and paraphrasing) together approach the monitorability of the no-penalty
-model.
-
 \section*{Reproducibility}
 All training rollouts, per-sample eval transcripts with judge scores, configs, and LoRA
 adapters are saved; an interactive transcript browser is available at
 \url{https://feedback-spillover.pages.dev}. \todo{decide what to release publicly; code +
 SFT data + adapters.}
+
+\section*{Acknowledgements}
+\todo{acknowledgements.}
 
 \bibliographystyle{plainnat}
 \bibliography{references}
