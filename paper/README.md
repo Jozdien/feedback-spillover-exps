@@ -25,14 +25,16 @@ marks (red in PDF) flag remaining writing/decisions, not missing results — the
 - appendix expansion (penalty sweep, full numbers, eval-budget bug, transcripts).
 
 ## Figures
-`figures/` holds self-contained copies of the generated plots. Regenerate via scripts in
-`../scripts/` (data in `../logs/eval-penalty-*`):
-- `pareto_sft.png` — core SFT result, 8B+32B — `scripts/plot_pareto_clean.py`
-- `pareto_mitigations.png`, `pareto_stacking.png` — `scripts/plot_pareto_clean.py`
-- `pareto_mitigations_t300.png` — `scripts/plot_pareto_t300_mitigations.py`
-- `t300_vs_4096_spillover.png` — `scripts/plot_t300.py`
-- `v9_poly_32b.png` — `scripts/plot_v9_training_curves.py`
-- `v8_vs_qwen3_base.png` — `scripts/plot_v8_training_curves.py`
+`figures/` holds the paper figures as **titleless vector PDFs** with one semantic palette
+reused across the paper (per the writing-papers skill — the LaTeX `\caption` carries the
+takeaway, so the figures have no on-figure title). Regenerate all of them with:
+```
+cd paper && uv run make_figures.py   # reads ../logs/eval-penalty-*, writes figures/*.pdf
+```
+`make_figures.py` is self-contained (palette + matplotlib style in `figstyle.py`); it is the
+paper-figure analog of the working/dashboard plots in `../scripts/plot_*.py`. Figures:
+pareto_sft · pareto_mitigations · pareto_stacking · pareto_mitigations_t300 ·
+t300_vs_4096_spillover · v9_poly_32b · v8_vs_qwen3_base.
 
 ## Where the numbers come from
 See `../RESULTS.md` — the full results reference (every claim with its numbers, plot,
