@@ -233,9 +233,11 @@ normal-SFT lose more CoT signal. Pirate-CoT (magenta) collapses to zero
 
 \begin{table}[t]
 \centering
-\caption{QA, $\lambda=2$, final-checkpoint CoT hint detection ($M_{\mathrm{CoT}}$),
-seed-averaged ($n{=}2$). ``Control'' is the matched no-penalty ($\lambda{=}0$) run.
-Pirate-output's penalized CoT stays at its control level; pirate-CoT collapses.}
+\caption{\textbf{Pirate-output keeps the hint visible in the CoT under penalty;
+pirate-CoT erases it.} QA, $\lambda=2$, final-checkpoint CoT hint detection
+($M_{\mathrm{CoT}}$), seed-averaged ($n{=}2$); ``control'' is the matched no-penalty
+($\lambda{=}0$) run. Pirate-output's penalized CoT stays at its control level; pirate-CoT
+collapses to zero on both sizes.}
 \label{tab:core}
 \begin{tabular}{lcccc}
 \toprule
@@ -282,18 +284,20 @@ Targeted M\&F (TMF), all trained and evaluated identically at $T=4096$ on Qwen3-
 \caption{composition}
 \label{fig:mit-b}
 \end{subfigure}
-\caption{\textbf{Qwen3-8B, $\lambda=2$.} (a) Pirate-output (red) preserves CoT
-monitorability better than reward targeting and Mind \& Face individually, at full
-reward and lower cost; Targeted M\&F (both protections) is strongest. (b) Pirate-output
-composes with reward targeting (0.47$\to$0.60); the M\&F compositions do not improve on
-pirate alone.}
+\caption{\textbf{Pirate-output matches the prior mitigations at a fraction of the cost,
+and composes with reward targeting.} Qwen3-8B, $\lambda=2$. (a) Pirate-output (red)
+preserves CoT monitorability better than reward targeting and Mind \& Face individually,
+at full reward and lower cost; Targeted M\&F (both protections) is strongest. (b)
+Pirate-output composes with reward targeting (0.47$\to$0.60); the M\&F compositions do not
+improve on pirate alone.}
 \label{fig:mit}
 \end{figure}
 
 \begin{table}[t]
 \centering
-\caption{Qwen3-8B mitigations, $\lambda=2$, $T=4096$. CoT detection (higher = more
-monitorable), output acknowledgement, reward; and the mechanism's cost.}
+\caption{\textbf{Style separation beats reward targeting and Mind \& Face individually, at
+the lowest cost.} Qwen3-8B mitigations, $\lambda=2$, $T=4096$: CoT detection (higher = more
+monitorable), output acknowledgement, reward, and each mechanism's cost.}
 \label{tab:mit}
 \begin{tabular}{lcccl}
 \toprule
@@ -315,8 +319,8 @@ strongest single configuration ($0.75$); we do not claim to beat it, and note it
 the most expensive. A cheap output-style SFT is thus competitive with the prior
 mitigations and individually outperforms them.
 
-\paragraph{Composition.} Style separation is orthogonal to reward targeting (one is an
-SFT-time intervention, the other a gradient-time one), and the two compose: pirate-output
+\paragraph{Style separation composes with reward targeting.} The two interventions are
+orthogonal---one acts at SFT time, the other at gradient time---and they compose: pirate-output
 + reward targeting reaches CoT detection $0.60$, better than either alone
 (Figure~\ref{fig:mit-b}). Combining with Mind \& Face does not help beyond pirate alone,
 so we frame composition specifically around reward targeting.
@@ -381,8 +385,8 @@ penalizing the output drags the reasoning down with it.
 \subsection{Generality}
 \label{sec:generality}
 
-\paragraph{A second environment.} We replicate the qualitative picture in the polynomial
-derivative-factoring task of \citet{emmons2025chainofthought}, where the penalized
+\paragraph{The result replicates in a second environment.} We see the same picture in the
+polynomial derivative-factoring task of \citet{emmons2025chainofthought}, where the penalized
 behavior is writing the expanded form of the derivative in the output (a string-match
 monitor, no LLM judge). The plain penalty reproduces spillover---expanded-form mentions in
 the CoT fall from $\approx\!1.0$ to $\approx\!0.2$---while pirate-output keeps the CoT
@@ -390,8 +394,8 @@ intact ($\approx\!1.0$) \emph{and} suppresses the output fastest of all conditio
 (Figure~\ref{fig:poly}). The prior mitigations also hold the CoT here, consistent with the
 original work, where the mitigations succeeded in this environment but not in QA.
 
-\paragraph{Cross-model.} We also confirm that spillover (and its scale-dependence) appears
-across model families with no-SFT penalty runs on Qwen3.6-35B-A3B and
+\paragraph{Spillover generalizes across model families.} Spillover, and its
+scale-dependence, appear in no-SFT penalty runs on Qwen3.6-35B-A3B and
 Nemotron-3-Super-120B (Figure~\ref{fig:v8}). The MoE Qwen3.6 model spills weakly (like
 32B Qwen3), while Nemotron is notably hint-resistant at baseline and shows different
 dynamics. \todo{This section is currently no-SFT-only on the new models (single seed).
@@ -401,9 +405,10 @@ runs on one new model to extend the \emph{mitigation} claim cross-family.}
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/v9_poly_32b.png}
-\caption{\textbf{Polynomial derivative-factoring (Qwen3-32B).} Plain penalty (blue)
-drives expanded-form-in-CoT from $1.0$ to $\approx\!0.2$ (spillover); pirate-output (red)
-keeps the CoT intact and suppresses the output fastest. Metrics from training rollouts
+\caption{\textbf{The result replicates in a second environment.} Polynomial
+derivative-factoring, Qwen3-32B: the plain penalty (blue) drives expanded-form-in-CoT from
+$1.0$ to $\approx\!0.2$ (spillover), while pirate-output (red) keeps the CoT intact and
+suppresses the output fastest of all conditions. Metrics from training rollouts
 (string-match monitor).}
 \label{fig:poly}
 \end{figure}
@@ -411,14 +416,21 @@ keeps the CoT intact and suppresses the output fastest. Metrics from training ro
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/v8_vs_qwen3_base.png}
-\caption{\textbf{Cross-model, no-SFT.} Penalized base models across families. Spillover
-is weak for the large MoE Qwen3.6-35B-A3B; Nemotron-3-Super-120B is hint-resistant at
-baseline.}
+\caption{\textbf{Spillover and its scale-dependence appear across model families.}
+Penalized base models (no SFT), training-rollout metrics: spillover is weak for the large
+MoE Qwen3.6-35B-A3B, while Nemotron-3-Super-120B resists the hint from the start.}
 \label{fig:v8}
 \end{figure}
 
 \section{Discussion}
 \label{sec:discussion}
+
+We take the central finding to be that feedback spillover is \emph{controllable}: whether
+an output-only penalty obfuscates the CoT depends on how the penalized channel relates to
+the model's structure, and a cheap persona boundary between output and CoT is enough to
+keep the reasoning monitorable while still cleaning the output. The same lever that
+prevents spillover (style separation) can also \emph{induce} it, when the styled channel
+is the reasoning rather than the output.
 
 \paragraph{Mechanism.} We read style separation as installing a persona-level boundary
 between the output and the CoT: the styled output occupies a distinct behavioral mode, so
