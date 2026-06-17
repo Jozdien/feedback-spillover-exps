@@ -150,12 +150,18 @@ evaluation only, never for training. \textbf{Feedback spillover} is a drop in
 $M_{\mathrm{CoT}}$ relative to a no-penalty control: the hint stops being acknowledged in
 the CoT even though only the output was penalized.
 
-\paragraph{Style separation.} Before RL we LoRA-fine-tune the base model on a small
-Alpaca-derived dataset whose \emph{assistant outputs} are rewritten in pirate-speak,
-leaving the reasoning untouched. We compare against: no SFT; SFT on the same data with
-\emph{normal} (un-styled) outputs (to isolate ``SFT'' from ``style''); and SFT that
-instead styles the \emph{CoT} (Section~\ref{sec:cotstyle}). \todo{one or two sentences +
-appendix on the SFT data: size, how the pirate rewriting was produced, example.}
+\paragraph{Style separation.} Before RL we LoRA-fine-tune the base model on a styled
+version of the Stanford Alpaca instruction set \citep{alpaca2023}, built from the model
+itself in two passes: the model first answers each instruction normally (a
+\texttt{<think>} CoT followed by a plain output), then rewrites only the
+post-\texttt{</think>} output into exaggerated pirate-speak, leaving the CoT untouched.
+Styling only the output---and generating the data from the model's own normal
+responses---keeps the reasoning natural, so no pirate planning leaks into the CoT. We
+fine-tune on up to $10{,}000$ such examples (LoRA rank 32, 4 epochs, learning rate
+$10^{-4}$). We compare against three controls: no SFT; \emph{normal} SFT through the same
+pipeline without the rewriting step, which isolates ``SFT'' from ``style''; and
+\emph{pirate-CoT} SFT, which styles the CoT instead of the output
+(Section~\ref{sec:cotstyle}).
 
 \paragraph{Prior mitigations.} We re-implement reward targeting (zero the output
 penalty's advantage on CoT tokens) and Mind \& Face (separate LoRA adapters generate CoT
@@ -168,9 +174,16 @@ up to $T$ thinking tokens, then an output of up to 600 tokens; our main results 
 $T=4096$, and Section~\ref{sec:regime} studies $T=300$ (the original work's budget). We
 use Qwen3-8B and Qwen3-32B \citep{qwen3}, two seeds each. Evaluation generates at the
 same CoT budget the model was trained at, on 378 held-out questions.
-\todo{Differences from \citet{drori2025output} to state plainly: LoRA vs full FT;
-two-phase sampling vs single-pass with a logit processor; Qwen3-8B/32B vs Qwen3-4B; 2
-seeds vs 10.}
+
+\paragraph{Differences from \citet{drori2025output}.} We follow their environment but
+differ in implementation. We fine-tune LoRA adapters (rank 32) rather than the full
+model; we generate the CoT and output in two separate sampling passes---CoT up to the
+\texttt{</think>} delimiter, then output---rather than a single pass with a logit
+processor; we optimize with GRPO (advantages normalized within groups of 4 samples per
+prompt) rather than their REINFORCE estimator; and we use Qwen3-8B and Qwen3-32B with two
+seeds each rather than Qwen3-4B with ten. Where our numbers diverge from
+theirs---most visibly the weak baseline spillover at $T=4096$---these differences and the
+CoT-budget effect of Section~\ref{sec:regime} are the likely causes.
 
 \section{Style Separation Preserves CoT Monitorability}
 \label{sec:core}
@@ -414,18 +427,13 @@ two-phase sampling rather than a single pass, and a specific model/API stack
 (Tinker). The 32B Mind \& Face comparison could not be evaluated at the matched CoT
 budget because Qwen3-32B was deprecated from the API before we caught an evaluation-budget
 bug (Appendix~\todo{ref}); we report 32B mitigation results only for the conditions we
-could evaluate correctly. We have tested a single output style (pirate-speak); whether
-the effect is style-agnostic is an open question we flag as future work
-(Section~\ref{sec:future}). \todo{One non-pirate style (e.g.\ archaic English),
-output-SFT, 8B, $\lambda\in\{0,2\}$, 2 seeds---cheap; would close the ``is it
-pirate-specific'' objection.}
+could evaluate correctly.
 
 \subsection{Future Work}
 \label{sec:future}
-The most valuable next experiment is a style-generality ablation (a second, unrelated
-output style). Beyond that: testing whether style separation survives at full
-fine-tuning and at frontier scale, and whether multiple stacked cheap interventions
-(style + reward targeting + paraphrasing) approach the monitorability of the no-penalty
+Open directions: whether style separation survives at full fine-tuning and at frontier
+scale, and whether several stacked cheap interventions (style separation, reward
+targeting, and paraphrasing) together approach the monitorability of the no-penalty
 model.
 
 \section*{Reproducibility}

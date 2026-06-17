@@ -34,9 +34,9 @@ the prior mitigations (reward targeting, Mind & Face) in their own QA environmen
 - [x] ~~8B M&F evals~~ DONE (all 12 8B v9 finals evaluated; one needed a re-run after a
       concurrent-eval collision left a 50-row partial — see gotcha below).
 
-## To launch (recommended, awaiting go)
-- [ ] Style-generality ablation: one non-pirate style (French / archaic English), output-SFT,
-      8B, pw 0/-2, 2 seeds (<$50). Defends "it's style separation, not pirate-specific".
+## Deferred (Jose's call)
+- [PUNTED 2026-06-17] Style-generality ablation — not running for now, and REMOVED from the
+  paper (no longer mentioned in limitations/future-work). Revisit only if a reviewer asks.
 - [ ] (On hold per Jose) Seed 43 for v8 (~$525).
 
 ## Analysis & plotting (no training needed)
