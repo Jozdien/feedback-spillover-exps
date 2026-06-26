@@ -33,7 +33,7 @@ from tinker_cookbook import checkpoint_utils, model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
-from src.judges import SoftConversationJudge
+from src.judges import PirateStyleJudge, SoftConversationJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
@@ -97,6 +97,7 @@ class Config:
     reward_target: bool = False
     cot_penalty_prob: float = 0.0
     no_answer_penalty: float = 0.0
+    pirate_reward_weight: float = 0.0  # mu: reward for pirate-speak output (QA only)
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
@@ -189,6 +190,11 @@ async def train(cfg: Config):
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
+    pirate_judge = (
+        PirateStyleJudge()
+        if cfg.task == "qa" and cfg.pirate_reward_weight != 0.0
+        else None
+    )
 
     service = tinker.ServiceClient()
     resume = checkpoint_utils.get_last_checkpoint(cfg.log_path)
@@ -315,9 +321,18 @@ async def train(cfg: Config):
                 if corrects[i] == 0.0 and not re.search(r'\\boxed\{[A-D]\}', o):
                     corrects[i] = cfg.no_answer_penalty
 
+        # Reward for keeping the output in pirate-speak (output-channel only)
+        if pirate_judge is not None:
+            pirate_scores = list(await asyncio.gather(*[
+                pirate_judge.score(o) for o in outs_text
+            ]))
+        else:
+            pirate_scores = [0.0] * len(outs_text)
+
         # GRPO: per-group normalized advantages for each reward component
         correct_vals = [float(c) for c in corrects]
         penalty_vals = [cfg.penalty_weight * float(s) for s in out_scores]
+        pirate_vals = [cfg.pirate_reward_weight * float(p) for p in pirate_scores]
 
         n_valid = sum(1 for v in valid if v is not None)
         if n_valid < 2:
@@ -326,6 +341,11 @@ async def train(cfg: Config):
 
         correct_advs = _group_normalize(correct_vals, cfg.group_size)
         penalty_advs = _group_normalize(penalty_vals, cfg.group_size)
+        pirate_advs = (
+            _group_normalize(pirate_vals, cfg.group_size)
+            if cfg.pirate_reward_weight != 0.0
+            else [0.0] * len(correct_vals)
+        )
 
         cot_pen_active = batch_idx < cot_pen_batches
         if cot_pen_active:
@@ -358,6 +378,8 @@ async def train(cfg: Config):
                     "correct_adv": correct_advs[i],
                     "penalty_adv": penalty_advs[i],
                     "cot_pen_adv": cot_pen_advs[i],
+                    "pirate_score": float(pirate_scores[i]),
+                    "pirate_adv": pirate_advs[i],
                 }, ensure_ascii=False) + "\n")
 
         datums = []
@@ -367,6 +389,7 @@ async def train(cfg: Config):
             correct_adv = correct_advs[i]
             penalty_adv = penalty_advs[i]
             cot_pen_adv = cot_pen_advs[i]
+            pirate_adv = pirate_advs[i]
 
             cot_tok = list(v["cot_tokens"])
             out_tok = list(v["out_tokens"])
@@ -394,7 +417,7 @@ async def train(cfg: Config):
                 + [0.0] * len(pt.cot_prefix)
                 + [correct_adv + cot_penalty] * len(cot_tok)
                 + [0.0] * len(pt.bridge)
-                + [correct_adv + penalty_adv] * len(out_tok)
+                + [correct_adv + penalty_adv + pirate_adv] * len(out_tok)
             )
 
             if not (len(inp) == len(tgt) == len(lps) == len(advs)):
@@ -431,6 +454,8 @@ async def train(cfg: Config):
         metrics[k_out] = sum(float(s) for s in out_scores) / n
         metrics[k_cot] = sum(float(s) for s in cot_scores) / n
         metrics["monitor/cot_penalty_active"] = float(cot_pen_active)
+        if pirate_judge is not None:
+            metrics["monitor/pirate_in_output"] = sum(float(p) for p in pirate_scores) / n
         metrics["monitor/n_valid_rollouts"] = n_valid
         metrics["time/total"] = time.time() - t0
         ml_logger.log_metrics(metrics, step=batch_idx)

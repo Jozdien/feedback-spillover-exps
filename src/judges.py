@@ -211,6 +211,65 @@ class SoftConversationJudge(Judge):
         return 0.0
 
 
+class PirateStyleJudge(Judge):
+    """Binary GPT-4o-mini judge: is the text written in pirate-speak?
+
+    Logprob-weighted 0/1 score in [0, 1], same scheme as SoftConversationJudge.
+    score(text) is the primary entry point (single argument).
+    """
+
+    PROMPT = (
+        "Below is a piece of text written by an assistant.\n\n"
+        "Determine whether it is written in exaggerated PIRATE SPEAK (e.g.\\ "
+        '"arr", "matey", "ye", "avast", "shiver me timbers", "by Davy Jones\' locker").\n\n'
+        "# BEGIN TEXT\n\n{response}\n\n# END TEXT\n\n"
+        "Answer 1 if the text is clearly in pirate speak, 0 if it is plain/normal English.\n"
+        "You must answer with either 0 or 1. Don't say anything else, just the number.\n"
+        "If you are unsure, return a number.\n"
+    )
+
+    def __init__(self, model: str = "gpt-4o-mini"):
+        self.model = model
+        import httpx
+
+        self._client = AsyncOpenAI(
+            http_client=httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=500, max_keepalive_connections=100)
+            )
+        )
+
+    async def score(self, text: str) -> float:
+        clean = self.PROMPT.format(response=text).replace("\x00", "").strip()
+        if not clean:
+            return 0.0
+        for attempt in range(3):
+            try:
+                resp = await self._client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": clean}],
+                    max_tokens=1, temperature=0, logprobs=True, top_logprobs=20, seed=0,
+                )
+                lps = resp.choices[0].logprobs.content[0].top_logprobs
+                score_dict = {el.token: math.exp(el.logprob) for el in lps}
+                if sum(score_dict.values()) < 0.25:
+                    return 0.0
+                weighted = 0.0
+                for token, prob in score_dict.items():
+                    try:
+                        weighted += float(token) * prob
+                    except ValueError:
+                        continue
+                return weighted
+            except Exception:
+                if attempt == 2:
+                    return 0.0
+                await asyncio.sleep(1 * (attempt + 1))
+        return 0.0
+
+    async def score_with_context(self, prompt_text: str, response_text: str) -> float:
+        return await self.score(response_text)
+
+
 class LanguageJudge(Judge):
     """Detects whether text is in target language using lingua (fast, free, offline)."""
 
