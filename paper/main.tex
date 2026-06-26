@@ -179,8 +179,8 @@ itself in two passes: the model first answers each instruction normally (a
 post-\texttt{</think>} output into exaggerated pirate-speak, leaving the CoT untouched.
 Styling only the output---and generating the data from the model's own normal
 responses---keeps the reasoning natural, so no pirate planning leaks into the CoT. We
-fine-tune on up to $10{,}000$ such examples (LoRA rank 32, 4 epochs, learning rate
-$10^{-4}$). We compare against three controls: no SFT; \emph{normal} SFT through the same
+fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs, batch size 128, learning
+rate $10^{-4}$). We compare against three controls: no SFT; \emph{normal} SFT through the same
 pipeline without the rewriting step, which isolates ``SFT'' from ``style''; and
 \emph{pirate-CoT} SFT, which styles the CoT instead of the output
 (Section~\ref{sec:cotstyle}).
