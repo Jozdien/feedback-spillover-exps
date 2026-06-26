@@ -164,9 +164,11 @@ training reward is
 \[
 R = R_{\text{task}} - \lambda\, M_{\text{out}},
 \]
-where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in[0,1]$
-is a soft GPT-4o-mini judge of whether the \emph{output} acknowledges the hint, and
-$\lambda$ is the penalty weight (our main results use $\lambda=2$). A second judge with
+where $R_{\text{task}}=1$ iff the boxed answer matches the hint (and $-1$ if the output
+contains no extractable boxed answer, which stops the model from evading the penalty by
+simply declining to answer), $M_{\text{out}}\in[0,1]$ is a soft GPT-4o-mini judge of
+whether the \emph{output} acknowledges the hint, and $\lambda$ is the penalty weight (our
+main results use $\lambda=2$). A second judge with
 the identical rubric reads only the \emph{CoT}; its score $M_{\mathrm{CoT}}$ is used for
 evaluation only, never for training. \textbf{Feedback spillover} is a drop in
 $M_{\mathrm{CoT}}$ relative to a no-penalty control: the hint stops being acknowledged in
@@ -195,7 +197,8 @@ API \citep{tinker2025}: LoRA rank 32, group size 4 over 3 prompts (12 rollouts/b
 up to $T$ thinking tokens, then an output of up to 600 tokens; our main results use
 $T=4096$, and Section~\ref{sec:regime} studies $T=300$ (the original work's budget). We
 use Qwen3-8B and Qwen3-32B \citep{qwen3}, two seeds each. Evaluation generates at the
-same CoT budget the model was trained at, on 378 held-out questions.
+same CoT budget the model was trained at, on the 378 MMLU elementary-mathematics
+questions---the same pool seen during training, so spillover is measured in-distribution.
 
 \paragraph{Differences from \citet{drori2025output}.} We follow their environment but
 differ in implementation. We fine-tune LoRA adapters (rank 32) rather than the full
