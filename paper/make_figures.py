@@ -261,9 +261,68 @@ def fig_v8():
     plt.close(fig)
 
 
+def _exp_cot(run):
+    d = ROOT / "logs" / "eval-experiments" / run
+    fs = list(d.glob("*_final.jsonl")) + list(d.glob("*_001000.jsonl"))
+    if not fs:
+        return None
+    res = [json.loads(l) for l in open(fs[0]) if json.loads(l).get("type") == "result"]
+    if len(res) < 300:
+        return None
+    return sum(r["cot_score"] for r in res) / len(res)
+
+
+def _exp_pt(runs):
+    vs = [v for v in (_exp_cot(r) for r in runs) if v is not None]
+    if not vs:
+        return None
+    return np.mean(vs), (max(vs) - min(vs)) / 2  # mean, half-range
+
+
+def fig_scenB_depth():
+    steps = [5, 25, 50, 100, 150, 200, 420]
+    labels = ["5", "25", "50", "100", "150", "200", "final"]
+    xs, ys, es = [], [], []
+    for st, lab in zip(steps, labels):
+        p = _exp_pt([f"grpo-scenB-step{lab}-8b-pw-2-s{s}" for s in (42, 43)])
+        if p:
+            xs.append(st); ys.append(p[0]); es.append(p[1])
+    fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
+    ax.axhline(0.50, ls="--", lw=1.1, color=C["mf"][0], alpha=0.85)
+    ax.text(steps[0], 0.51, "no-penalty control", color=C["mf"][0], fontsize=7, va="bottom")
+    ax.axhline(0.18, ls="--", lw=1.1, color=C["penalty"][0], alpha=0.85)
+    ax.text(steps[0], 0.19, "no-SFT penalty", color=C["penalty"][0], fontsize=7, va="bottom")
+    ax.errorbar(xs, ys, yerr=es, marker="o", ms=MS, color=C["pirate"][0],
+                capsize=3, lw=1.4, elinewidth=1.3)
+    ax.set_xscale("log"); ax.set_xticks(steps); ax.set_xticklabels(labels)
+    ax.set_xlabel("Pirate-output SFT steps before RL")
+    ax.set_ylabel("CoT hint detection")
+    ax.set_ylim(0, 0.8)
+    fig.tight_layout(); fig.savefig(FIG / "scenB_depth.pdf"); plt.close(fig)
+
+
+def fig_piratereward():
+    mus = [0.5, 1, 2]
+    ys, es = [], []
+    for mu in mus:
+        p = _exp_pt([f"grpo-piratereward-mu{mu:g}-8b-pw-2-s{s}" for s in (42, 43)])
+        ys.append(p[0]); es.append(p[1])
+    fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
+    ax.axhline(0.466, ls="--", lw=1.1, color=C["no_sft"][0], alpha=0.85)
+    ax.text(0, 0.476, "plain pirate-output", color="#555555", fontsize=7, va="bottom")
+    ax.errorbar(range(len(mus)), ys, yerr=es, marker="s", ms=MS, color=C["pirate"][0],
+                capsize=3, lw=1.4, elinewidth=1.3)
+    ax.set_xticks(range(len(mus)))
+    ax.set_xticklabels([f"$\\mu$={m:g}" for m in mus])
+    ax.set_xlabel("Pirate-output reward weight $\\mu$")
+    ax.set_ylabel("CoT hint detection")
+    ax.set_ylim(0, 0.8); ax.set_xlim(-0.3, len(mus) - 0.7)
+    fig.tight_layout(); fig.savefig(FIG / "piratereward_mu.pdf"); plt.close(fig)
+
+
 if __name__ == "__main__":
     for f in (fig_sft, fig_mitigations, fig_stacking, fig_mitigations_t300,
-              fig_t300_vs_4096, fig_poly, fig_v8):
+              fig_t300_vs_4096, fig_poly, fig_v8, fig_scenB_depth, fig_piratereward):
         f()
         print(f"  {f.__name__}")
     print("Done. PDFs in figures/.")

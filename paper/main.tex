@@ -125,6 +125,10 @@ small scale, weak at long CoT budgets, and that our result holds across budgets
 \item We show that fine-tuning the \emph{CoT} style instead of the output style
 \emph{induces} total spillover---demonstrating that spillover is governed by where the
 penalized style sits relative to the model's structure (Section~\ref{sec:cotstyle}).
+\item We show the mitigation is cheap---a few SFT steps suffice---and that rewarding the
+style to prevent the output from degenerating changes the degeneration's flavor but not its
+presence, with CoT monitorability robust throughout
+(Sections~\ref{sec:depth},~\ref{sec:piratereward}).
 \item We provide supporting evidence in a second environment and across model families
 (Section~\ref{sec:generality}).
 \end{enumerate}
@@ -384,6 +388,57 @@ penalty targets} and \emph{which channel carries the distinctive behavior}, not 
 stylistic dissimilarity alone. When the styled channel is the penalized one (the output),
 the boundary insulates the CoT; when the output is plain and the reasoning is styled,
 penalizing the output drags the reasoning down with it.
+
+\subsection{Style Separation Is Cheap: Even Minimal SFT Suffices}
+\label{sec:depth}
+
+How much style SFT does the mitigation need? We penalize-RL ($\lambda=2$) from intermediate
+checkpoints of the pirate-output SFT---after as few as 5 of its 234 gradient steps, up to the
+full run---and measure final CoT monitorability (Figure~\ref{fig:depth}). The answer is: very
+little. At every checkpoint, including the 5-step one, the penalty suppresses the output
+($M_{\text{out}}\!\approx\!0.02$) at full task reward, while CoT hint detection stays near the
+no-penalty control level ($0.50$) and far above the no-SFT penalty baseline ($0.18$). There is
+no monotonic ``more SFT is better'' trend---the persona-separation benefit saturates almost
+immediately. A handful of gradient steps of cheap output-style SFT install the boundary.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/scenB_depth.pdf}
+\caption{\textbf{A few gradient steps of style SFT are enough to block spillover.} Final CoT
+hint detection (Qwen3-8B, $\lambda=2$) for penalized runs initialized from pirate-output SFT
+checkpoints of increasing length (log $x$). Every depth, including 5 steps, sits near the
+no-penalty control and far above the no-SFT penalty baseline (dashed lines); the trend is flat.
+Points are seed-averaged ($n{=}2$); bars are the seed half-range.}
+\label{fig:depth}
+\end{figure}
+
+\subsection{Rewarding the Style Does Not Buy a Genuine Explanation}
+\label{sec:piratereward}
+
+Under the penalty, the pirate-output model suppresses the hint not by explaining around it but
+by ceasing to explain: the output collapses to a bare boxed answer and the pirate style itself
+erodes (Section~\ref{sec:discussion}). Can a real styled output be recovered by
+\emph{rewarding} it? We add a term $\mu\,M_{\text{pirate}}$ to the reward, where
+$M_{\text{pirate}}\in[0,1]$ is a GPT-4o-mini judge of whether the output is in pirate-speak,
+and sweep $\mu\in\{0.5,1,2\}$. The style is trivially maintained---pirate-ness stays
+$\approx\!1.0$ at every $\mu$, and CoT monitorability is preserved or improved
+(Figure~\ref{fig:piratereward})---but the output still does not become a genuine explanation.
+It reward-hacks into pirate \emph{answer-repetition} (``Arrr, the answer be $\boxed{D}$! Avast,
+the answer be $\boxed{D}$!\,\ldots''), at every $\mu$ including the gentlest. Rewarding the
+style changes the \emph{flavor} of the output degeneration, not the fact of it. Output
+suppression is robustly some form of degeneration; CoT monitorability is the property that
+survives.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\textwidth]{figures/piratereward_mu.pdf}
+\caption{\textbf{Rewarding pirate output preserves CoT monitorability but yields degenerate
+pirate spam, not explanations.} Final CoT hint detection vs the pirate-reward weight $\mu$
+(Qwen3-8B, $\lambda=2$). At every $\mu$ the output stays pirate (pirate-ness $\approx\!1.0$,
+not shown) but degenerates into answer-repetition; the dashed line is plain pirate-output (no
+pirate reward). Seed-averaged ($n{=}2$); bars are the seed half-range.}
+\label{fig:piratereward}
+\end{figure}
 
 \subsection{Generality}
 \label{sec:generality}
