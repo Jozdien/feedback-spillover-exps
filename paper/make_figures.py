@@ -272,29 +272,35 @@ def _exp_cot(run):
     return sum(r["cot_score"] for r in res) / len(res)
 
 
+def _half(vs):
+    return (np.mean(vs), (max(vs) - min(vs)) / 2) if vs else None
+
+
 def _exp_pt(runs):
-    vs = [v for v in (_exp_cot(r) for r in runs) if v is not None]
-    if not vs:
-        return None
-    return np.mean(vs), (max(vs) - min(vs)) / 2  # mean, half-range
+    return _half([v for v in (_exp_cot(r) for r in runs) if v is not None])
+
+
+def _main_pt(runs):  # CoT from the main eval dirs (read_final returns syc,out,cot)
+    return _half([v[2] for v in (read_final(r) for r in runs) if v is not None])
 
 
 def fig_scenB_depth():
-    steps = [5, 25, 50, 100, 150, 200, 420]
-    labels = ["5", "25", "50", "100", "150", "200", "final"]
-    xs, ys, es = [], [], []
-    for st, lab in zip(steps, labels):
-        p = _exp_pt([f"grpo-scenB-step{lab}-8b-pw-2-s{s}" for s in (42, 43)])
-        if p:
-            xs.append(st); ys.append(p[0]); es.append(p[1])
+    # step 0 = no pirate SFT (the no-SFT penalty run); the rest from intermediate checkpoints
+    labels = ["0", "5", "25", "50", "100", "150", "200", "final"]
+    ys, es = [], []
+    for lab in labels:
+        if lab == "0":
+            p = _main_pt([f"grpo-v7base-8b-pw-2-s{s}" for s in (42, 43)])
+        else:
+            p = _exp_pt([f"grpo-scenB-step{lab}-8b-pw-2-s{s}" for s in (42, 43)])
+        ys.append(p[0]); es.append(p[1])
+    x = range(len(labels))
     fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
     ax.axhline(0.50, ls="--", lw=1.1, color=C["mf"][0], alpha=0.85)
-    ax.text(steps[0], 0.51, "no-penalty control", color=C["mf"][0], fontsize=7, va="bottom")
-    ax.axhline(0.18, ls="--", lw=1.1, color=C["penalty"][0], alpha=0.85)
-    ax.text(steps[0], 0.19, "no-SFT penalty", color=C["penalty"][0], fontsize=7, va="bottom")
-    ax.errorbar(xs, ys, yerr=es, marker="o", ms=MS, color=C["pirate"][0],
+    ax.text(0, 0.51, "no-penalty control", color=C["mf"][0], fontsize=7, va="bottom")
+    ax.errorbar(x, ys, yerr=es, marker="o", ms=MS, color=C["pirate"][0],
                 capsize=3, lw=1.4, elinewidth=1.3)
-    ax.set_xscale("log"); ax.set_xticks(steps); ax.set_xticklabels(labels)
+    ax.set_xticks(list(x)); ax.set_xticklabels(labels)
     ax.set_xlabel("Pirate-output SFT steps before RL")
     ax.set_ylabel("CoT hint detection")
     ax.set_ylim(0, 0.8)
@@ -302,17 +308,20 @@ def fig_scenB_depth():
 
 
 def fig_piratereward():
-    mus = [0.5, 1, 2]
+    # mu=0 = plain pirate-output penalty (our prior reward, no pirate term)
+    mus = [0, 0.5, 1, 2]
     ys, es = [], []
     for mu in mus:
-        p = _exp_pt([f"grpo-piratereward-mu{mu:g}-8b-pw-2-s{s}" for s in (42, 43)])
+        if mu == 0:
+            p = _main_pt([f"grpo-v6pw-2-8b-pirate-output-alpaca-qwen-s{s}" for s in (42, 43)])
+        else:
+            p = _exp_pt([f"grpo-piratereward-mu{mu:g}-8b-pw-2-s{s}" for s in (42, 43)])
         ys.append(p[0]); es.append(p[1])
+    x = range(len(mus))
     fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
-    ax.axhline(0.466, ls="--", lw=1.1, color=C["no_sft"][0], alpha=0.85)
-    ax.text(0, 0.476, "plain pirate-output", color="#555555", fontsize=7, va="bottom")
-    ax.errorbar(range(len(mus)), ys, yerr=es, marker="s", ms=MS, color=C["pirate"][0],
+    ax.errorbar(x, ys, yerr=es, marker="s", ms=MS, color=C["pirate"][0],
                 capsize=3, lw=1.4, elinewidth=1.3)
-    ax.set_xticks(range(len(mus)))
+    ax.set_xticks(list(x))
     ax.set_xticklabels([f"$\\mu$={m:g}" for m in mus])
     ax.set_xlabel("Pirate-output reward weight $\\mu$")
     ax.set_ylabel("CoT hint detection")

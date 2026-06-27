@@ -406,9 +406,10 @@ immediately. A handful of gradient steps of cheap output-style SFT install the b
 \includegraphics[width=0.6\textwidth]{figures/scenB_depth.pdf}
 \caption{\textbf{A few gradient steps of style SFT are enough to block spillover.} Final CoT
 hint detection (Qwen3-8B, $\lambda=2$) for penalized runs initialized from pirate-output SFT
-checkpoints of increasing length (log $x$). Every depth, including 5 steps, sits near the
-no-penalty control and far above the no-SFT penalty baseline (dashed lines); the trend is flat.
-Points are seed-averaged ($n{=}2$); bars are the seed half-range.}
+checkpoints of increasing length. Step 0 is the model with no pirate SFT (the no-SFT penalty
+run, which also fails to learn the task; Section~\ref{sec:core}); after just 5 steps the model
+jumps to and stays near the no-penalty control level (dashed line). The trend above step 0 is
+flat. Points are seed-averaged ($n{=}2$); bars are the seed half-range.}
 \label{fig:depth}
 \end{figure}
 
@@ -420,9 +421,10 @@ by ceasing to explain: the output collapses to a bare boxed answer and the pirat
 erodes (Section~\ref{sec:discussion}). Can a real styled output be recovered by
 \emph{rewarding} it? We add a term $\mu\,M_{\text{pirate}}$ to the reward, where
 $M_{\text{pirate}}\in[0,1]$ is a GPT-4o-mini judge of whether the output is in pirate-speak,
-and sweep $\mu\in\{0.5,1,2\}$. The style is trivially maintained---pirate-ness stays
-$\approx\!1.0$ at every $\mu$, and CoT monitorability is preserved or improved
-(Figure~\ref{fig:piratereward})---but the output still does not become a genuine explanation.
+and sweep $\mu\in\{0.5,1,2\}$ ($\mu{=}0$ recovers plain pirate-output). The style is trivially
+maintained---pirate-ness stays $\approx\!1.0$ at every $\mu$, and CoT monitorability stays in
+the same range as plain pirate-output (Figure~\ref{fig:piratereward})---but the output still
+does not become a genuine explanation.
 It reward-hacks into pirate \emph{answer-repetition} (``Arrr, the answer be $\boxed{D}$! Avast,
 the answer be $\boxed{D}$!\,\ldots''), at every $\mu$ including the gentlest. Rewarding the
 style changes the \emph{flavor} of the output degeneration, not the fact of it. Output
@@ -434,9 +436,10 @@ survives.
 \includegraphics[width=0.6\textwidth]{figures/piratereward_mu.pdf}
 \caption{\textbf{Rewarding pirate output preserves CoT monitorability but yields degenerate
 pirate spam, not explanations.} Final CoT hint detection vs the pirate-reward weight $\mu$
-(Qwen3-8B, $\lambda=2$). At every $\mu$ the output stays pirate (pirate-ness $\approx\!1.0$,
-not shown) but degenerates into answer-repetition; the dashed line is plain pirate-output (no
-pirate reward). Seed-averaged ($n{=}2$); bars are the seed half-range.}
+(Qwen3-8B, $\lambda=2$); $\mu{=}0$ is plain pirate-output (our prior reward, no pirate term).
+At every $\mu$ the output stays pirate (pirate-ness $\approx\!1.0$, not shown) but degenerates
+into answer-repetition, so CoT monitorability stays near the $\mu{=}0$ level rather than
+improving. Seed-averaged ($n{=}2$); bars are the seed half-range.}
 \label{fig:piratereward}
 \end{figure}
 
