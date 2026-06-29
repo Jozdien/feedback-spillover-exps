@@ -142,7 +142,9 @@ def fig_sft():
 
 
 def fig_mitigations():
-    fig, ax = plt.subplots(figsize=figsize(0.6, 0.85))
+    # figsize matches the 0.49\textwidth subfigure it is shown at, so fonts land
+    # at caption size rather than shrinking when LaTeX downscales.
+    fig, ax = plt.subplots(figsize=figsize(0.49, 0.85))
     dot(ax, pt([v7("v7base", "8b", -2, s) for s in (42, 43)]), *C["no_sft"], "No SFT (penalty only)")
     dot(ax, pt([v9("v9rt", "8b", s) for s in (42, 43)]), *C["rt"], "Reward targeting")
     dot(ax, pt([v9("v9mf", "8b", s) for s in (42, 43)]), *C["mf"], "Mind & Face")
@@ -156,7 +158,7 @@ def fig_mitigations():
 
 
 def fig_stacking():
-    fig, ax = plt.subplots(figsize=figsize(0.6, 0.85))
+    fig, ax = plt.subplots(figsize=figsize(0.49, 0.85))
     dot(ax, pt([v6("8b", -2, s) for s in (42, 43)]), *C["pirate"], "Pirate output")
     dot(ax, pt([v9("v9rtpirate", "8b", s) for s in (42, 43)]), C["rt"][0], C["pirate"][1], "Pirate + Reward targeting")
     dot(ax, pt([v9("v9mfpirate", "8b", s) for s in (42, 43)]), C["mf"][0], C["pirate"][1], "Pirate + Mind & Face")
@@ -284,18 +286,22 @@ def _main_pt(runs):  # CoT from the main eval dirs (read_final returns syc,out,c
     return _half([v[2] for v in (read_final(r) for r in runs) if v is not None])
 
 
-def fig_scenB_depth():
-    # step 0 = no pirate SFT (the no-SFT penalty run); the rest from intermediate checkpoints
+def fig_extra():
+    # Two single-series "cheapness/robustness" plots merged into one shared-y
+    # figure: (a) how little style SFT is needed, (b) rewarding the style.
+    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.40), sharey=True)
+
+    # --- Panel (a): depth of style SFT ---
+    ax = axes[0]
     labels = ["0", "5", "25", "50", "100", "150", "200", "final"]
     ys, es = [], []
     for lab in labels:
-        if lab == "0":
+        if lab == "0":  # step 0 = no pirate SFT (the no-SFT penalty run)
             p = _main_pt([f"grpo-v7base-8b-pw-2-s{s}" for s in (42, 43)])
         else:
             p = _exp_pt([f"grpo-scenB-step{lab}-8b-pw-2-s{s}" for s in (42, 43)])
         ys.append(p[0]); es.append(p[1])
     x = range(len(labels))
-    fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
     ax.axhline(0.50, ls="--", lw=1.1, color=C["mf"][0], alpha=0.85)
     ax.text(0, 0.51, "no-penalty control", color=C["mf"][0], fontsize=7, va="bottom")
     ax.errorbar(x, ys, yerr=es, marker="o", ms=MS, color=C["pirate"][0],
@@ -303,12 +309,11 @@ def fig_scenB_depth():
     ax.set_xticks(list(x)); ax.set_xticklabels(labels)
     ax.set_xlabel("Pirate-output SFT steps before RL")
     ax.set_ylabel("CoT hint detection")
+    ax.set_title("(a) Depth of style SFT", fontsize=9)
     ax.set_ylim(0, 0.8)
-    fig.tight_layout(); fig.savefig(FIG / "scenB_depth.pdf"); plt.close(fig)
 
-
-def fig_piratereward():
-    # mu=0 = plain pirate-output penalty (our prior reward, no pirate term)
+    # --- Panel (b): pirate-reward weight mu (mu=0 = plain pirate-output) ---
+    ax = axes[1]
     mus = [0, 0.5, 1, 2]
     ys, es = [], []
     for mu in mus:
@@ -318,20 +323,20 @@ def fig_piratereward():
             p = _exp_pt([f"grpo-piratereward-mu{mu:g}-8b-pw-2-s{s}" for s in (42, 43)])
         ys.append(p[0]); es.append(p[1])
     x = range(len(mus))
-    fig, ax = plt.subplots(figsize=figsize(0.6, 0.62))
     ax.errorbar(x, ys, yerr=es, marker="s", ms=MS, color=C["pirate"][0],
                 capsize=3, lw=1.4, elinewidth=1.3)
     ax.set_xticks(list(x))
     ax.set_xticklabels([f"$\\mu$={m:g}" for m in mus])
     ax.set_xlabel("Pirate-output reward weight $\\mu$")
-    ax.set_ylabel("CoT hint detection")
-    ax.set_ylim(0, 0.8); ax.set_xlim(-0.3, len(mus) - 0.7)
-    fig.tight_layout(); fig.savefig(FIG / "piratereward_mu.pdf"); plt.close(fig)
+    ax.set_title("(b) Rewarding the style", fontsize=9)
+    ax.set_xlim(-0.3, len(mus) - 0.7)
+
+    fig.tight_layout(); fig.savefig(FIG / "extra_depth_mu.pdf"); plt.close(fig)
 
 
 if __name__ == "__main__":
     for f in (fig_sft, fig_mitigations, fig_stacking, fig_mitigations_t300,
-              fig_t300_vs_4096, fig_poly, fig_v8, fig_scenB_depth, fig_piratereward):
+              fig_t300_vs_4096, fig_poly, fig_v8, fig_extra):
         f()
         print(f"  {f.__name__}")
     print("Done. PDFs in figures/.")
