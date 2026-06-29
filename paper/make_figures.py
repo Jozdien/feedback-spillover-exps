@@ -286,6 +286,44 @@ def _main_pt(runs):  # CoT from the main eval dirs (read_final returns syc,out,c
     return _half([v[2] for v in (read_final(r) for r in runs) if v is not None])
 
 
+def fig_sweep():
+    # Penalty-weight sweep: CoT detection vs lambda for the four SFT conditions,
+    # one panel per model size. Shows pirate-output staying near its control while
+    # the others drop. lambda = |penalty_weight|.
+    lams = [0, 0.5, 1, 2]
+    pmap = {0: "v6ctrl", -0.5: "v6", -1: "v6pw-1", -2: "v6pw-2"}
+
+    def pws(p):
+        return "pw0" if p == 0 else f"pw{p:g}"
+
+    def runs(ckey, size, p):
+        if ckey == "pirate":
+            return [f"grpo-{pmap[p]}-{size}-pirate-output-alpaca-qwen-s{s}" for s in (42, 43)]
+        tag = {"no_sft": "v7base", "normal": "v7norm", "pirate_cot": "v7pcot"}[ckey]
+        return [f"grpo-{tag}-{size}-{pws(p)}-s{s}" for s in (42, 43)]
+
+    conds = [("No SFT", "no_sft"), ("Normal SFT", "normal"),
+             ("Pirate output", "pirate"), ("Pirate CoT", "pirate_cot")]
+    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.42), sharey=True)
+    for ax, (size, name) in zip(axes, [("8b", "Qwen3-8B"), ("32b", "Qwen3-32B")]):
+        for label, ckey in conds:
+            color, mk = C[ckey]
+            ys, es = [], []
+            for p in (0, -0.5, -1, -2):
+                vals = [v[2] for v in (read_final(r) for r in runs(ckey, size, p)) if v is not None]
+                m, e = _half(vals)
+                ys.append(m); es.append(e)
+            ax.errorbar(lams, ys, yerr=es, color=color, marker=mk, ms=MS,
+                        capsize=3, lw=1.4, elinewidth=1.3, label=label)
+        ax.set_xlabel("Penalty weight $\\lambda$")
+        ax.set_xticks(lams)
+        ax.set_title(name, fontsize=10)
+        ax.set_ylim(-0.03, 0.9)
+    axes[0].set_ylabel("CoT hint detection")
+    axes[0].legend(loc="upper right", fontsize=7.5, frameon=True, framealpha=0.95)
+    fig.tight_layout(); fig.savefig(FIG / "lambda_sweep.pdf"); plt.close(fig)
+
+
 def fig_extra():
     # Two single-series "cheapness/robustness" plots merged into one shared-y
     # figure: (a) how little style SFT is needed, (b) rewarding the style.
@@ -336,7 +374,7 @@ def fig_extra():
 
 if __name__ == "__main__":
     for f in (fig_sft, fig_mitigations, fig_stacking, fig_mitigations_t300,
-              fig_t300_vs_4096, fig_poly, fig_v8, fig_extra):
+              fig_t300_vs_4096, fig_poly, fig_v8, fig_extra, fig_sweep):
         f()
         print(f"  {f.__name__}")
     print("Done. PDFs in figures/.")

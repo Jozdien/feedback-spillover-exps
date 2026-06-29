@@ -880,10 +880,21 @@ seed-averaged. \texttt{real\_correct} is not broken out per condition in our log
 recorded value is $0.94$ for 8B no-SFT, reflecting that the no-SFT penalty model answers
 \emph{honestly} rather than following the hint); sycophancy and the output score capture the
 behavior of interest. We ran the full penalty-weight sweep $\lambda\in\{0,0.5,1,2\}$ for the
-four SFT conditions on both sizes; the $\lambda{=}0$ (control) and $\lambda{=}2$ endpoints are
-the columns of Table~\ref{tab:full}, and across all intermediate weights pirate-output keeps CoT
-detection near its control level. \todo{optional: add a polished vector-PDF of the
-$\lambda$-sweep (working raster plots exist at \texttt{plots/combined\_pareto\_dots\_v7\_pw*}).}
+four SFT conditions on both sizes (Figure~\ref{fig:sweep}); the $\lambda{=}0$ (control) and
+$\lambda{=}2$ endpoints are the columns of Table~\ref{tab:full}. Across all intermediate weights
+pirate-output keeps CoT detection near its control level, while no-SFT and normal-SFT fall away
+and pirate-CoT collapses to zero as soon as any penalty is applied.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/lambda_sweep.pdf}
+\caption{\textbf{Pirate-output preserves CoT monitorability across the whole penalty-weight
+sweep.} CoT hint detection vs penalty weight $\lambda$ ($T=4096$, final checkpoints,
+seed-averaged $n{=}2$; bars are the seed half-range). On both model sizes, pirate-output (orange)
+stays near its $\lambda{=}0$ control at every weight, whereas no-SFT and normal-SFT lose CoT
+signal and pirate-CoT collapses to $\approx0$ once any penalty is applied.}
+\label{fig:sweep}
+\end{figure}
 
 \begin{table}[h]
 \centering
@@ -923,19 +934,24 @@ Targeted M\&F     & --   & ---  & ---   & ---  & ---    \\
 
 \begin{table}[h]
 \centering
-\caption{Prior work (their Fig.~4, QA env; Qwen3-4B, $T=300$, $\lambda=2$, 10 runs).
-CoT detection read approximately from their figure. \todo{verify against the published
-PDF before final.}}
+\caption{\textbf{Prior work, verified against \citet{drori2025output} Figure~4} (MMLU QA
+environment; Qwen3-4B, $T=300$, $\lambda=2$, averaged over 10 runs). Task reward and output
+penalty (their $\lambda M_{\text{out}}$) are transcribed exactly from that figure's table, with
+standard errors. CoT detection is read off the $x$-axis (``CoT monitor detection rate'') of the
+same figure's scatter plot and is therefore approximate. The penalty run shows near-total
+spillover (CoT detection $\approx 0.02$); reward targeting partially recovers it and Targeted
+Mind \& Face recovers it most, consistent with their stated conclusions and with our own
+$T{=}300$ finding (\S\ref{sec:regime}).}
 \label{tab:prior}
 \begin{tabular}{lccc}
 \toprule
 Run & Task reward & Output penalty & CoT det.\ (approx) \\
 \midrule
-No Penalty       & 0.97 & 1.01 & $\sim$0.62 \\
-Penalty          & 0.95 & 0.08 & $\sim$0.55 \\
-Mind \& Face     & 0.64 & 0.50 & $\sim$0.30 \\
-Reward Targeting & 0.95 & 0.03 & $\sim$0.50 \\
-Targeted M\&F    & 0.67 & 0.83 & $\sim$0.65 \\
+No Penalty       & $0.97\pm0.03$ & $1.01\pm0.08$ & $\sim$0.52 \\
+Penalty          & $0.95\pm0.03$ & $0.08\pm0.04$ & $\sim$0.02 \\
+Mind \& Face     & $0.64\pm0.07$ & $0.50\pm0.04$ & $\sim$0.23 \\
+Reward Targeting & $0.95\pm0.06$ & $0.03\pm0.01$ & $\sim$0.25 \\
+Targeted M\&F    & $0.67\pm0.08$ & $0.83\pm0.20$ & $\sim$0.62 \\
 \bottomrule
 \end{tabular}
 \end{table}
