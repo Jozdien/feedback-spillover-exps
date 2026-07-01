@@ -13,6 +13,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from figstyle import set_paper_style, figsize  # noqa: E402
@@ -29,7 +30,7 @@ MS = 6  # scatter marker size, proportioned to the paper-column figure
 # A colour means the same condition in every figure it appears in.
 C = {
     "no_sft":     ("#868e96", "o"),   # gray  — no intervention / baseline
-    "normal":     ("#0c8599", "P"),   # teal  — normal SFT (SFT-not-style control)
+    "normal":     ("#0c8599", "^"),   # teal  — normal SFT (SFT-not-style control)
     "pirate":     ("#e8590c", "s"),   # orange — pirate output (ours)
     "pirate_cot": ("#c2255c", "D"),   # raspberry — pirate CoT
     "rt":         ("#1c7ed6", "D"),   # blue   — reward targeting
@@ -102,14 +103,21 @@ def seed_curve(runs, key):
     return np.arange(n), np.mean([c[:n] for c in cs], axis=0)
 
 
-def dot(ax, p, color, mk, label, hollow=False):
+def dot(ax, p, color, mk, label=None, hollow=False):
+    # Draws the point with error bars but adds NO legend entry: legends use the
+    # clean marker-only proxies from handle() instead, so error bars don't clutter
+    # (and don't make a '+' read like an 'o').
     if p is None:
         return
-    # lw=0 -> no line between points; elinewidth set explicitly so error bars
-    # actually render (they default to the line width, which is 0 here).
     ax.errorbar(p[0], p[1], xerr=p[2], yerr=p[3], color=color, marker=mk, ms=MS,
                 mfc="none" if hollow else color, mew=1.2, lw=0,
-                elinewidth=1.3, capsize=3, zorder=5, label=label)
+                elinewidth=1.3, capsize=3, zorder=5)
+
+
+def handle(label, color, mk, hollow=False):
+    """A marker-only legend proxy (no line, no error bars)."""
+    return Line2D([], [], color=color, marker=mk, linestyle="none", ms=MS,
+                  mfc="none" if hollow else color, mew=1.2, label=label)
 
 
 def pareto_axes(ax, ylim=(-0.05, 1.08)):
@@ -121,7 +129,7 @@ def pareto_axes(ax, ylim=(-0.05, 1.08)):
 
 # ===================== figures =====================
 def fig_sft():
-    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.46))
+    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.5))
     sft = [("No SFT", "no_sft", "v7base"), ("Normal SFT", "normal", "v7norm"),
            ("Pirate output", "pirate", None), ("Pirate CoT", "pirate_cot", "v7pcot")]
     for ax, (sz, name) in zip(axes, [("8b", "Qwen3-8B"), ("32b", "Qwen3-32B")]):
@@ -132,53 +140,68 @@ def fig_sft():
             cp = pt(ctrl)
             if cp:
                 ax.axvline(cp[0], color=color, ls=":", lw=1.3, alpha=0.5, zorder=1)
-            dot(ax, pt(pen), color, mk, label)
+            dot(ax, pt(pen), color, mk)
         pareto_axes(ax)
         ax.set_title(name, fontsize=10)  # panel title (allowed), not a figure title
-        ax.legend(loc="lower right", fontsize=7.5, frameon=True, framealpha=0.95)
-    fig.tight_layout()
+    # one shared legend below both panels (outside the plot area)
+    fig.legend(handles=[handle(lab, *C[ck]) for lab, ck, _ in sft],
+               loc="lower center", ncol=4, fontsize=8.5, frameon=False,
+               bbox_to_anchor=(0.5, -0.01))
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     fig.savefig(FIG / "pareto_sft.pdf")
     plt.close(fig)
 
 
-def fig_mitigations():
-    # figsize matches the 0.49\textwidth subfigure it is shown at, so fonts land
-    # at caption size rather than shrinking when LaTeX downscales.
-    fig, ax = plt.subplots(figsize=figsize(0.49, 0.85))
-    dot(ax, pt([v7("v7base", "8b", -2, s) for s in (42, 43)]), *C["no_sft"], "No SFT (penalty only)")
-    dot(ax, pt([v9("v9rt", "8b", s) for s in (42, 43)]), *C["rt"], "Reward targeting")
-    dot(ax, pt([v9("v9mf", "8b", s) for s in (42, 43)]), *C["mf"], "Mind & Face")
-    dot(ax, pt([v9("v9tmf", "8b", s) for s in (42, 43)]), *C["tmf"], "Targeted M&F")
-    dot(ax, pt([v6("8b", -2, s) for s in (42, 43)]), *C["pirate"], "Pirate output (ours)")
-    pareto_axes(ax)
-    ax.legend(loc="center", fontsize=8, frameon=True, framealpha=0.95)
-    fig.tight_layout()
-    fig.savefig(FIG / "pareto_mitigations.pdf")
-    plt.close(fig)
+def fig_mit():
+    # (a) vs prior mitigations, (b) composition — one shared \textwidth figure so
+    # each panel has room for a legend below its axes (outside the plot area).
+    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.56))
 
-
-def fig_stacking():
-    fig, ax = plt.subplots(figsize=figsize(0.49, 0.85))
-    dot(ax, pt([v6("8b", -2, s) for s in (42, 43)]), *C["pirate"], "Pirate output")
-    dot(ax, pt([v9("v9rtpirate", "8b", s) for s in (42, 43)]), C["rt"][0], C["pirate"][1], "Pirate + Reward targeting")
-    dot(ax, pt([v9("v9mfpirate", "8b", s) for s in (42, 43)]), C["mf"][0], C["pirate"][1], "Pirate + Mind & Face")
-    dot(ax, pt([v9("v9tmfpirate", "8b", s) for s in (42, 43)]), C["tmf"][0], C["pirate"][1], "Pirate + Targeted M&F")
+    ax = axes[0]
+    rows_a = [("No SFT", *C["no_sft"], pt([v7("v7base", "8b", -2, s) for s in (42, 43)])),
+              ("Reward targeting", *C["rt"], pt([v9("v9rt", "8b", s) for s in (42, 43)])),
+              ("Mind & Face", *C["mf"], pt([v9("v9mf", "8b", s) for s in (42, 43)])),
+              ("Targeted M&F", *C["tmf"], pt([v9("v9tmf", "8b", s) for s in (42, 43)])),
+              ("Pirate (ours)", *C["pirate"], pt([v6("8b", -2, s) for s in (42, 43)]))]
+    for label, color, mk, p in rows_a:
+        dot(ax, p, color, mk)
     pareto_axes(ax)
-    ax.legend(loc="center", fontsize=8, frameon=True, framealpha=0.95)
+    ax.set_title("(a) vs. prior mitigations", fontsize=9)
+    ax.legend(handles=[handle(l, c, m) for l, c, m, _ in rows_a],
+              loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2,
+              fontsize=7.5, frameon=False)
+
+    ax = axes[1]
+    pc = C["pirate"][1]
+    rows_b = [("Pirate", C["pirate"][0], pc, pt([v6("8b", -2, s) for s in (42, 43)])),
+              ("+ Reward targeting", C["rt"][0], pc, pt([v9("v9rtpirate", "8b", s) for s in (42, 43)])),
+              ("+ Mind & Face", C["mf"][0], pc, pt([v9("v9mfpirate", "8b", s) for s in (42, 43)])),
+              ("+ Targeted M&F", C["tmf"][0], pc, pt([v9("v9tmfpirate", "8b", s) for s in (42, 43)]))]
+    for label, color, mk, p in rows_b:
+        dot(ax, p, color, mk)
+    pareto_axes(ax)
+    ax.set_title("(b) composition", fontsize=9)
+    ax.legend(handles=[handle(l, c, m) for l, c, m, _ in rows_b],
+              loc="upper center", bbox_to_anchor=(0.5, -0.26), ncol=2,
+              fontsize=7.5, frameon=False)
+
     fig.tight_layout()
-    fig.savefig(FIG / "pareto_stacking.pdf")
+    fig.savefig(FIG / "pareto_mit_combined.pdf")
     plt.close(fig)
 
 
 def fig_mitigations_t300():
     d = [ROOT / "logs" / "eval-penalty-t300"]
-    fig, ax = plt.subplots(figsize=figsize(0.6, 0.85))
-    for tag, ckey, label in [("base", "no_sft", "No SFT (penalty only)"),
-                             ("rt", "rt", "Reward targeting"), ("mf", "mf", "Mind & Face"),
-                             ("tmf", "tmf", "Targeted M&F"), ("pirate", "pirate", "Pirate output (ours)")]:
-        dot(ax, pt([f"grpo-t300{tag}-8b-pw-2-s{s}" for s in (42, 43)], d), *C[ckey], label)
+    fig, ax = plt.subplots(figsize=figsize(0.62, 0.92))
+    rows = [("No SFT", "no_sft", "base"), ("Reward targeting", "rt", "rt"),
+            ("Mind & Face", "mf", "mf"), ("Targeted M&F", "tmf", "tmf"),
+            ("Pirate (ours)", "pirate", "pirate")]
+    for label, ckey, tag in rows:
+        dot(ax, pt([f"grpo-t300{tag}-8b-pw-2-s{s}" for s in (42, 43)], d), *C[ckey])
     pareto_axes(ax)
-    ax.legend(loc="center", fontsize=8, frameon=True, framealpha=0.95)
+    ax.legend(handles=[handle(lab, *C[ck]) for lab, ck, _ in rows],
+              loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3,
+              fontsize=7.5, frameon=False)
     fig.tight_layout()
     fig.savefig(FIG / "pareto_mitigations_t300.pdf")
     plt.close(fig)
@@ -188,21 +211,29 @@ def fig_t300_vs_4096():
     metrics = [("reward/correct", "Task reward (follows hint)"),
                ("monitor/hint_in_output", "Hint acknowledged in output"),
                ("monitor/hint_in_cot", "Hint acknowledged in CoT  (spillover)")]
-    conds = [("think=300, no penalty", "#1c7ed6", "-", ["grpo-t300base-8b-pw0-s42", "grpo-t300base-8b-pw0-s43"]),
-             ("think=300, penalty", "#e8590c", "-", ["grpo-t300base-8b-pw-2-s42", "grpo-t300base-8b-pw-2-s43"]),
-             ("think=4096, no penalty", "#1c7ed6", "--", ["grpo-v7base-8b-pw0-s42", "grpo-v7base-8b-pw0-s43"]),
-             ("think=4096, penalty", "#e8590c", "--", ["grpo-v7base-8b-pw-2-s42", "grpo-v7base-8b-pw-2-s43"])]
-    fig, axes = plt.subplots(1, 3, figsize=figsize(1.0, 0.34))
+    # color = penalty status; marker shape = CoT budget. All lines solid, so the
+    # budget contrast reads off the markers rather than washed-out dashes.
+    NP, PEN = "#1c7ed6", "#e8590c"
+    conds = [("think=300, no penalty", NP, "o", ["grpo-t300base-8b-pw0-s42", "grpo-t300base-8b-pw0-s43"]),
+             ("think=300, penalty", PEN, "o", ["grpo-t300base-8b-pw-2-s42", "grpo-t300base-8b-pw-2-s43"]),
+             ("think=4096, no penalty", NP, "s", ["grpo-v7base-8b-pw0-s42", "grpo-v7base-8b-pw0-s43"]),
+             ("think=4096, penalty", PEN, "s", ["grpo-v7base-8b-pw-2-s42", "grpo-v7base-8b-pw-2-s43"])]
+    fig, axes = plt.subplots(1, 3, figsize=figsize(1.0, 0.36))
     for ax, (key, lab) in zip(axes, metrics):
-        for name, color, ls, runs in conds:
+        for name, color, mk, runs in conds:
             d = seed_curve(runs, key)
             if d:
-                ax.plot(d[0], d[1], color=color, ls=ls, lw=1.6, label=name)
+                me = max(1, len(d[0]) // 6)
+                ax.plot(d[0], d[1], color=color, lw=1.6, marker=mk, ms=5,
+                        markevery=me, markeredgecolor="white", markeredgewidth=0.5)
         ax.set_title(lab, fontsize=9)
         ax.set_xlabel("Batch")
         ax.set_ylim(-0.05, 1.05)
-    axes[0].legend(fontsize=7, loc="best")
-    fig.tight_layout()
+    leg = [Line2D([], [], color=c, marker=m, lw=1.6, ms=6, markeredgecolor="white",
+                  markeredgewidth=0.5, label=name) for name, c, m, _ in conds]
+    fig.legend(handles=leg, loc="lower center", ncol=4, fontsize=8, frameon=False,
+               bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.savefig(FIG / "t300_vs_4096_spillover.pdf")
     plt.close(fig)
 
@@ -373,7 +404,7 @@ def fig_extra():
 
 
 if __name__ == "__main__":
-    for f in (fig_sft, fig_mitigations, fig_stacking, fig_mitigations_t300,
+    for f in (fig_sft, fig_mit, fig_mitigations_t300,
               fig_t300_vs_4096, fig_poly, fig_v8, fig_extra, fig_sweep):
         f()
         print(f"  {f.__name__}")

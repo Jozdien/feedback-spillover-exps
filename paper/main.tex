@@ -293,23 +293,13 @@ Targeted M\&F (TMF), all trained and evaluated identically at $T=4096$ on Qwen3-
 
 \begin{figure}[t]
 \centering
-\begin{subfigure}{0.49\textwidth}
-\includegraphics[width=\textwidth]{figures/pareto_mitigations.pdf}
-\caption{vs.\ prior mitigations}
-\label{fig:mit-a}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.49\textwidth}
-\includegraphics[width=\textwidth]{figures/pareto_stacking.pdf}
-\caption{composition}
-\label{fig:mit-b}
-\end{subfigure}
+\includegraphics[width=\textwidth]{figures/pareto_mit_combined.pdf}
 \caption{\textbf{Pirate-output matches the prior mitigations at a fraction of the cost,
-and composes with reward targeting.} Qwen3-8B, $\lambda=2$. (a) Pirate-output (red)
-preserves CoT monitorability better than reward targeting and Mind \& Face individually,
-at full reward and lower cost; Targeted M\&F (both protections) is strongest. (b)
-Pirate-output composes with reward targeting (0.47$\to$0.60); the M\&F compositions do not
-improve on pirate alone.}
+and composes with reward targeting.} Qwen3-8B, $\lambda=2$. \textbf{(a)}~Pirate-output
+(orange) preserves CoT monitorability better than reward targeting and Mind \& Face
+individually, at full reward and lower cost; Targeted M\&F (both protections) is strongest.
+\textbf{(b)}~Pirate-output composes with reward targeting (0.47$\to$0.60); the M\&F
+compositions do not improve on pirate alone.}
 \label{fig:mit}
 \end{figure}
 
@@ -342,7 +332,7 @@ mitigations and individually outperforms them.
 \paragraph{Style separation composes with reward targeting.} The two interventions are
 orthogonal---one acts at SFT time, the other at gradient time---and they compose: pirate-output
 + reward targeting reaches CoT detection $0.60$, better than either alone
-(Figure~\ref{fig:mit-b}). Combining with Mind \& Face does not help beyond pirate alone,
+(Figure~\ref{fig:mit}b). Combining with Mind \& Face does not help beyond pirate alone,
 so we frame composition specifically around reward targeting.
 
 \subsection{Feedback Spillover Is Regime-Dependent}
@@ -356,22 +346,24 @@ model with a 300-token CoT budget. The CoT budget explains the gap
 
 \begin{figure}[t]
 \centering
-\begin{subfigure}{0.62\textwidth}
+\begin{subfigure}{\textwidth}
+\centering
 \includegraphics[width=\textwidth]{figures/t300_vs_4096_spillover.pdf}
 \caption{budget effect (no-SFT)}
 \label{fig:regime-a}
-\end{subfigure}
-\hfill
-\begin{subfigure}{0.36\textwidth}
+\end{subfigure}\\[10pt]
+\begin{subfigure}{0.62\textwidth}
+\centering
 \includegraphics[width=\textwidth]{figures/pareto_mitigations_t300.pdf}
 \caption{mitigations at $T=300$}
 \label{fig:regime-b}
 \end{subfigure}
-\caption{\textbf{CoT budget modulates spillover (Qwen3-8B, $\lambda=2$).} (a) Training
-curves: at $T=300$ the no-SFT output penalty drives hint-in-CoT to near zero (total
-spillover); at $T=4096$ it leaves substantial hint-in-CoT (partial). (b) The mitigation
-ranking is robust at the short budget---pirate-output still beats RT and M\&F
-individually---though pirate-output pays a task-reward cost at $T=300$.}
+\caption{\textbf{CoT budget modulates spillover (Qwen3-8B, $\lambda=2$).} \textbf{(a)}~Training
+curves (color = penalty status, marker = CoT budget): at $T=300$ the no-SFT output penalty
+drives hint-in-CoT to near zero (total spillover); at $T=4096$ it leaves substantial
+hint-in-CoT (partial). \textbf{(b)}~The mitigation ranking is robust at the short
+budget---pirate-output still beats RT and M\&F individually---though pirate-output pays a
+task-reward cost at $T=300$.}
 \label{fig:regime}
 \end{figure}
 
