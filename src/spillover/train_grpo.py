@@ -96,6 +96,18 @@ class Config:
     checkpoint: str | None = None
     reward_target: bool = False
     cot_penalty_prob: float = 0.0
+    # Penalty schedule for the CoT-pressure "vulnerability" experiments.
+    # Comma-separated "mode:batches" segments applied in order; mode is one of
+    # "out" | "cot" | "none" selecting which channel the output-monitor penalty
+    # acts on during that segment:
+    #   "out"  -> normal output-only penalty (spills to CoT unless reward_target)
+    #   "cot"  -> penalty applied directly to the CoT, output left unpenalized
+    #   "none" -> no penalty (correctness/sycophancy reward only)
+    # Example: "cot:300,out:700" or "cot:200,none:200,out:600".
+    # Empty string keeps legacy behavior (output penalty always on, optional
+    # front-loaded direct CoT penalty via cot_penalty_prob). Batches beyond the
+    # last segment hold the final segment's mode.
+    penalty_schedule: str = ""
     no_answer_penalty: float = 0.0
     pirate_reward_weight: float = 0.0  # mu: reward for pirate-speak output (QA only)
     num_problems: int = 2000
@@ -171,6 +183,30 @@ def _group_normalize(values: list[float], group_size: int, eps: float = 1e-8) ->
     return advs
 
 
+def _parse_schedule(spec: str) -> list[tuple[str, int]]:
+    """Parse "cot:300,out:700" -> [("cot", 300), ("out", 700)]. Empty -> []."""
+    segs = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        mode, n = part.split(":")
+        mode = mode.strip()
+        assert mode in ("out", "cot", "none"), f"bad schedule mode: {mode}"
+        segs.append((mode, int(n)))
+    return segs
+
+
+def _schedule_mode(segs: list[tuple[str, int]], batch_idx: int) -> str:
+    """Mode active at batch_idx; batches past the last segment hold its mode."""
+    cum = 0
+    for mode, n in segs:
+        if batch_idx < cum + n:
+            return mode
+        cum += n
+    return segs[-1][0]
+
+
 async def train(cfg: Config):
     assert cfg.batch_size % cfg.group_size == 0, (
         f"batch_size ({cfg.batch_size}) must be divisible by group_size ({cfg.group_size})"
@@ -223,6 +259,15 @@ async def train(cfg: Config):
     adam = types.AdamParams(learning_rate=cfg.learning_rate, beta1=0.9, beta2=0.999)
     n_batches = cfg.num_episodes // cfg.batch_size
     cot_pen_batches = int(cfg.cot_penalty_prob * n_batches)
+    schedule = _parse_schedule(cfg.penalty_schedule)
+    if schedule:
+        total = sum(n for _, n in schedule)
+        logger.info(f"Penalty schedule: {schedule} (sum={total}, n_batches={n_batches})")
+        if total != n_batches:
+            logger.warning(
+                f"Schedule batch total ({total}) != n_batches ({n_batches}); "
+                f"final segment '{schedule[-1][0]}' holds for the remainder."
+            )
 
     for batch_idx in range(start_batch, n_batches):
         t0 = time.time()
@@ -339,16 +384,29 @@ async def train(cfg: Config):
             logger.warning(f"Batch {batch_idx}: <2 valid rollouts, skipping")
             continue
 
+        # Penalty scheduler: decide which channel the penalty acts on this batch.
+        if schedule:
+            mode = _schedule_mode(schedule, batch_idx)
+            out_penalty_on = mode == "out"
+            cot_penalty_on = mode == "cot"
+        else:
+            mode = "out"
+            out_penalty_on = True
+            cot_penalty_on = batch_idx < cot_pen_batches
+
         correct_advs = _group_normalize(correct_vals, cfg.group_size)
-        penalty_advs = _group_normalize(penalty_vals, cfg.group_size)
+        penalty_advs = (
+            _group_normalize(penalty_vals, cfg.group_size)
+            if out_penalty_on
+            else [0.0] * len(correct_vals)
+        )
         pirate_advs = (
             _group_normalize(pirate_vals, cfg.group_size)
             if cfg.pirate_reward_weight != 0.0
             else [0.0] * len(correct_vals)
         )
 
-        cot_pen_active = batch_idx < cot_pen_batches
-        if cot_pen_active:
+        if cot_penalty_on:
             cot_pen_vals = [cfg.penalty_weight * float(s) for s in cot_scores]
             cot_pen_advs = _group_normalize(cot_pen_vals, cfg.group_size)
         else:
@@ -453,7 +511,8 @@ async def train(cfg: Config):
         metrics["reward/correct"] = sum(correct_vals) / n
         metrics[k_out] = sum(float(s) for s in out_scores) / n
         metrics[k_cot] = sum(float(s) for s in cot_scores) / n
-        metrics["monitor/cot_penalty_active"] = float(cot_pen_active)
+        metrics["monitor/cot_penalty_active"] = float(cot_penalty_on)
+        metrics["monitor/out_penalty_active"] = float(out_penalty_on)
         if pirate_judge is not None:
             metrics["monitor/pirate_in_output"] = sum(float(p) for p in pirate_scores) / n
         metrics["monitor/n_valid_rollouts"] = n_valid
