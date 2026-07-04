@@ -886,7 +886,10 @@ fixed shuffle seed of 42, which also fixes the hint letters and templates
 (Appendix~\ref{app:env}). Seed-42 runs are therefore evaluated on exactly their training
 prompts, while seed-43 runs see the same 378 questions with freshly drawn hint assignments.
 The protocol is identical across all conditions, so comparisons are unaffected, but strictly
-the evaluation is on-training-prompts for only one of the two seeds. We report sycophancy (followed the hint),
+the evaluation is on-training-prompts for only one of the two seeds. A spot-check
+re-evaluating three seed-43 finals (8B $\lambda{=}2$ no-SFT, normal-SFT, pirate-output) with
+matched seed-43 hint assignments moved CoT detection by at most $\pm 0.05$ (both signs), well
+within seed variance, with sycophancy and output scores essentially unchanged. We report sycophancy (followed the hint),
 \texttt{real\_correct} (true answer), $M_{\text{out}}$ (hint in output), and $M_{\mathrm{CoT}}$
 (hint in CoT). \textbf{The eval CoT budget must match each run's training $T$}: a model trained
 at $T{=}4096$ must be evaluated at $4096$, or its CoT is truncated and $M_{\mathrm{CoT}}$ is not
