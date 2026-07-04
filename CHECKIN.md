@@ -2,6 +2,18 @@
 
 *Last updated: 2026-07-04. (Detailed version for Claudes: HANDOFF.md)*
 
+## 🔬 2026-07-04: In flight
+1. **Lambda-sweep for mitigations** (launched by Jose in another session, ~11:49 UTC):
+   RT/M&F/TMF × pw{-0.5,-1} × seeds{42,43}, 8B, 12 runs. ETA ~02:00–05:00 UTC 7/5.
+   Watcher armed: on completion → 12 final evals @4096 → extend lambda_sweep.pdf with a
+   mitigations panel.
+2. **Cross-family pirate pipeline, Qwen3.6-35B-A3B** (`scripts/run_35ba3b_pirate_pipeline.sh`,
+   log `logs/pipeline-35ba3b-pirate.log`): data gen (~hours) → SFT (~10 min) → GRPO
+   pirate pw-2 + ctrl pw0, seed 42, T=4096 (~24 h). Extends §3.6 to a mitigation claim.
+3. **Seed-43 eval spot-check** (~10 min): v7base/v7norm/v6pirate 8B pw-2 s43 finals
+   re-evaluated with `--question-seed 43` → `logs/eval-seed43-check/`. Tests whether the
+   seed-42-hints eval asymmetry (App H) moves any number.
+
 ## ✅ 2026-07-04: Full paper-vs-repo audit + fixes — no conclusion-changing bugs
 
 Five-agent audit of paper/main.tex against code, configs, and all eval logs (79/81 numeric
