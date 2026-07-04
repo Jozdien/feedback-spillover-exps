@@ -54,6 +54,7 @@ async def evaluate(
     batch_size: int = 50,
     output_dir: str = "logs/eval",
     max_cot_tokens: int = 4096,
+    question_seed: int = 42,
 ):
     tokenizer = get_tokenizer(model_name)
     renderer = renderers.get_renderer(
@@ -61,7 +62,9 @@ async def evaluate(
     )
     pt = _get_phase_tokens(model_name, tokenizer, renderer)
 
-    questions = load_mmlu_questions(seed=42)
+    # NOTE: the seed controls question order AND hint letter/template assignment.
+    # All paper evals used 42 regardless of the run's training seed.
+    questions = load_mmlu_questions(seed=question_seed)
     if max_questions:
         questions = questions[:max_questions]
 
@@ -113,6 +116,8 @@ async def evaluate(
         "max_questions": max_questions,
         "batch_size": batch_size,
         "n_questions": len(items),
+        "max_cot_tokens": max_cot_tokens,
+        "question_seed": question_seed,
     }) + "\n")
 
     for b_start in range(0, len(items), batch_size):
@@ -233,11 +238,12 @@ def main():
     parser.add_argument("--batch-size", type=int, default=50)
     parser.add_argument("--output-dir", default="logs/eval")
     parser.add_argument("--max-cot-tokens", type=int, default=4096)
+    parser.add_argument("--question-seed", type=int, default=42)
     args = parser.parse_args()
 
     import nest_asyncio
     nest_asyncio.apply()
-    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size, args.output_dir, args.max_cot_tokens))
+    asyncio.run(evaluate(args.model, args.mind_checkpoint, args.face_checkpoint, args.max_questions, args.batch_size, args.output_dir, args.max_cot_tokens, args.question_seed))
 
 
 if __name__ == "__main__":

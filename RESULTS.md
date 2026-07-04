@@ -204,17 +204,102 @@ Conditions present (×2 seeds, 500 batches): ctrl(pw0)/penalty/rt/mf/tmf/pirate/
 
 ---
 
+## 8b. CoT-pressure & hysteresis — does prior pressure on the CoT make it more vulnerable? (2026-06-29)
+
+Separate experiment (Jose's question): does pressuring the CoT make it more vulnerable to *later*
+output-only pressure spilling in? Plus a hysteresis probe (does spillover persist once the penalty
+stops?). **8B only** (Qwen3-32B deprecated from Tinker), **thinking=300** (the regime where the
+penalty causes *real* suppression, not just reframing — see §5), QA-with-hints, 2 seeds.
+
+Mechanism: new `penalty_schedule` knob in `train_grpo.py` (`"cot:300,out:700"` etc.; segments
+`mode:batches`, mode ∈ out|cot|none) routes the penalty to output / CoT / nothing per training
+segment. Arms (`grpo-vuln-{arm}-8b-s{42,43}`):
+- **C** `out:1000` baseline · **A** `cot:300,out:700` (CoT-pressure→output) · **A0** `cot:300,none:700`
+  (CoT-pressure→recovery) · **A3** `cot:200,none:200,out:600` (pressure→recover→pressure) ·
+  **R** `out:500,none:500` (Exp 2 hysteresis).
+
+Two metrics agree throughout (so not a judge artifact): soft judge `monitor/hint_in_cot` and an
+API-free literal hint-source-mention regex on saved `cot_text`. Sycophancy → ~1.0 in all arms.
+
+**Seed-avg literal hint-mention in CoT, by batch window:**
+| arm | b0-50 | b150-300 | b300-400 | b400-500 | b700-1000 |
+|---|---|---|---|---|---|
+| C  (out:1000)             | 0.45 | 0.32 | 0.13 | 0.06 | 0.01 |
+| A  (cot300,out700)        | 0.43 | 0.13 | 0.01 | 0.00 | 0.00 |
+| A0 (cot300,none700)       | 0.43 | 0.15 | 0.02 | 0.03 | 0.04 |
+| A3 (cot200,none200,out600)| 0.44 | 0.22 | 0.19 | 0.12 | 0.00 |
+| R  (out500,none500)       | 0.42 | 0.27 | 0.06 | 0.02 | 0.02 |
+
+**Held-out eval @ final ckpt (378 MMLU Qs, seed-avg), `logs/eval-vuln/`:**
+| arm | hint_in_cot | hint_in_output | syc | real |
+|---|---|---|---|---|
+| C  | 0.008 | 0.005 | 1.00 | 0.00 |
+| A  | 0.000 | 0.003 | 1.00 | 0.01 |
+| A0 | 0.010 | **0.245** | 1.00 | 0.03 |
+| A3 | 0.000 | 0.000 | 1.00 | 0.00 |
+| R  | 0.008 | 0.010 | 1.00 | 0.00 |
+
+**Findings:**
+1. **Direct CoT pressure suppresses the CoT faster/deeper than output-penalty spillover** (A/A0 ≈0.13
+   vs C ≈0.32 at b150-300).
+2. **Persistence / hysteresis (cleanest result):** once suppressed, hint-mention does NOT recover when
+   pressure is removed — A0 stays ~0.02-0.04 for 700 no-pressure batches; R stays ~0.02 after b500; A3
+   never rebounds. Answers Exp 2 (hysteresis = yes). Likely a stable-attractor mechanism (nothing
+   pushes the model back to verbalizing the hint once the compressed policy earns full reward).
+3. **Directional asymmetry (surprise):** output pressure spills DOWN into the CoT (C: both→~0), but
+   CoT pressure barely spills UP into the output — A0 final shows CoT scrubbed (0.010) while the
+   OUTPUT still acknowledges the hint (**0.245**). Penalize the output → both channels clean; penalize
+   the CoT → clean CoT, still-revealing output.
+
+**On the original "faster spillover from a common start" framing:** not realizable here, because
+suppression persists — the CoT never recovers to a matched baseline to re-pressure from (A3 confirms
+no rebound). Reframes to durable suppression + asymmetry.
+
+**Cross-environment attempt (intended cleaner design: QA CoT-pressure → poly output-penalty, poly's
+`expanded_in_cot` starts fresh so it gives the matched baseline the within-env design lacks).**
+Blocked: poly output→CoT spillover turns out to be **essentially unique to Qwen3-32B**, which is
+gone from Tinker. Full sweep of available models on poly + output penalty (`expanded_in_output`
+penalized, watching whether `expanded_in_cot` follows):
+
+| Model | out (penalized) | cot (spillover) | verdict |
+|---|---|---|---|
+| **Qwen3-32B** (gone) | →0 | **→0.5 by b300** | **SPILLS** (the only one; §7) |
+| Qwen3-8B | 1.0 pinned | 1.0 pinned | no training (no variance) |
+| Qwen3-30B-A3B | 1.0 pinned | 1.0 pinned | no training |
+| Qwen3.6-35B-A3B | →0 by b200 | ~0.9 (b280) | **dissociates** |
+| Nemotron-3-Super-120B-A12B | →0 by b120 | 1.0 | **dissociates** |
+| GPT-OSS-120B | 0 (natural) | 1.0 | degenerate (concise output, nothing to penalize) |
+| DeepSeek-V3.1 | noisy ~0.3 | noisy ~0.3 | unusable (correct~0.25, can't do poly) |
+| Qwen3.6-27B | — | — | Tinker capacity-blocked (paused indefinitely) |
+
+**Meta-finding:** poly output→CoT spillover is highly model-specific. Capable available models
+*dissociate* — strip the expanded form from the output while keeping it in the CoT — which is the
+monitorability-*preserving* outcome and echoes within-env finding #3 (a model can clean one channel
+without contaminating the other). So the cross-env design can't be run on Tinker today. Validation
+data: `logs/_poly_crossenv_validation/`.
+
+**Caveats:** 8B only; 2 seeds; thinking=300 specifically; soft judge conflates "follows hint" with
+"mentions hint" (mitigated by the agreeing literal metric); persistence may be a stable attractor
+rather than fragility.
+
+**Plots:** `plots/vuln_{hint_in_cot,panels,literal_mention}.png`. **Scripts:**
+`scripts/run_vulnerability_pipeline.py` (launcher), `scripts/eval_all_vuln.py`,
+`scripts/plot_vulnerability.py`. **Data:** `logs/grpo-vuln-*/`, `logs/eval-vuln/`.
+
+---
+
 ## 9. Comparison to prior work (their QA env, Fig 4 of 2511.11584)
 
-Their MMLU QA numbers (from their Fig 4 table — **verify against paper PDF before citing**),
+Their MMLU QA numbers (from their Fig 4 — **verified against the PDF 2026-06-29, commit
+e5b5959**; CoT detection is read off the scatter x-axis and is approximate),
 Qwen3-4B, thinking=300, λ=2, 10 runs:
 | Run | Task reward | Output penalty | CoT detection (approx, from their fig) |
 |---|---|---|---|
-| No Penalty | 0.97 | 1.01 | ~0.62 |
-| Penalty | 0.95 | 0.08 | ~0.55 |
-| Mind & Face | 0.64 | 0.50 | ~0.30 |
-| Reward Targeting | 0.95 | 0.03 | ~0.50 |
-| Targeted M&F | 0.67 | 0.83 | ~0.65 |
+| No Penalty | 0.97±0.03 | 1.01±0.08 | ~0.52 |
+| Penalty | 0.95±0.03 | 0.08±0.04 | ~0.02 |
+| Mind & Face | 0.64±0.07 | 0.50±0.04 | ~0.23 |
+| Reward Targeting | 0.95±0.06 | 0.03±0.01 | ~0.25 |
+| Targeted M&F | 0.67±0.08 | 0.83±0.20 | ~0.62 |
 
 Their finding: in QA, mitigations either failed to reduce spillover or hurt task reward (M&F /
 TMF destabilized; RT only partial). Our matched re-runs at 4096 (§3) put RT/M&F/TMF at full

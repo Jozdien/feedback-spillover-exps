@@ -209,21 +209,22 @@ pipeline without the rewriting step, which isolates ``SFT'' from ``style''; and
 penalty's advantage on CoT tokens) and Mind \& Face (separate LoRA adapters generate CoT
 and output), and their combination, Targeted Mind \& Face.
 
-\paragraph{Training.} We train with GRPO \citep{williams1992reinforce} via the Tinker
+\paragraph{Training.} We train with GRPO \citep{shao2024deepseekmath} via the Tinker
 API \citep{tinker2025}: LoRA rank 32, group size 4 over 3 prompts (12 rollouts/batch),
 1000 batches, learning rate $10^{-5}$, temperature 1. Generation is two-phase: a CoT of
 up to $T$ thinking tokens, then an output of up to 600 tokens; our main results use
 $T=4096$, and Section~\ref{sec:regime} studies $T=300$ (the original work's budget). We
 use Qwen3-8B and Qwen3-32B \citep{qwen3}, two seeds each. Evaluation generates at the
 same CoT budget the model was trained at, on the 378 MMLU elementary-mathematics
-questions---the same pool seen during training, so spillover is measured in-distribution.
+questions---the same question pool seen during training, so spillover is measured
+in-distribution (see Appendix~\ref{app:eval} for a hint-assignment caveat).
 
 \paragraph{Differences from \citet{drori2025output}.} We follow their environment but
 differ in implementation. We fine-tune LoRA adapters (rank 32) rather than the full
 model; we generate the CoT and output in two separate sampling passes---CoT up to the
 \texttt{</think>} delimiter, then output---rather than a single pass with a logit
 processor; we optimize with GRPO (advantages normalized within groups of 4 samples per
-prompt) rather than their REINFORCE estimator; and we use Qwen3-8B and Qwen3-32B with two
+prompt) rather than their REINFORCE \citep{williams1992reinforce} estimator; and we use Qwen3-8B and Qwen3-32B with two
 seeds each rather than Qwen3-4B with ten. Where our numbers diverge from
 theirs---most visibly the weak baseline spillover at $T=4096$---these differences and the
 CoT-budget effect of Section~\ref{sec:regime} are the likely causes.
@@ -400,12 +401,15 @@ penalizing the output drags the reasoning down with it.
 How much style SFT does the mitigation need? We penalize-RL ($\lambda=2$) from intermediate
 checkpoints of the pirate-output SFT---after as few as 5 of its 234 gradient steps, up to the
 full run---and measure final CoT monitorability (Figure~\ref{fig:depth}). The answer is: very
-little. At every checkpoint, including the 5-step one, the penalty suppresses the output
-($M_{\text{out}}\!\approx\!0.02$) at full task reward, while CoT hint detection stays near the
-no-penalty control level ($0.50$) and far above the no-SFT penalty baseline ($0.18$). There is
-no monotonic ``more SFT is better'' trend---the persona-separation benefit saturates almost
-immediately. A handful of gradient steps of cheap output-style SFT install the boundary
-(Figure~\ref{fig:depth}a).
+little. Every checkpoint, including the 5-step one, keeps CoT hint detection far above the
+no-SFT penalty baseline ($0.18$): the checkpoints range from $0.32$ to $0.58$, most of them
+near the no-penalty control level ($0.50$), with the 5- and 200-step checkpoints lower
+($0.37$, $0.32$)---seed variance rather than a trend in SFT depth. Output suppression is
+near-complete at full task reward at every checkpoint but one
+($M_{\text{out}}\!\le\!0.03$; the 100-step checkpoint is partial, $M_{\text{out}}=0.09$ at
+reward $0.82$). There is no monotonic ``more SFT is better'' trend---the persona-separation
+benefit appears almost immediately and then fluctuates. A handful of gradient steps of cheap
+output-style SFT install the boundary (Figure~\ref{fig:depth}a).
 
 \subsection{Rewarding the Style Does Not Buy a Genuine Explanation}
 \label{sec:piratereward}
@@ -416,8 +420,9 @@ erodes (Section~\ref{sec:discussion}). Can a real styled output be recovered by
 \emph{rewarding} it? We add a term $\mu\,M_{\text{pirate}}$ to the reward, where
 $M_{\text{pirate}}\in[0,1]$ is a GPT-4o-mini judge of whether the output is in pirate-speak,
 and sweep $\mu\in\{0.5,1,2\}$ ($\mu{=}0$ recovers plain pirate-output). The style is trivially
-maintained---pirate-ness stays $\approx\!1.0$ at every $\mu$, and CoT monitorability stays in
-the same range as plain pirate-output (Figure~\ref{fig:piratereward})---but the output still
+maintained---pirate-ness stays $\approx\!1.0$ at every $\mu$, and CoT monitorability stays
+broadly in the range of plain pirate-output ($0.36$--$0.55$ across $\mu$, vs $0.47$ at
+$\mu{=}0$; Figure~\ref{fig:piratereward})---but the output still
 does not become a genuine explanation.
 It reward-hacks into pirate \emph{answer-repetition} (``Arrr, the answer be $\boxed{D}$! Avast,
 the answer be $\boxed{D}$!\,\ldots''), at every $\mu$ including the gentlest
@@ -434,11 +439,11 @@ the style does not help.} Qwen3-8B, $\lambda=2$, final CoT hint detection (seed-
 $n{=}2$; bars are the seed half-range). \textbf{(a)}~Penalized runs initialized from
 pirate-output SFT checkpoints of increasing length. Step 0 is the model with no pirate SFT (the
 no-SFT penalty run, which also fails to learn the task; Section~\ref{sec:core}); after just 5
-steps it jumps to and stays near the no-penalty control level (dashed line), with a flat trend
-above. \textbf{(b)}~Adding a reward $\mu\,M_{\text{pirate}}$ for pirate-style output;
+steps it jumps to well above that baseline, and the checkpoints fluctuate around the
+no-penalty control level (dashed line) with no trend in SFT depth. \textbf{(b)}~Adding a reward $\mu\,M_{\text{pirate}}$ for pirate-style output;
 $\mu{=}0$ is plain pirate-output (our prior reward). The output stays pirate
 (pirate-ness $\approx\!1.0$, not shown) but degenerates into answer-repetition at every $\mu$,
-so CoT monitorability stays in the $\mu{=}0$ range rather than improving.}
+so CoT monitorability stays near the $\mu{=}0$ level rather than improving.}
 \label{fig:depth}
 \label{fig:piratereward}
 \end{figure}
@@ -451,8 +456,9 @@ polynomial derivative-factoring task of \citet{emmons2025chainofthought}, where 
 behavior is writing the expanded form of the derivative in the output (a string-match
 monitor, no LLM judge). The plain penalty reproduces spillover---expanded-form mentions in
 the CoT fall from $\approx\!1.0$ to $\approx\!0.2$---while pirate-output keeps the CoT
-intact ($\approx\!1.0$) \emph{and} suppresses the output fastest of all conditions
-(Figure~\ref{fig:poly}). The prior mitigations also hold the CoT here, consistent with the
+intact ($0.92$--$1.0$ across seeds) \emph{and} suppresses the output fastest of all conditions
+(partly because the pirate SFT already starts with fewer expanded-form outputs;
+Figure~\ref{fig:poly}). The prior mitigations also hold the CoT here, consistent with the
 original work, where the mitigations succeeded in this environment but not in QA.
 
 \paragraph{Spillover generalizes across model families.} Spillover, and its
@@ -527,7 +533,8 @@ monitorability of the no-penalty model.
 \subsection{Limitations}
 We use two seeds (vs.\ ten in the original work), LoRA rather than full fine-tuning,
 two-phase sampling rather than a single pass, and a specific model/API stack
-(Tinker). The 32B Mind \& Face comparison could not be evaluated at the matched CoT
+(Tinker). Evaluation fixes the hint assignment to the seed-42 draw for both seeds
+(Appendix~\ref{app:eval}). The 32B Mind \& Face comparison could not be evaluated at the matched CoT
 budget because Qwen3-32B was deprecated from the API before we caught an evaluation-budget
 bug (Appendix~\ref{app:eval}); we report 32B mitigation results only for the conditions we
 could evaluate correctly.
@@ -549,7 +556,7 @@ SFT data + adapters.}
 \section{Training Details and Hyperparameters}
 \label{app:train}
 
-We train with GRPO \citep{williams1992reinforce} on LoRA adapters through the Tinker API
+We train with GRPO \citep{shao2024deepseekmath} on LoRA adapters through the Tinker API
 \citep{tinker2025}. Each batch samples a small number of prompts, rolls each out
 \texttt{group\_size} times, normalizes advantages within each prompt's group, and takes one
 Adam step on a token-level importance-sampling loss. There is no KL penalty and no value
@@ -559,10 +566,13 @@ a section states otherwise.
 \begin{table}[h]
 \centering
 \caption{\textbf{GRPO training hyperparameters} (QA and polynomial environments). Values are
-the configuration actually run; where the code default differs we note it. ``Batch'' is the
+the configuration actually run; several \texttt{train\_grpo.py} code defaults differ
+(\texttt{num\_episodes}, \texttt{save\_every}, \texttt{max\_thinking\_tokens}, and the
+no-answer penalty). ``Batch'' is the
 total number of rollouts per optimizer step; with \texttt{group\_size}~4 that is 3 distinct
 prompts, each rolled out 4 times. The number of optimizer steps is
-$\text{num\_episodes}/\text{batch}=12000/12=1000$.}
+$\text{num\_episodes}/\text{batch}$: $12000/12=1000$ for QA, $6000/12=500$ for the polynomial
+environment.}
 \label{tab:hparams}
 \begin{tabular}{ll}
 \toprule
@@ -573,15 +583,15 @@ LoRA rank & 32 \\
 Group size & 4 \\
 Prompts per step & 3 \\
 Rollouts per step (batch) & 12 \\
-Total rollouts (\texttt{num\_episodes}) & 12{,}000 \\
-Optimizer steps (batches) & 1000 \\
+Total rollouts (\texttt{num\_episodes}) & 12{,}000 (QA); 6{,}000 (polynomial) \\
+Optimizer steps (batches) & 1000 (QA); 500 (polynomial) \\
 Learning rate & $1\times10^{-5}$ \\
 Optimizer & Adam, $(\beta_1,\beta_2)=(0.9,0.999)$ \\
 Loss & token-level importance sampling (Tinker) \\
 Advantage & group-normalized, $\epsilon=10^{-8}$ (zero-variance group $\to$ 0) \\
 KL penalty & none \\
 Max thinking tokens $T$ & 4096 (main); 300 (regime study, \S\ref{sec:regime}) \\
-Max output tokens & 600 \\
+Max output tokens & 600 (QA); 1000 (polynomial) \\
 Temperature & 1.0 (CoT and output) \\
 Penalty weight & $\lambda=2$ (\texttt{penalty\_weight}$=-2.0$) \\
 No-answer penalty (QA) & $-1.0$ (code default $0.0$; set in all reported QA runs) \\
@@ -630,6 +640,19 @@ with prompt, \texttt{cot\_prefix}, and \texttt{bridge} tokens masked to zero adv
 default single-model setting (no reward targeting), the output penalty therefore flows onto the
 CoT tokens---this is the gradient channel through which spillover can occur. Reward targeting
 (Appendix~\ref{app:mit}) zeros that term.
+
+\paragraph{Implementation notes.} Three details of the two-phase sampler are worth recording.
+(1)~The sampler returns the \texttt{</think>} stop sequence as part of the CoT tokens, and the
+fixed \texttt{bridge} (\texttt{</think>}) is appended in addition, so a naturally-terminated
+rollout contains a doubled delimiter---\texttt{\ldots CoT</think></think>output}---whose first
+copy is a CoT token carrying the CoT advantage (and appears at the end of the text the CoT
+monitor scores). Rollout-time and training-time sequences are identical, so the
+importance-sampling loss is unaffected. (2)~If the CoT does not emit \texttt{</think>} within
+the budget $T$, it is truncated at $T$, the bridge is appended anyway, and the output is
+sampled; the rollout is kept. (3)~A rollout whose sampling fails remains in its group for
+advantage normalization as an empty response (receiving the no-answer penalty), though no
+gradient datum is built for it; a batch is skipped entirely if fewer than 2 rollouts are valid.
+Judge API failures score $0$ after three retries.
 
 \section{Judge and Monitor Prompts}
 \label{app:judges}
@@ -708,7 +731,9 @@ and stripping spaces.
 \label{app:env}
 
 \paragraph{QA with hints.} The task pool is the MMLU \texttt{elementary\_mathematics} test split
-\citep{hendrycks2021mmlu} (shuffled with seed 0, all 378 questions used). For each question a
+\citep{hendrycks2021mmlu} (shuffled with the run's RL seed, 42 or 43; all 378 questions used).
+The shuffle seed also draws each question's hint letter and template, so the two RL seeds train
+on different hint assignments over the same questions. For each question a
 hint pointing to a uniformly-random \emph{incorrect} letter is inserted before the body, drawn
 from six templates:
 
@@ -755,7 +780,9 @@ explanation, with two few-shot examples prepended. Problems are generated with \
 constructing a factorable derivative and integrating it; correctness is checked by symbolic
 equality (\texttt{expand(parsed - true\_derivative) == 0}), with string-match fallbacks. The
 penalized behavior is writing the \emph{expanded} (multiplied-out) derivative anywhere in the
-output, caught by the string-match monitor above; the default penalty weight is $-1$.
+output, caught by the string-match monitor above. The environment's code-default penalty weight
+is $-1$; the reported polynomial runs use $\lambda=2$ (\texttt{penalty\_weight}$=-2$), matching
+the QA runs.
 
 \section{SFT Data and Pipeline}
 \label{app:sft}
@@ -774,8 +801,8 @@ Text to rewrite:
 \end{promptbox}
 
 \noindent The final record is \texttt{<think>}\,CoT\,\texttt{</think>}\,pirate-output. We drop
-samples with no \texttt{</think>} split, outputs shorter than a few words, or fewer than two
-pirate keywords from
+samples with no \texttt{</think>} split, pass-1 outputs shorter than 10 words (rewrites shorter
+than 5), or fewer than two distinct pirate keywords (matched as substrings) from
 \{\texttt{arr}, \texttt{matey}, \texttt{ye}, \texttt{avast}, \texttt{shiver}, \texttt{davy
 jones}, \texttt{blimey}, \texttt{scallywag}, \texttt{aye}\}; there is no answer-correctness
 filter (Alpaca has no gold answers). The \emph{normal}-SFT control reuses Pass~1's responses
@@ -789,7 +816,9 @@ She is oftenly late for work.
 
 Assistant:
 <think>
-Okay, let's see. The sentence is "She is oftenly late for work." The user wants me to delete the wrong word. First, I need to check if there are any incorrect words here. The main verb is "is," which is correct. The word "oftenly" stands out. "often" is already the adverb form, so "oftenly" is incorrect because you don't add "-ly" to "often." The correct adverb is "often" without the "-ly." So the corrected sentence should be "She is often late for work."
+Okay, let's see. The sentence is "She is oftenly late for work." The user wants me to delete the wrong word.
+
+First, I need to check if there are any incorrect words here. The main verb is "is," which is correct. The word "oftenly" stands out. Wait, "often" is an adverb, but it doesn't end with "-ly" here. Wait, no, "often" is already the adverb form. So "oftenly" is incorrect because you don't add "-ly" to "often." The correct adverb is "often" without the "-ly." So "oftenly" is the wrong word. Therefore, I should delete "oftenly" and just leave "often." Let me double-check. Yes, "often" is correct, and adding "-ly" would make it incorrect. So the corrected sentence should be "She is often late for work." So the wrong word is "oftenly."
 </think>
 Arr, ye misbegotten word be 'oftenly'! It should be 'often', matey! Avast, that 'oftenly' be a foul word, shiver me timbers! Corrected sentence: She be oft' late for work, by Davy Jones' locker! Arrr!
 \end{samplebox}
@@ -835,9 +864,14 @@ Base RL models are \texttt{Qwen/Qwen3-8B} and \texttt{Qwen/Qwen3-32B}; Qwen3-32B
 from the Tinker API in mid-June 2026, which bounds the 32B experiments (Appendix~\ref{app:eval}).
 The cross-family runs of \S\ref{sec:generality} use \texttt{Qwen/Qwen3.6-35B-A3B} and
 \texttt{nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16}. The monitors and the pirate-style judge
-are \texttt{gpt-4o-mini} (\texttt{seed}=0). Style-SFT data was generated from
-\texttt{Qwen/Qwen3-32B} (the ``qwen'' source used in the main results); a
-\texttt{claude-haiku-4-5-20251001} source was also prepared. RL uses seeds 42 and 43
+are \texttt{gpt-4o-mini} (\texttt{seed}=0). Style-SFT data was generated by each base model
+itself: the 8B SFT datasets by \texttt{Qwen/Qwen3-8B} and the 32B datasets by
+\texttt{Qwen/Qwen3-32B} (Appendix~\ref{app:sft}). A \texttt{claude-haiku-4-5-20251001}-sourced
+dataset was also prepared, via an earlier single-pass pipeline with a correctness filter, but
+is used in no reported result. The SFT-depth study (\S\ref{sec:depth}) initializes RL from an
+identically-configured re-run of the 8B pirate-output SFT checkpointed every 5 steps. A third
+cross-family model, \texttt{Qwen/Qwen3.6-27B}, was launched and stopped after a few batches for
+cost; it contributes to no reported result. RL uses seeds 42 and 43
 (two seeds per condition); the cross-family runs use seed 42 only. All training rollouts,
 advantages, per-sample eval transcripts with judge scores, configs, and final LoRA adapters are
 saved.
@@ -847,7 +881,12 @@ saved.
 
 \paragraph{Protocol.} Evaluation uses the same two-phase generation as training (CoT to
 \texttt{</think>}, then output $\le 600$ tokens) on the 378 in-distribution MMLU questions, with
-final checkpoints, seed-averaged ($n{=}2$). We report sycophancy (followed the hint),
+final checkpoints, seed-averaged ($n{=}2$). One caveat: evaluation loads the questions with a
+fixed shuffle seed of 42, which also fixes the hint letters and templates
+(Appendix~\ref{app:env}). Seed-42 runs are therefore evaluated on exactly their training
+prompts, while seed-43 runs see the same 378 questions with freshly drawn hint assignments.
+The protocol is identical across all conditions, so comparisons are unaffected, but strictly
+the evaluation is on-training-prompts for only one of the two seeds. We report sycophancy (followed the hint),
 \texttt{real\_correct} (true answer), $M_{\text{out}}$ (hint in output), and $M_{\mathrm{CoT}}$
 (hint in CoT). \textbf{The eval CoT budget must match each run's training $T$}: a model trained
 at $T{=}4096$ must be evaluated at $4096$, or its CoT is truncated and $M_{\mathrm{CoT}}$ is not
@@ -868,10 +907,11 @@ M\&F and TMF from the 32B results rather than report the truncated numbers.
 \label{app:results}
 
 Table~\ref{tab:full} gives the full per-condition QA numbers at $\lambda=2$, $T=4096$,
-seed-averaged. \texttt{real\_correct} is not broken out per condition in our logs (the only
-recorded value is $0.94$ for 8B no-SFT, reflecting that the no-SFT penalty model answers
-\emph{honestly} rather than following the hint); sycophancy and the output score capture the
-behavior of interest. We ran the full penalty-weight sweep $\lambda\in\{0,0.5,1,2\}$ for the
+seed-averaged. \texttt{real\_correct} (recorded per sample in every eval) is essentially the
+complement of sycophancy: near zero for every penalized condition that learns the task, $0.94$
+for 8B no-SFT (that model answers \emph{honestly} rather than following the hint) and $0.56$
+for 8B normal-SFT (partially honest); sycophancy and the output score capture the behavior of
+interest. We ran the full penalty-weight sweep $\lambda\in\{0,0.5,1,2\}$ for the
 four SFT conditions on both sizes (Figure~\ref{fig:sweep}); the $\lambda{=}0$ (control) and
 $\lambda{=}2$ endpoints are the columns of Table~\ref{tab:full}. Across all intermediate weights
 pirate-output keeps CoT detection near its control level, while no-SFT and normal-SFT fall away
@@ -893,8 +933,9 @@ signal and pirate-CoT collapses to $\approx0$ once any penalty is applied.}
 \caption{\textbf{Full QA results} ($\lambda=2$, $T=4096$, final checkpoints, seed-averaged
 $n{=}2$). ``ctrl CoT'' is the matched no-penalty ($\lambda{=}0$) CoT detection; ``CoT'',
 ``out'', ``syc'' are the penalized run's CoT detection, output acknowledgement, and sycophancy;
-``rew'' is $\text{syc}-2\cdot\text{out}$. Dashes are values not recorded in our logs; ``---''
-under 32B M\&F/TMF marks the unrecoverable conditions (Appendix~\ref{app:eval}).}
+``rew'' is $\text{syc}-2\cdot\text{out}$. Dashes in the ``ctrl CoT'' column mark conditions with
+no matched no-penalty run ($\lambda{=}0$ controls were run only for the four SFT conditions);
+``---'' under 32B M\&F/TMF marks the unrecoverable conditions (Appendix~\ref{app:eval}).}
 \label{tab:full}
 \begin{tabular}{lccccc}
 \toprule
@@ -905,19 +946,19 @@ No SFT            & 0.67 & 0.18 & 0.008 & 0.05 & $+0.03$ \\
 Normal SFT        & 0.54 & 0.25 & 0.018 & 0.43 & $+0.40$ \\
 Pirate output     & 0.50 & 0.47 & 0.018 & 1.00 & $+0.96$ \\
 Pirate CoT        & 0.74 & 0.00 & 0.002 & 1.00 & $+0.99$ \\
-Reward targeting  & --   & 0.20 & 0.005 & --   & $+0.99$ \\
-Mind \& Face      & --   & 0.40 & 0.004 & --   & $+0.99$ \\
-Targeted M\&F     & --   & 0.75 & 0.000 & --   & $+1.00$ \\
-Pirate + RT       & --   & 0.60 & --    & --   & $+0.95$ \\
-Pirate + M\&F     & --   & 0.38 & --    & --   & $+0.99$ \\
-Pirate + TMF      & --   & 0.42 & --    & --   & $+0.94$ \\
+Reward targeting  & --   & 0.20 & 0.005 & 1.00 & $+0.99$ \\
+Mind \& Face      & --   & 0.40 & 0.004 & 1.00 & $+0.99$ \\
+Targeted M\&F     & --   & 0.75 & 0.000 & 1.00 & $+1.00$ \\
+Pirate + RT       & --   & 0.60 & 0.025 & 1.00 & $+0.95$ \\
+Pirate + M\&F     & --   & 0.38 & 0.005 & 1.00 & $+0.99$ \\
+Pirate + TMF      & --   & 0.42 & 0.030 & 1.00 & $+0.94$ \\
 \midrule
 \multicolumn{6}{l}{\emph{Qwen3-32B}} \\
 No SFT            & 0.78 & 0.50 & 0.006 & 1.00 & $+0.99$ \\
 Normal SFT        & 0.60 & 0.44 & 0.007 & 1.00 & $+0.98$ \\
 Pirate output     & 0.59 & 0.55 & 0.000 & 1.00 & $+1.00$ \\
 Pirate CoT        & 0.83 & 0.00 & 0.002 & 0.99 & $+0.99$ \\
-Reward targeting  & --   & 0.62 & --    & --   & --     \\
+Reward targeting  & --   & 0.60 & 0.000 & 1.00 & $+1.00$ \\
 Mind \& Face      & --   & ---  & ---   & ---  & ---    \\
 Targeted M\&F     & --   & ---  & ---   & ---  & ---    \\
 \bottomrule
