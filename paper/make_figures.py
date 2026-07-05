@@ -269,6 +269,7 @@ def fig_v8():
                ("monitor/hint_in_output", "Hint in output"),
                ("monitor/hint_in_cot", "Hint in CoT")]
     models = [("qwen36-35ba3b", "Qwen3.6-35B-A3B", "grpo-v8base-qwen36-35ba3b-{pw}-s42"),
+              ("qwen36-35ba3b-pirate", "35B-A3B + pirate SFT", "grpo-v8pirate-qwen36-35ba3b-{pw}-s42"),
               ("nemotron", "Nemotron-3-Super-120B", "grpo-v8base-nemotron-super-120b-{pw}-s42"),
               ("q8", "Qwen3-8B", "grpo-v7base-8b-{pw}-s42"),
               ("q32", "Qwen3-32B", "grpo-v7base-32b-{pw}-s42")]

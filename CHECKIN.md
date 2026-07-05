@@ -2,17 +2,17 @@
 
 *Last updated: 2026-07-04. (Detailed version for Claudes: HANDOFF.md)*
 
-## 🔬 2026-07-04: In flight
-1. **Lambda-sweep for mitigations** (launched by Jose in another session, ~11:49 UTC):
-   RT/M&F/TMF × pw{-0.5,-1} × seeds{42,43}, 8B, 12 runs. ETA ~02:00–05:00 UTC 7/5.
-   Watcher armed: on completion → 12 final evals @4096 → extend lambda_sweep.pdf with a
-   mitigations panel.
-2. **Cross-family pirate pipeline, Qwen3.6-35B-A3B** (`scripts/run_35ba3b_pirate_pipeline.sh`,
-   log `logs/pipeline-35ba3b-pirate.log`): data gen (~hours) → SFT (~10 min) → GRPO
-   pirate pw-2 + ctrl pw0, seed 42, T=4096 (~24 h). Extends §3.6 to a mitigation claim.
-3. **Seed-43 eval spot-check** (~10 min): v7base/v7norm/v6pirate 8B pw-2 s43 finals
-   re-evaluated with `--question-seed 43` → `logs/eval-seed43-check/`. Tests whether the
-   seed-42-hints eval asymmetry (App H) moves any number.
+## ✅ 2026-07-05: All three 7/4 launches COMPLETE (results in RESULTS.md §8 + paper)
+1. **Lambda-sweep for mitigations** (Jose's 12 runs): done + evaluated @4096. Ranking flat in λ
+   (RT 0.18-0.21, M&F 0.36-0.40, TMF 0.60-0.75, full reward everywhere); pirate beats RT+M&F at
+   every λ. Paper: lambda_sweep.pdf panel (c) + App I + §3.2. One run (v9mf-pw-1-s43) died in
+   the 7/4 billing outage; resumed from ckpt 400, completed clean.
+2. **Cross-family pirate, Qwen3.6-35B-A3B**: the mitigation GENERALIZES — penalized pirate run
+   holds hint-in-CoT at 0.971 (ctrl 0.990) with output 0.000 at full reward, vs no-SFT
+   0.995→0.851. Paper: §3.6 rewritten, fig v8 second row, section TODO resolved.
+3. **Seed-43 eval spot-check**: non-issue (CoT deltas ≤±0.05, both signs). Disclosed in App H.
+Ops note: Tinker balance ran out 7/4 ~20:13 UTC pausing all 14 runs; Jose topped up ~22:05;
+13 auto-resumed, 1 required manual resume.
 
 ## ✅ 2026-07-04: Full paper-vs-repo audit + fixes — no conclusion-changing bugs
 

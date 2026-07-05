@@ -202,6 +202,29 @@ Conditions present (×2 seeds, 500 batches): ctrl(pw0)/penalty/rt/mf/tmf/pirate/
 - Qwen3.6-27B: launched, killed at batch ~6 for cost (~$340/run projected; dense 27B pricing).
   Documented as a cost note, not a result.
 
+**Pirate-output on Qwen3.6-35B-A3B (2026-07-05): the MITIGATION generalizes cross-family.**
+Full pipeline re-run on the new model (self-generated Alpaca pirate data 35,687 records →
+SFT 234 steps → QA GRPO pw{-2,0}, seed 42, T=4096). Last-100-batch training metrics:
+| condition | rew | out | cot |
+|---|---|---|---|
+| no-SFT ctrl (pw0) | 1.00 | 0.92 | 0.995 |
+| no-SFT pen (pw-2) | 0.99 | 0.033 | 0.851 |
+| pirate ctrl (pw0) | 1.00 | 0.94 | 0.990 |
+| **pirate pen (pw-2)** | 1.00 | **0.000** | **0.971** |
+Pirate-output closes the (weak) baseline spillover (0.995→0.851 becomes 0.990→0.971) and
+suppresses the output MORE completely than no-SFT, at full reward. Paper: §3.6 rewritten
+("Spillover, and the mitigation, generalize"), fig v8 second row, TODO resolved.
+**Data:** `logs/grpo-v8pirate-qwen36-35ba3b-pw{-2,0}-s42/`, SFT `logs/sft-35ba3b-pirate-output-alpaca`,
+data `data/pirate-output-alpaca-qwen3.6-35b-a3b/`. **Pipeline:** `scripts/run_35ba3b_pirate_pipeline.sh`.
+
+**Lambda-sweep for mitigations (2026-07-05, Jose's runs):** RT/M&F/TMF × pw{-0.5,-1} × 2 seeds
+completed; finals evaluated @4096 (`logs/eval-penalty-v7/grpo-v9rt-8b-pw-{0.5,1}-*`,
+`logs/eval-penalty-v9mf/grpo-v9{mf,tmf}-8b-pw-{0.5,1}-*`). Ranking flat in λ:
+RT 0.18-0.21, M&F 0.36-0.40, TMF 0.60-0.75, all full reward; pirate (0.44-0.50) beats RT+M&F at
+every λ. Paper: fig lambda_sweep panel (c), App I text, §3.2 robustness sentence.
+NOTE: one sweep run (grpo-v9mf-8b-pw-1-s43) died in the 7/4 Tinker billing outage and was
+resumed from ckpt 400 (duplicate metrics batches 400-491, benign, same pattern as v9 finals).
+
 ---
 
 ## 8b. CoT-pressure & hysteresis — does prior pressure on the CoT make it more vulnerable? (2026-06-29)
