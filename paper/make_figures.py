@@ -362,8 +362,8 @@ def fig_sweep():
             ys.append(m); es.append(e)
         ax.errorbar(lams, ys, yerr=es, color=color, marker=mk, ms=MS, capsize=3,
                     lw=1.0, elinewidth=1.0, alpha=0.45, label=label)
-    for label, key in [("Reward targeting", "rt"), ("Mind \\& Face", "mf"),
-                       ("Targeted M\\&F", "tmf")]:
+    for label, key in [("Reward targeting", "rt"), ("Mind & Face", "mf"),
+                       ("Targeted M&F", "tmf")]:
         color, mk = C[key]
         ys, es = [], []
         for p in (-0.5, -1, -2):
@@ -376,10 +376,18 @@ def fig_sweep():
     ax.set_xlabel("Penalty weight $\\lambda$")
     ax.set_xticks(lams)
     ax.set_title("Qwen3-8B, mitigations", fontsize=10)
-    ax.legend(loc="upper right", fontsize=6.5, frameon=True, framealpha=0.95)
     axes[0].set_ylabel("CoT hint detection")
-    axes[0].legend(loc="upper right", fontsize=6.5, frameon=True, framealpha=0.95)
-    fig.tight_layout(); fig.savefig(FIG / "lambda_sweep.pdf"); plt.close(fig)
+    # One shared legend below the panels; dedupe the faded reference entries.
+    handles, labels = [], []
+    for a in (axes[0], axes[2]):
+        for h, l in zip(*a.get_legend_handles_labels()):
+            if l not in labels:
+                handles.append(h); labels.append(l)
+    fig.legend(handles, labels, loc="lower center", ncol=7, fontsize=7,
+               frameon=False, columnspacing=1.1, handletextpad=0.4,
+               bbox_to_anchor=(0.5, -0.01))
+    fig.tight_layout(rect=[0, 0.09, 1, 1])
+    fig.savefig(FIG / "lambda_sweep.pdf", bbox_inches="tight"); plt.close(fig)
 
 
 def fig_extra():
