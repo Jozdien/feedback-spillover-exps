@@ -328,7 +328,9 @@ individually on CoT monitorability, at full reward and the lowest cost of any mi
 Targeted M\&F---which applies \emph{both} of the prior protections at once---is the
 strongest single configuration ($0.75$); we do not claim to beat it, and note it is also
 the most expensive. A cheap output-style SFT is thus competitive with the prior
-mitigations and individually outperforms them.
+mitigations and individually outperforms them. This ranking is not specific to $\lambda=2$:
+sweeping the mitigations over $\lambda\in\{0.5,1,2\}$ leaves it unchanged at every weight
+(Appendix~\ref{app:results}, Figure~\ref{fig:sweep}).
 
 \paragraph{Style separation composes with reward targeting.} The two interventions are
 orthogonal---one acts at SFT time, the other at gradient time---and they compose: pirate-output
@@ -918,16 +920,26 @@ interest. We ran the full penalty-weight sweep $\lambda\in\{0,0.5,1,2\}$ for the
 four SFT conditions on both sizes (Figure~\ref{fig:sweep}); the $\lambda{=}0$ (control) and
 $\lambda{=}2$ endpoints are the columns of Table~\ref{tab:full}. Across all intermediate weights
 pirate-output keeps CoT detection near its control level, while no-SFT and normal-SFT fall away
-and pirate-CoT collapses to zero as soon as any penalty is applied.
+and pirate-CoT collapses to zero as soon as any penalty is applied. We also swept the prior
+mitigations on 8B at $\lambda\in\{0.5,1,2\}$ ($\lambda{=}0$ is degenerate for a
+mitigation---there is no penalty to target or route; Figure~\ref{fig:sweep}, right panel): the
+ranking of Section~\ref{sec:mitigations} is flat in $\lambda$---reward targeting stays at
+$0.18$--$0.21$, Mind \& Face at $0.36$--$0.40$, and Targeted M\&F at $0.60$--$0.75$, all at
+full task reward---so pirate-output ($0.44$--$0.50$) beats reward targeting and Mind \& Face
+individually at every penalty weight, not only at $\lambda=2$.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/lambda_sweep.pdf}
 \caption{\textbf{Pirate-output preserves CoT monitorability across the whole penalty-weight
-sweep.} CoT hint detection vs penalty weight $\lambda$ ($T=4096$, final checkpoints,
-seed-averaged $n{=}2$; bars are the seed half-range). On both model sizes, pirate-output (orange)
-stays near its $\lambda{=}0$ control at every weight, whereas no-SFT and normal-SFT lose CoT
-signal and pirate-CoT collapses to $\approx0$ once any penalty is applied.}
+sweep, and the mitigation ranking is flat in $\lambda$.} CoT hint detection vs penalty weight
+$\lambda$ ($T=4096$, final checkpoints, seed-averaged $n{=}2$; bars are the seed half-range).
+\emph{Left, middle}: on both model sizes, pirate-output (orange) stays near its $\lambda{=}0$
+control at every weight, whereas no-SFT and normal-SFT lose CoT signal and pirate-CoT collapses
+to $\approx0$ once any penalty is applied. \emph{Right}: the prior mitigations on 8B at
+$\lambda\in\{0.5,1,2\}$ (mitigation lines start at $0.5$ because $\lambda{=}0$ leaves nothing
+to target or route; faded lines repeat no-SFT and pirate-output for reference). The ranking is
+stable at every weight: TMF $>$ pirate-output $>$ M\&F $>$ RT, all at full task reward.}
 \label{fig:sweep}
 \end{figure}
 

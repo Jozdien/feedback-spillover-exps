@@ -335,8 +335,8 @@ def fig_sweep():
 
     conds = [("No SFT", "no_sft"), ("Normal SFT", "normal"),
              ("Pirate output", "pirate"), ("Pirate CoT", "pirate_cot")]
-    fig, axes = plt.subplots(1, 2, figsize=figsize(1.0, 0.42), sharey=True)
-    for ax, (size, name) in zip(axes, [("8b", "Qwen3-8B"), ("32b", "Qwen3-32B")]):
+    fig, axes = plt.subplots(1, 3, figsize=figsize(1.0, 0.34), sharey=True)
+    for ax, (size, name) in zip(axes[:2], [("8b", "Qwen3-8B"), ("32b", "Qwen3-32B")]):
         for label, ckey in conds:
             color, mk = C[ckey]
             ys, es = [], []
@@ -350,8 +350,35 @@ def fig_sweep():
         ax.set_xticks(lams)
         ax.set_title(name, fontsize=10)
         ax.set_ylim(-0.03, 0.9)
+    # Panel (c): the prior mitigations across lambda (8B; lambda=0 is degenerate for
+    # a mitigation -- no penalty to target or route -- so lines start at 0.5).
+    ax = axes[2]
+    for label, ckey in [("No SFT", "no_sft"), ("Pirate output", "pirate")]:
+        color, mk = C[ckey]
+        ys, es = [], []
+        for p in (0, -0.5, -1, -2):
+            vals = [v[2] for v in (read_final(r) for r in runs(ckey, "8b", p)) if v is not None]
+            m, e = _half(vals)
+            ys.append(m); es.append(e)
+        ax.errorbar(lams, ys, yerr=es, color=color, marker=mk, ms=MS, capsize=3,
+                    lw=1.0, elinewidth=1.0, alpha=0.45, label=label)
+    for label, key in [("Reward targeting", "rt"), ("Mind \\& Face", "mf"),
+                       ("Targeted M\\&F", "tmf")]:
+        color, mk = C[key]
+        ys, es = [], []
+        for p in (-0.5, -1, -2):
+            rs = [f"grpo-v9{key}-8b-{pws(p)}-s{s}" for s in (42, 43)]
+            vals = [v[2] for v in (read_final(r) for r in rs) if v is not None]
+            m, e = _half(vals)
+            ys.append(m); es.append(e)
+        ax.errorbar([0.5, 1, 2], ys, yerr=es, color=color, marker=mk, ms=MS,
+                    capsize=3, lw=1.4, elinewidth=1.3, label=label)
+    ax.set_xlabel("Penalty weight $\\lambda$")
+    ax.set_xticks(lams)
+    ax.set_title("Qwen3-8B, mitigations", fontsize=10)
+    ax.legend(loc="upper right", fontsize=6.5, frameon=True, framealpha=0.95)
     axes[0].set_ylabel("CoT hint detection")
-    axes[0].legend(loc="upper right", fontsize=7.5, frameon=True, framealpha=0.95)
+    axes[0].legend(loc="upper right", fontsize=6.5, frameon=True, framealpha=0.95)
     fig.tight_layout(); fig.savefig(FIG / "lambda_sweep.pdf"); plt.close(fig)
 
 
