@@ -214,6 +214,15 @@ SFT 234 steps → QA GRPO pw{-2,0}, seed 42, T=4096). Last-100-batch training me
 Pirate-output closes the (weak) baseline spillover (0.995→0.851 becomes 0.990→0.971) and
 suppresses the output MORE completely than no-SFT, at full reward. Paper: §3.6 rewritten
 ("Spillover, and the mitigation, generalize"), fig v8 second row, TODO resolved.
+**Final-checkpoint evals** (`logs/eval-penalty-v8/grpo-v8pirate-*`): pirate pen cot 0.978
+(ctrl 0.987), out ~0.000, syc 1.00 → Pareto fig `pareto_v8_35ba3b.pdf` (fig:v8pareto).
+**Audit finding (2026-07-05):** the penalized 35B output degenerates by REGURGITATING the
+SFT rewrite-prompt boilerplate (boxed answer + "Rewrite the provided text ENTIRELY in
+exaggerated pirate speak..." meta-text; ~100% of late rollouts and eval outputs). Seeded by
+a 0.5% think-tag contamination in the SFT data (47/10,050 records) that the penalty
+amplified because the boilerplate never mentions the hint. Control (pw0) outputs are real
+hint-acknowledging explanations but the pirate style erodes to 0 by late training. CoT
+unaffected (read transcripts: coherent, hint-acknowledging). Disclosed in §3.6 + Discussion.
 **Data:** `logs/grpo-v8pirate-qwen36-35ba3b-pw{-2,0}-s42/`, SFT `logs/sft-35ba3b-pirate-output-alpaca`,
 data `data/pirate-output-alpaca-qwen3.6-35b-a3b/`. **Pipeline:** `scripts/run_35ba3b_pirate_pipeline.sh`.
 

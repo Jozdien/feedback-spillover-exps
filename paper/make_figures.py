@@ -264,6 +264,29 @@ def fig_poly():
     plt.close(fig)
 
 
+def fig_v8_pareto():
+    # Cross-family Pareto (Qwen3.6-35B-A3B, seed 42): no-SFT vs pirate-output,
+    # final-checkpoint evals (same protocol/format as fig_sft). Dotted vlines are
+    # each condition's no-penalty (pw0) CoT level.
+    v8dir = [ROOT / "logs" / "eval-penalty-v8"]
+    fig, ax = plt.subplots(figsize=figsize(0.55, 0.72))
+    rows = [("No SFT", "no_sft", "grpo-v8base-qwen36-35ba3b-{pw}-s42"),
+            ("Pirate output", "pirate", "grpo-v8pirate-qwen36-35ba3b-{pw}-s42")]
+    for label, ckey, tmpl in rows:
+        color, mk = C[ckey]
+        cp = pt([tmpl.format(pw="pw0")], dirs=v8dir)
+        if cp:
+            ax.axvline(cp[0], color=color, ls=":", lw=1.3, alpha=0.5, zorder=1)
+        dot(ax, pt([tmpl.format(pw="pw-2")], dirs=v8dir), color, mk)
+    pareto_axes(ax)
+    ax.set_title("Qwen3.6-35B-A3B", fontsize=10)
+    ax.legend(handles=[handle(l, *C[ck]) for l, ck, _ in rows],
+              loc="lower left", fontsize=8, frameon=True, framealpha=0.95)
+    fig.tight_layout()
+    fig.savefig(FIG / "pareto_v8_35ba3b.pdf")
+    plt.close(fig)
+
+
 def fig_v8():
     metrics = [("reward/correct", "Correctness"),
                ("monitor/hint_in_output", "Hint in output"),
@@ -441,7 +464,7 @@ def fig_extra():
 
 if __name__ == "__main__":
     for f in (fig_sft, fig_mit, fig_mitigations_t300,
-              fig_t300_vs_4096, fig_poly, fig_v8, fig_extra, fig_sweep):
+              fig_t300_vs_4096, fig_poly, fig_v8, fig_v8_pareto, fig_extra, fig_sweep):
         f()
         print(f"  {f.__name__}")
     print("Done. PDFs in figures/.")

@@ -472,8 +472,18 @@ dynamics. Style separation transfers to the new family: repeating the full pirat
 pipeline on Qwen3.6-35B-A3B (self-generated SFT data, then penalized RL; single seed)
 removes even that weak baseline spillover---hint-in-CoT stays at $0.971$ against a
 no-penalty control of $0.990$, with the output suppressed more completely than in the
-no-SFT run ($0.000$ vs $0.033$) at full task reward (Figure~\ref{fig:v8}, second row).
-Cross-family numbers are late-training (last-100-batch) rollout metrics.
+no-SFT run ($0.000$ vs $0.033$) at full task reward (Figure~\ref{fig:v8}, second row;
+late-training rollout metrics). Final-checkpoint evaluations give the same picture in the
+format of Figure~\ref{fig:sft}: the pirate point sits on its no-penalty reference line
+($0.978$ vs $0.987$) at full reward, while the no-SFT point falls short of its own
+($0.846$ vs $0.995$; Figure~\ref{fig:v8pareto}). As at the other scales, the suppressed
+output is degenerate rather than cleanly explanatory: on this model the penalized output
+collapses to the boxed answer followed by boilerplate regurgitated from the style-SFT
+data---a rare data-generation artifact, present in $0.5\%$ of SFT records, that the
+penalty amplifies to ${\sim}100\%$ of outputs because the boilerplate never mentions the
+hint---and in the no-penalty control the pirate style itself erodes over training. Neither
+affects the CoT, which stays coherent and hint-acknowledging
+(cf.\ Section~\ref{sec:discussion}).
 
 \begin{figure}[t]
 \centering
@@ -496,6 +506,17 @@ the hint from the start. Second row: the same MoE model after pirate-output SFT
 ($\lambda\in\{0,2\}$, single seed)---the output penalty scrubs the output completely while
 hint-in-CoT stays at its control level.}
 \label{fig:v8}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.55\textwidth]{figures/pareto_v8_35ba3b.pdf}
+\caption{\textbf{The mitigation transfers cross-family (Pareto view).} Qwen3.6-35B-A3B,
+$\lambda=2$, final-checkpoint evaluations, single seed; same format as
+Figure~\ref{fig:sft} (dotted line: the same condition's no-penalty CoT level). The
+pirate-output point sits on its reference line at full reward---no spillover---while the
+no-SFT point falls short of its own.}
+\label{fig:v8pareto}
 \end{figure}
 
 \section{Discussion}
@@ -525,7 +546,9 @@ acknowledge the hint, which is what preserves monitorability. So ``the output gi
 explanation'' is the mechanism by which the penalty is satisfied, not a training failure.
 The no-SFT penalty at the short budget instead collapses the output to degenerate
 repetition, and at the long budget produces coherent hint-free explanations but fails to
-learn the (sycophantic) task at all---answering honestly instead. These differing failure
+learn the (sycophantic) task at all---answering honestly instead. The cross-family
+Qwen3.6-35B-A3B run degenerates differently again, regurgitating boilerplate from its own
+style-SFT data (\S\ref{sec:generality}). These differing failure
 modes are why the no-SFT ``baseline'' is not a single clean reference across regimes.
 
 \paragraph{Practical implication.} Style separation is essentially free---a developer who
