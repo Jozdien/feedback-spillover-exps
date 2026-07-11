@@ -398,8 +398,10 @@ Launchers = launch_grpo_v9_baselines.sh, launch_grpo_t300_*.sh, launch_grpo_v8_b
 Training = `src/spillover/train_grpo.py` (reward_target, checkpoint=SFT-init, no_answer_penalty),
 `train_grpo_mind_face.py`. Envs = `src/spillover/env_mmlu.py`, `env_polynomial.py`.
 
-**Checkpoints:** HuggingFace `Jozdien/feedback-spillover-*` (private, 55 LoRA adapters — pirate
-SFTs, all QA finals, poly suite). Local sampler archives: `checkpoint_archives/` (one per run).
+**Checkpoints:** HuggingFace `Jozdien/feedback-spillover-*` (private, 72 LoRA adapters — pirate
+SFTs, all QA finals incl. v6/v7 lambda-sweep points, poly suite; registry in
+`exported_checkpoints/hf_pushed.json`). Local `checkpoint_archives/` deleted 2026-07-11 after
+verifying full HF coverage (`scripts/push_local_archives_hf.py`).
 
 **Dashboard:** https://feedback-spillover.pages.dev — Sample Browser has eval finals
 (v6–v9) + sampled training rollouts (rollouts/<run>, 6 batch-snapshots each) + plots.
