@@ -15,7 +15,7 @@ the prior mitigations (reward targeting, Mind & Face) in their own QA environmen
       (following the hint) needs no CoT at all — sycophancy is max at T=0 (0.71/0.54)
       and thinking mostly serves to reject the wrong hint.
 - [ ] 35B poly T=4096 combo interrupted by Tinker 402 billing pause (2026-07-24 ~00:45);
-      partial data (64/300, correct=0.984) consistent. On resume: delete the partial
+      partial data (n=66, correct=0.985) recorded in summary.jsonl — the run burned through remaining batches on failed samples and exited. On resume: delete the partial
       `logs/cot-uplift/Qwen_Qwen3.6-35B-A3B_poly_T4096.jsonl` (skip-logic treats existing
       files as done), rerun that combo, regen plot.
 - [ ] **Harder / safety-relevant envs** (research memo in session 2026-07-24; ranked):
