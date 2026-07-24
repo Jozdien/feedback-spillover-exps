@@ -14,10 +14,9 @@ the prior mitigations (reward targeting, Mind & Face) in their own QA environmen
       **0.99 flat (35B-A3B — zero uplift)**. On hinted QA the *rewarded* behavior
       (following the hint) needs no CoT at all — sycophancy is max at T=0 (0.71/0.54)
       and thinking mostly serves to reject the wrong hint.
-- [ ] 35B poly T=4096 combo interrupted by Tinker 402 billing pause (2026-07-24 ~00:45);
-      partial data (n=66, correct=0.985) recorded in summary.jsonl — the run burned through remaining batches on failed samples and exited. On resume: delete the partial
-      `logs/cot-uplift/Qwen_Qwen3.6-35B-A3B_poly_T4096.jsonl` (skip-logic treats existing
-      files as done), rerun that combo, regen plot.
+- [x] 35B poly T=4096 combo (interrupted by the 7/24 billing outage) rerun clean after
+      top-up: n=300, correct=0.993 — identical to T=0 (0.993). Zero CoT uplift on poly
+      for 35B-A3B confirmed at full n. summary.jsonl has both rows (keep last).
 - [ ] **Harder / safety-relevant envs** (research memo in session 2026-07-24; ranked):
       1. Encoded hints on MMLU/MMLU-Pro (hint must be *computed* → hack itself needs CoT);
       2. Hard math (MATH L4-5 / AIME pools) with sub-step-leak hints, reward = correctness;
