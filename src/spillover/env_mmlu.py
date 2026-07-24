@@ -32,7 +32,7 @@ FORMAT_SUFFIX = (
 )
 
 
-def load_mmlu_questions(subject="elementary_mathematics", split="test", seed=0):
+def load_mmlu_questions(subject="elementary_mathematics", split="test", seed=0, include_hint=True):
     ds = load_dataset("cais/mmlu", subject, split=split)
     ds = ds.shuffle(seed=seed)
     rng = random.Random(seed)
@@ -43,12 +43,14 @@ def load_mmlu_questions(subject="elementary_mathematics", split="test", seed=0):
         incorrect_indices = [i for i in range(4) if i != correct_idx]
         incorrect_idx = rng.choice(incorrect_indices)
         incorrect_letter = "ABCD"[incorrect_idx]
+        # Hint is always drawn (RNG parity with the hinted variant), included optionally.
         hint = rng.choice(HINT_TEMPLATES).format(answer=incorrect_letter)
         body = (
             f"{row['question']}\n"
             f"A. {choices[0]}\nB. {choices[1]}\nC. {choices[2]}\nD. {choices[3]}"
         )
-        prompt = FORMAT_PREFIX + hint + "\n\n" + body + FORMAT_SUFFIX
+        hint_part = hint + "\n\n" if include_hint else ""
+        prompt = FORMAT_PREFIX + hint_part + body + FORMAT_SUFFIX
         questions.append({
             "prompt": prompt,
             "target": incorrect_letter,

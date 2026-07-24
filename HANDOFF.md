@@ -162,6 +162,12 @@ Estimation method: sample rollouts.jsonl field lengths, ~3.8 chars/token.
   Deploy: cp dashboard.html deploy_dir/index.html; rsync dashboard_data → deploy_dir;
   wrangler pages deploy deploy_dir --project-name feedback-spillover --branch main.
 - 27B-class dense Qwen3.6 pricing is ~2.5× Qwen3-32B — check model pricing before launching.
+- `eval_cot_uplift.py` (CoT-uplift study, 2026-07-24): T=0 builds an empty think block
+  adaptively (probes whether the renderer's generation prompt already opens `<think>` — 8B
+  renderer doesn't, Qwen3.6's does). Its skip logic treats any existing output file as done,
+  so after an interrupted run DELETE partial files before rerunning. `load_mmlu_questions`
+  gained `include_hint=` (RNG-parity: hint still drawn when excluded, so questions/targets
+  match the hinted variant).
 
 ## 9. What remains (paper plan)
 

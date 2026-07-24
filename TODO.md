@@ -5,6 +5,28 @@ breadth. Narrative: CoT/output style separation mitigates feedback spillover, ou
 the prior mitigations (reward targeting, Mind & Face) in their own QA environment.*
 *Last updated: 2026-06-12 ~01:30 UTC.*
 
+## CoT-uplift & harder environments (reviewer feedback, 2026-07-24)
+- [x] **CoT-uplift eval on existing envs** (`scripts/eval_cot_uplift.py`, data
+      `logs/cot-uplift/`, plot `plots/cot_uplift.png`): base models, T∈{0,300,1024,4096},
+      T=0 = forced-empty think block (answer-first compliance verified ≥96%).
+      **Finding: the reviewer concern is empirically right.** Task uplift (no-hint):
+      MMLU-elem 0.85→0.98 (8B), 0.83→0.97 (35B-A3B); poly 0.90→0.99 (8B),
+      **0.99 flat (35B-A3B — zero uplift)**. On hinted QA the *rewarded* behavior
+      (following the hint) needs no CoT at all — sycophancy is max at T=0 (0.71/0.54)
+      and thinking mostly serves to reject the wrong hint.
+- [ ] 35B poly T=4096 combo interrupted by Tinker 402 billing pause (2026-07-24 ~00:45);
+      partial data (64/300, correct=0.984) consistent. On resume: delete the partial
+      `logs/cot-uplift/Qwen_Qwen3.6-35B-A3B_poly_T4096.jsonl` (skip-logic treats existing
+      files as done), rerun that combo, regen plot.
+- [ ] **Harder / safety-relevant envs** (research memo in session 2026-07-24; ranked):
+      1. Encoded hints on MMLU/MMLU-Pro (hint must be *computed* → hack itself needs CoT);
+      2. Hard math (MATH L4-5 / AIME pools) with sub-step-leak hints, reward = correctness;
+      3. Impossible-LiveCodeBench test-hardcoding (single-turn reward hacking);
+      4. Uplift-filtered GPQA/MMLU-Pro hints (cheapest, bridge condition);
+      5. APPS backdooring (best safety relevance; sparse-reward risk at 8B — pilot first).
+      Adopt Emmons-style uplift filtering (arXiv 2507.05246) whichever is chosen; cite the
+      obfuscation-generalization follow-up (arXiv 2601.23086).
+
 ## Currently running (no action, just don't break it)
 - [x] ~~12 × v9 QA 32B mitigation runs~~ **ALL DONE 2026-06-12 ~20:45, zero cut.**
 - [ ] 12 × v9 QA 8B mitigation runs — resumed from checkpoints ~21:00 June 12.
