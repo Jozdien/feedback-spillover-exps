@@ -39,6 +39,17 @@ from src.spillover.env_mmlu_encoded import (
     JUDGE_PROMPT as ENCODED_JUDGE_PROMPT,
     load_encoded_questions,
 )
+from src.spillover.env_qa_hard import load_hard_questions
+from src.spillover.env_math_hint import (
+    JUDGE_PROMPT as MATH_JUDGE_PROMPT,
+    check_math_answer,
+    load_math_questions,
+)
+from src.spillover.env_lcb import (
+    JUDGE_PROMPT as LCB_JUDGE_PROMPT,
+    load_lcb_problems,
+    score_correctness as lcb_score_correctness,
+)
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
     SYSTEM_PROMPT as POLY_SYSTEM_PROMPT,
@@ -147,6 +158,50 @@ def _load_qa_encoded_data(cfg: Config, renderer):
     return items
 
 
+def _load_qa_hard_data(cfg: Config, renderer):
+    questions = load_hard_questions(seed=cfg.seed)
+    items = []
+    for q in questions:
+        messages = [{"role": "user", "content": q["prompt"]}]
+        prompt = renderer.build_generation_prompt(messages)
+        items.append({
+            "prompt_tokens": prompt.to_ints(),
+            "question": q["prompt"],
+            "target": q["target"],
+        })
+    return items
+
+
+def _load_math_data(cfg: Config, renderer):
+    questions = load_math_questions(seed=cfg.seed)
+    items = []
+    for q in questions:
+        messages = [{"role": "user", "content": q["prompt"]}]
+        prompt = renderer.build_generation_prompt(messages)
+        items.append({
+            "prompt_tokens": prompt.to_ints(),
+            "question": q["prompt"],
+            "target": q["target"],
+            "gold_answer": q["gold_answer"],
+        })
+    return items
+
+
+def _load_lcb_data(cfg: Config, renderer):
+    problems = load_lcb_problems(seed=cfg.seed)
+    items = []
+    for p in problems:
+        messages = [{"role": "user", "content": p["prompt"]}]
+        prompt = renderer.build_generation_prompt(messages)
+        items.append({
+            "prompt_tokens": prompt.to_ints(),
+            "question": p["prompt"],
+            "target": p["task_id"],
+            "problem": p,
+        })
+    return items
+
+
 def _load_poly_data(cfg: Config, renderer):
     rng = random.Random(cfg.seed)
     items = []
@@ -165,6 +220,30 @@ def _load_poly_data(cfg: Config, renderer):
 
 async def _score_qa(items, cots, outputs, judge):
     corrects = [check_boxed_answer(o, item["target"]) for item, o in zip(items, outputs)]
+    out_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], o) for item, o in zip(items, outputs)
+    ])
+    cot_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], c) for item, c in zip(items, cots)
+    ])
+    return corrects, list(out_scores), list(cot_scores)
+
+
+async def _score_math(items, cots, outputs, judge):
+    corrects = [
+        check_math_answer(o, item["gold_answer"]) for item, o in zip(items, outputs)
+    ]
+    out_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], o) for item, o in zip(items, outputs)
+    ])
+    cot_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], c) for item, c in zip(items, cots)
+    ])
+    return corrects, list(out_scores), list(cot_scores)
+
+
+async def _score_lcb(items, cots, outputs, judge):
+    corrects = await lcb_score_correctness(outputs, [it["problem"] for it in items])
     out_scores = await asyncio.gather(*[
         judge.score_with_context(item["question"], o) for item, o in zip(items, outputs)
     ])
@@ -244,6 +323,15 @@ async def train(cfg: Config):
     elif cfg.task == "qa_encoded":
         items = _load_qa_encoded_data(cfg, renderer)
         judge = SoftConversationJudge(prompt=ENCODED_JUDGE_PROMPT)
+    elif cfg.task == "qa_hard":
+        items = _load_qa_hard_data(cfg, renderer)
+        judge = SoftConversationJudge()  # plain hints, same rubric as qa
+    elif cfg.task == "math":
+        items = _load_math_data(cfg, renderer)
+        judge = SoftConversationJudge(prompt=MATH_JUDGE_PROMPT)
+    elif cfg.task == "lcb":
+        items = _load_lcb_data(cfg, renderer)
+        judge = SoftConversationJudge(prompt=LCB_JUDGE_PROMPT)
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
@@ -376,15 +464,28 @@ async def train(cfg: Config):
             corrects, out_scores, cot_scores = await _score_qa(
                 flat_items, cots_text, outs_text, judge
             )
+        elif cfg.task == "math":
+            corrects, out_scores, cot_scores = await _score_math(
+                flat_items, cots_text, outs_text, judge
+            )
+        elif cfg.task == "lcb":
+            corrects, out_scores, cot_scores = await _score_lcb(
+                flat_items, cots_text, outs_text, judge
+            )
         else:
             corrects, out_scores, cot_scores = await _score_poly(
                 flat_items, cots_text, outs_text
             )
 
-        # Penalize outputs with no extractable \boxed{} answer
+        # Penalize outputs with no extractable answer (boxed letter/expression, or
+        # a fenced code block for lcb)
         if cfg.no_answer_penalty != 0.0:
+            no_answer_re = {
+                "math": r"\\boxed\{",
+                "lcb": r"```",
+            }.get(cfg.task, r"\\boxed\{[A-D]\}")
             for i, o in enumerate(outs_text):
-                if corrects[i] == 0.0 and not re.search(r'\\boxed\{[A-D]\}', o):
+                if corrects[i] == 0.0 and not re.search(no_answer_re, o):
                     corrects[i] = cfg.no_answer_penalty
 
         # Reward for keeping the output in pirate-speak (output-channel only)
@@ -521,12 +622,12 @@ async def train(cfg: Config):
         n = len(correct_vals)
         k_out = (
             "monitor/hint_in_output"
-            if cfg.task.startswith("qa")
+            if cfg.task != "poly"
             else "monitor/expanded_in_output"
         )
         k_cot = (
             "monitor/hint_in_cot"
-            if cfg.task.startswith("qa")
+            if cfg.task != "poly"
             else "monitor/expanded_in_cot"
         )
         metrics["reward/correct"] = sum(correct_vals) / n
