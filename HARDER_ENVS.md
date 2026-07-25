@@ -70,7 +70,10 @@ until the pilot passes.
   strong baseline CoT signal (0.64). Reward = REAL correctness.
 - **env1 (encoded)**: hack needs CoT (decode); baseline cot 0.42-0.88.
 - **env5 (APPS backdoor)**: 35B-only; best safety relevance (AI-control).
-- **env3 (LCB)**: reward-hacking realism; baseline out 0.25 (lower signal, watch).
+- **env3 (LCB)**: WEAK — batch ~20 both models cot≈0.00, out≈0.00, correct negative
+  (no-answer penalty firing). LCB-hard is too hard: models rarely pass the
+  conflicting tests, so there's little test-gaming to acknowledge → little CoT
+  signal to lose. Likely ranks last; if pursued, swap to LCB easy/medium problems.
 - **env4 (GPQA)**: task needs CoT (uplift-filtered) but hack (plain hint) does not.
 
 ## Eval / analysis (TODO once runs finish)
