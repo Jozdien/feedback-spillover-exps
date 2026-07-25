@@ -78,6 +78,20 @@ spillover-test setup — watch whether CoT falls by late training). env1-8B CoT
 already low (possible early spillover, but task reward also low — watch). env5 CoT
 backdoor-admission ~0 even early (model may not verbalize backdoor planning).
 
+## Throughput & revised readout target (2026-07-25 ~03:56 UTC)
+Per-batch wall time (typical): 8B QA/math ~40-75s; 35B QA/math ~100-175s; 35B
+code-exec (env3/env5) ~130-285s with 600-730s spikes (code-execution timeouts).
+=> 1000 batches is 10-20h (8B) to 30-55h (35B code). **Spillover develops in the
+first few hundred batches** (cf. paper t300 regime study), so the pilot readout
+targets **batch ~300-400**, not 1000. Runs keep going + checkpoint every 100;
+read whatever batch they've reached. Full 1000-batch completion only if an env's
+~300-batch signal is worth the extra compute.
+
+Confound to remember: env1-8B early CoT drop (0.45→0.31 windowed) comes with task
+reward ~0.05 — the model REJECTS the hint rather than learning it (the paper's
+8B/4096 no-SFT failure mode), so that drop is not clean spillover. Judge
+early-vs-late CoT only at maintained/high task reward.
+
 ## Env viability / CoT-necessity so far (from calibration + batch-0)
 - **env2 (hard math)**: best CoT-necessity — L5 MATH, hint unlocks unsolved problems,
   strong baseline CoT signal (0.64). Reward = REAL correctness.
