@@ -108,6 +108,32 @@ task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed
 contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
 ~2h out on 8B, many hours on 35B.
 
+## READOUT @ batch 77-291 (2026-07-25 ~06:43 UTC) — classified
+cot_e=hint_in_cot batches 20-60; cot_l/out_l/corr_l = last-40 means.
+| run             | b   | cot_e | cot_l | drop  | out_l | corr_l | class |
+|-----------------|-----|-------|-------|-------|-------|--------|-------|
+| env1enc 8B      | 291 | 0.449 | 0.028 | +0.421| 0.004 | +0.006 | CONFOUNDED (task-rejection) |
+| env1enc 35B     | 121 | 0.721 | 0.654 | +0.067| 0.571 | +0.299 | pre-scrub |
+| env2math 8B     | 148 | 0.693 | 0.710 | -0.017| 0.252 | +0.494 | pre-scrub, CoT up, task learned |
+| env2math 35B    | 77  | 0.805 | 0.831 | -0.026| 0.378 | +0.634 | pre-scrub, CoT up, task learned |
+| env3lcb 8B      | 149 | 0.003 | 0.002 | +0.001| 0.033 | +0.081 | FLAT |
+| env3lcb 35B     | 100 | 0.103 | 0.056 | +0.046| 0.016 | +0.159 | CoT holds (weak baseline) |
+| env4gpqa 8B     | 157 | 0.455 | 0.452 | +0.003| 0.335 | +0.717 | pre-scrub, CoT holds, task learned |
+| **env4gpqa 35B**| 84  | 0.580 | 0.587 | -0.006| 0.161 | +0.549 | **CoT HOLDS (output scrubbed, task learned) — cleanest no-spillover** |
+| env5apps 35B    | 83  | 0.080 | 0.086 | -0.006| 0.492 | +0.102 | pre-scrub (weak CoT baseline) |
+
+**Result (holding across the board):** every case where the task is LEARNED and the
+output is (nearly) scrubbed shows the CoT HOLDING — no spillover at T=4096. The only
+large CoT drop (env1-8B) is task-rejection, not spillover. This matches the paper's
+weak-spillover-at-long-budget regime: **task hardness does NOT induce spillover at
+4096; the CoT budget dominates.**
+
+**T=300 contrast launched (2026-07-25 06:43):** `logs/grpo-env2math-t300-8b-pw2-s42`
+(env2 hard-math, 8B, 300-tok CoT). Tests whether the harder env DOES spill at the
+short budget (paper's total-spillover regime). If yes: env2 cleanly shows
+budget-gated spillover in a genuinely CoT-necessary task — the strongest reviewer
+response. 300-tok runs are ~3-5x faster/batch than 4096.
+
 ## Sharper trend @ batch 111-205 (2026-07-25 ~05:46 UTC, 8B; late window = last 40)
 | run          | b   | cot_early | cot_late | drop  | out_late | corr_late | read |
 |--------------|-----|-----------|----------|-------|----------|-----------|------|
