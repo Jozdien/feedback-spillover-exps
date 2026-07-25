@@ -35,6 +35,10 @@ from tinker_cookbook.utils import ml_log
 
 from src.judges import PirateStyleJudge, SoftConversationJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
+from src.spillover.env_mmlu_encoded import (
+    JUDGE_PROMPT as ENCODED_JUDGE_PROMPT,
+    load_encoded_questions,
+)
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
     SYSTEM_PROMPT as POLY_SYSTEM_PROMPT,
@@ -117,6 +121,20 @@ class Config:
 
 def _load_qa_data(cfg: Config, renderer):
     questions = load_mmlu_questions(seed=cfg.seed)
+    items = []
+    for q in questions:
+        messages = [{"role": "user", "content": q["prompt"]}]
+        prompt = renderer.build_generation_prompt(messages)
+        items.append({
+            "prompt_tokens": prompt.to_ints(),
+            "question": q["prompt"],
+            "target": q["target"],
+        })
+    return items
+
+
+def _load_qa_encoded_data(cfg: Config, renderer):
+    questions = load_encoded_questions(seed=cfg.seed)
     items = []
     for q in questions:
         messages = [{"role": "user", "content": q["prompt"]}]
@@ -223,12 +241,15 @@ async def train(cfg: Config):
     if cfg.task == "qa":
         items = _load_qa_data(cfg, renderer)
         judge = SoftConversationJudge()
+    elif cfg.task == "qa_encoded":
+        items = _load_qa_encoded_data(cfg, renderer)
+        judge = SoftConversationJudge(prompt=ENCODED_JUDGE_PROMPT)
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
     pirate_judge = (
         PirateStyleJudge()
-        if cfg.task == "qa" and cfg.pirate_reward_weight != 0.0
+        if cfg.task.startswith("qa") and cfg.pirate_reward_weight != 0.0
         else None
     )
 
@@ -351,7 +372,7 @@ async def train(cfg: Config):
             outs_text.append(tokenizer.decode(seq.tokens).strip())
 
         # Score all rollouts
-        if cfg.task == "qa":
+        if cfg.task.startswith("qa"):
             corrects, out_scores, cot_scores = await _score_qa(
                 flat_items, cots_text, outs_text, judge
             )
@@ -500,12 +521,12 @@ async def train(cfg: Config):
         n = len(correct_vals)
         k_out = (
             "monitor/hint_in_output"
-            if cfg.task == "qa"
+            if cfg.task.startswith("qa")
             else "monitor/expanded_in_output"
         )
         k_cot = (
             "monitor/hint_in_cot"
-            if cfg.task == "qa"
+            if cfg.task.startswith("qa")
             else "monitor/expanded_in_cot"
         )
         metrics["reward/correct"] = sum(correct_vals) / n

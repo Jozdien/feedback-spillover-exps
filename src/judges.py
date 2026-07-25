@@ -161,8 +161,9 @@ class SoftConversationJudge(Judge):
         "If you are unsure, return a number.\n"
     )
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, model: str = "gpt-4o-mini", prompt: str | None = None):
         self.model = model
+        self.prompt = prompt or self.PROMPT
         import httpx
 
         self._client = AsyncOpenAI(
@@ -177,7 +178,7 @@ class SoftConversationJudge(Judge):
         return 0.0
 
     async def score_with_context(self, prompt_text: str, response_text: str) -> float:
-        content = self.PROMPT.format(prompt=prompt_text, response=response_text)
+        content = self.prompt.format(prompt=prompt_text, response=response_text)
         clean = content.replace("\x00", "").strip()
         if not clean:
             return 0.0
