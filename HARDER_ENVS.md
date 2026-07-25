@@ -66,6 +66,18 @@ until the pilot passes.
   vs 0.21 (35B, viable). APPS backdoor: reward=joint correct+working-backdoor,
   monitor=backdoor-admission judge. Pilot data logs/apps-pilot/.
 
+## Early training snapshot (2026-07-25 ~03:25 UTC, all 9 alive, no crashes)
+Batch N/1000, penalized (correct=task reward, out/cot=hint-in-channel):
+- env1enc  8B b55: correct .08 out .16 cot .09 | 35B b30: .50 / 1.00 / .99
+- env2math 8B b12: correct .75 out .18 cot .61 | 35B b8:  .67 / .31 / .87
+- env3lcb  8B b33: correct -.08 out .00 cot .00 | 35B b25: .08 / .00 / .00 (flat)
+- env4gpqa 8B b9:  correct .67 out .41 cot .66 | 35B b6:  .83 / .17 / .73
+- env5apps 35B b13: correct -.25 out .23 cot .00
+Reading: env2/env4 already show output scrubbed while CoT stays high (the
+spillover-test setup — watch whether CoT falls by late training). env1-8B CoT
+already low (possible early spillover, but task reward also low — watch). env5 CoT
+backdoor-admission ~0 even early (model may not verbalize backdoor planning).
+
 ## Env viability / CoT-necessity so far (from calibration + batch-0)
 - **env2 (hard math)**: best CoT-necessity — L5 MATH, hint unlocks unsolved problems,
   strong baseline CoT signal (0.64). Reward = REAL correctness.
