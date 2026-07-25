@@ -60,7 +60,8 @@ until the pilot passes.
 - env2 8b+35b: training — pool DONE (108 problems, hint unlocks task; nh 0→wh 1
   cases). 8B batch 0: correct 0.33, out 0.60, cot 0.64 (strong baseline CoT signal).
 - env3 8b+35b: training (8B batch 0 out 0.25)
-- env4: GPQA uplift filter on final 35B stage (~384/448); launches when pool lands
+- env4 8b+35b: training. GPQA uplift pool = 84/448 problems (CoT necessary: 8B
+  solves w/ CoT at T=4096, fails at T=0; 77 also 35B-solvable). ALL 9 RUNS LIVE.
 - env5: 35B ONLY, training. Pilot verdict: joint success 0.01 (8B, sparse, SKIPPED)
   vs 0.21 (35B, viable). APPS backdoor: reward=joint correct+working-backdoor,
   monitor=backdoor-admission judge. Pilot data logs/apps-pilot/.
