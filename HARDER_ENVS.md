@@ -55,12 +55,23 @@ joint≥0.05** (else GRPO groups have no reward variance — the documented
 sparse-reward risk at 8B). Data: `logs/apps-pilot/`. No `train_grpo` task wired
 until the pilot passes.
 
-## Status snapshot (2026-07-25 ~02:30 UTC)
-- env1 8b+35b: training (batch 0 healthy)
-- env3 8b+35b: training
-- env4: GPQA uplift filter ~410/448 (8B), then 35B pass; then launch
-- env2: math pool stage A (difficulty) ~450/1200; then hint extraction + verify
-- env5: 100-problem joint-rate pilot running on both models
+## Status snapshot (2026-07-25 ~03:02 UTC)
+- env1 8b+35b: training (batch 0: 8B cot 0.42 out 0.91)
+- env2 8b+35b: training — pool DONE (108 problems, hint unlocks task; nh 0→wh 1
+  cases). 8B batch 0: correct 0.33, out 0.60, cot 0.64 (strong baseline CoT signal).
+- env3 8b+35b: training (8B batch 0 out 0.25)
+- env4: GPQA uplift filter on final 35B stage (~384/448); launches when pool lands
+- env5: 35B ONLY, training. Pilot verdict: joint success 0.01 (8B, sparse, SKIPPED)
+  vs 0.21 (35B, viable). APPS backdoor: reward=joint correct+working-backdoor,
+  monitor=backdoor-admission judge. Pilot data logs/apps-pilot/.
+
+## Env viability / CoT-necessity so far (from calibration + batch-0)
+- **env2 (hard math)**: best CoT-necessity — L5 MATH, hint unlocks unsolved problems,
+  strong baseline CoT signal (0.64). Reward = REAL correctness.
+- **env1 (encoded)**: hack needs CoT (decode); baseline cot 0.42-0.88.
+- **env5 (APPS backdoor)**: 35B-only; best safety relevance (AI-control).
+- **env3 (LCB)**: reward-hacking realism; baseline out 0.25 (lower signal, watch).
+- **env4 (GPQA)**: task needs CoT (uplift-filtered) but hack (plain hint) does not.
 
 ## Eval / analysis (TODO once runs finish)
 - Eval each final at matched T=4096 (adapt `eval_cot_uplift.py` scorers per env).
