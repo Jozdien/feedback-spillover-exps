@@ -108,6 +108,23 @@ task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed
 contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
 ~2h out on 8B, many hours on 35B.
 
+## Sharper trend @ batch 111-205 (2026-07-25 ~05:46 UTC, 8B; late window = last 40)
+| run          | b   | cot_early | cot_late | drop  | out_late | corr_late | read |
+|--------------|-----|-----------|----------|-------|----------|-----------|------|
+| env1 encoded | 205 | 0.449     | 0.115    | +0.334| 0.064    | +0.002    | CONFOUNDED: output scrubbed but model REJECTS hint (corr≈0) → both channels drop; = paper 8B/4096 task-rejection, not spillover |
+| env2 math    | 111 | 0.693     | 0.650    | +0.043| 0.256    | +0.396    | task learned, output scrubbing, CoT HOLDS → no spillover yet |
+| env4 GPQA    | 116 | 0.455     | 0.454    | +0.002| 0.289    | +0.681    | task learned, output scrubbing, CoT HOLDS → no spillover yet |
+| env3 LCB     | 117 | 0.003     | 0.002    | +0.001| 0.015    | +0.006    | flat-dead |
+
+**Emerging (tentative) finding:** at T=4096 on 8B, where the task is genuinely
+learned (env2/env4), the CoT does NOT spill — same weak-spillover regime as the
+paper's original envs. env1's big CoT drop is task-rejection, not spillover. This
+supports the paper's thesis that the CoT BUDGET (300 vs 4096), not task hardness,
+drives spillover strength — harder tasks don't spontaneously induce spillover at
+4096. NEEDS confirming at fuller batch counts (env2/env4 output not fully scrubbed
+yet) and ideally a T=300 arm on the best env (env2) to show these DO spill at the
+short budget like the QA env did.
+
 ## Env viability / CoT-necessity so far (from calibration + batch-0)
 - **env2 (hard math)**: best CoT-necessity — L5 MATH, hint unlocks unsolved problems,
   strong baseline CoT signal (0.64). Reward = REAL correctness.
