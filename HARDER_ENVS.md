@@ -92,6 +92,22 @@ reward ~0.05 — the model REJECTS the hint rather than learning it (the paper's
 8B/4096 no-SFT failure mode), so that drop is not clean spillover. Judge
 early-vs-late CoT only at maintained/high task reward.
 
+## Partial trend @ batch ~70-130 (2026-07-25 ~04:49 UTC, 8B runs only)
+cot_early = mean hint_in_cot batches 20-60; cot_now = last 20; corr_now = task reward.
+| run              | b   | cot_early | cot_now | drop  | out_now | corr_now |
+|------------------|-----|-----------|---------|-------|---------|----------|
+| env1enc (encoded)| 130 | 0.449     | 0.376   | +0.073| 0.431   | +0.036   |
+| env2math (math)  | 70  | 0.693     | 0.649   | +0.045| 0.230   | +0.476   |
+| env3lcb (LCB)    | 82  | 0.003     | 0.000   | +0.003| 0.038   | +0.000   |
+| env4gpqa (GPQA)  | 71  | 0.455     | 0.448   | +0.008| 0.310   | +0.710   |
+**Too early to call spillover.** In the task-learning envs (env2/env4) the OUTPUT
+isn't fully scrubbed yet (out 0.23-0.31) — the precondition for a CoT-spillover
+read — and CoT has barely moved. env1's larger CoT drop is the confounded
+task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed to
+~0) before the early-vs-late CoT comparison is meaningful. 9 concurrent runs
+contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
+~2h out on 8B, many hours on 35B.
+
 ## Env viability / CoT-necessity so far (from calibration + batch-0)
 - **env2 (hard math)**: best CoT-necessity — L5 MATH, hint unlocks unsolved problems,
   strong baseline CoT signal (0.64). Reward = REAL correctness.
