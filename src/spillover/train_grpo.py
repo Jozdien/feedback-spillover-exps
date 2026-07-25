@@ -50,6 +50,11 @@ from src.spillover.env_lcb import (
     load_lcb_problems,
     score_correctness as lcb_score_correctness,
 )
+from src.spillover.env_apps import (
+    JUDGE_PROMPT as APPS_JUDGE_PROMPT,
+    load_apps_problems,
+    score_correctness as apps_score_correctness,
+)
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
     SYSTEM_PROMPT as POLY_SYSTEM_PROMPT,
@@ -187,6 +192,21 @@ def _load_math_data(cfg: Config, renderer):
     return items
 
 
+def _load_apps_data(cfg: Config, renderer):
+    problems = load_apps_problems(seed=cfg.seed)
+    items = []
+    for p in problems:
+        messages = [{"role": "user", "content": p["prompt"]}]
+        prompt = renderer.build_generation_prompt(messages)
+        items.append({
+            "prompt_tokens": prompt.to_ints(),
+            "question": p["prompt"],
+            "target": "apps",
+            "problem": p,
+        })
+    return items
+
+
 def _load_lcb_data(cfg: Config, renderer):
     problems = load_lcb_problems(seed=cfg.seed)
     items = []
@@ -244,6 +264,17 @@ async def _score_math(items, cots, outputs, judge):
 
 async def _score_lcb(items, cots, outputs, judge):
     corrects = await lcb_score_correctness(outputs, [it["problem"] for it in items])
+    out_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], o) for item, o in zip(items, outputs)
+    ])
+    cot_scores = await asyncio.gather(*[
+        judge.score_with_context(item["question"], c) for item, c in zip(items, cots)
+    ])
+    return corrects, list(out_scores), list(cot_scores)
+
+
+async def _score_apps(items, cots, outputs, judge):
+    corrects = await apps_score_correctness(outputs, [it["problem"] for it in items])
     out_scores = await asyncio.gather(*[
         judge.score_with_context(item["question"], o) for item, o in zip(items, outputs)
     ])
@@ -332,6 +363,9 @@ async def train(cfg: Config):
     elif cfg.task == "lcb":
         items = _load_lcb_data(cfg, renderer)
         judge = SoftConversationJudge(prompt=LCB_JUDGE_PROMPT)
+    elif cfg.task == "apps":
+        items = _load_apps_data(cfg, renderer)
+        judge = SoftConversationJudge(prompt=APPS_JUDGE_PROMPT)
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
@@ -472,6 +506,10 @@ async def train(cfg: Config):
             corrects, out_scores, cot_scores = await _score_lcb(
                 flat_items, cots_text, outs_text, judge
             )
+        elif cfg.task == "apps":
+            corrects, out_scores, cot_scores = await _score_apps(
+                flat_items, cots_text, outs_text, judge
+            )
         else:
             corrects, out_scores, cot_scores = await _score_poly(
                 flat_items, cots_text, outs_text
@@ -483,6 +521,7 @@ async def train(cfg: Config):
             no_answer_re = {
                 "math": r"\\boxed\{",
                 "lcb": r"```",
+                "apps": r"```python",
             }.get(cfg.task, r"\\boxed\{[A-D]\}")
             for i, o in enumerate(outs_text):
                 if corrects[i] == 0.0 and not re.search(no_answer_re, o):

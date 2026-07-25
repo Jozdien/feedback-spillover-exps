@@ -49,6 +49,10 @@ case "$1" in
     [[ $WHICH != 8b ]] && launch logs/grpo-env3lcb-35ba3b-pw2-s42 \
         task=lcb model_name=$M35B no_answer_penalty=-1.0 max_output_tokens=1500
     ;;
+  env5)  # APPS backdoor — 35B ONLY (8B joint success ~1%, too sparse; pilot gated)
+    launch logs/grpo-env5apps-35ba3b-pw2-s42 \
+        task=apps model_name=$M35B no_answer_penalty=-1.0 max_output_tokens=1500
+    ;;
   *)
     echo "usage: $0 <env1|env2|env3|env4> [8b|35b|both]"; exit 1
     ;;
