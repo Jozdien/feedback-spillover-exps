@@ -108,6 +108,21 @@ task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed
 contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
 ~2h out on 8B, many hours on 35B.
 
+## *** OpenAI judge QUOTA EXHAUSTED (2026-07-26 ~03:30 UTC) — separate from Tinker ***
+Root cause of the "judge rate-limit": the OpenAI account is OUT OF QUOTA (429
+"You exceeded your current quota, check your plan and billing"). The campaign's
+gpt-4o-mini judge calls (~24/batch × ~1000 batches × 9 runs) burned the balance.
+Isolated single judge call also returns 0.0 → it's account-level, not concurrency.
+NEEDS an OpenAI top-up (like the Tinker one). Until then NO live CoT/out monitor.
+**Mitigation:** the 2 λ=0 controls (env2math-ctrl-8b, env4gpqa-ctrl-8b) DON'T need
+the judge to train (reward = programmatic correctness), and every rollout's
+cot_text/out_text is saved to rollouts.jsonl. So they keep training + accumulating
+CoT; re-score offline with `scripts/rescore_rollouts.py <run> --env math|qa_hard`
+once OpenAI is topped up. The completed penalty runs' late-batch cot≈0 is REAL
+(judge worked during that phase — env2math-8b b0 cot=0.639 proves it); only the
+new post-outage batches are affected. So the headline finding STANDS. What's
+pending: the control CoT (should stay HIGH) to confirm penalty-driven.
+
 ## Controls + judge-contention lesson (2026-07-26 ~03:20 UTC, after billing top-up)
 Billing recovered. Launched 4 λ=0 controls + resumed 3 died 35B penalty runs = 9
 concurrent runs → **OpenAI gpt-4o-mini judge rate-limited** (168 retries/200 log
