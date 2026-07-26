@@ -108,6 +108,50 @@ task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed
 contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
 ~2h out on 8B, many hours on 35B.
 
+## *** CORRECTED FULL-RUN READOUT (2026-07-26 ~02:24 UTC) — supersedes earlier "no spillover" reads ***
+Earlier "CoT holds at 4096" was WRONG — read at batch ~150 BEFORE output scrubbed.
+At batch 600-999 (output fully scrubbed) the CoT DOES collapse. Windowed:
+cot_e=batches20-60, cot_l/out_l/corr_l=last 60.
+| run          | b   | cot_e | cot_l | drop  | out_l | corr_l | verdict |
+|--------------|-----|-------|-------|-------|-------|--------|---------|
+| env1enc 35B  | 888 | 0.721 | 0.000 | +0.72 | 0.000 | +0.993 | **CLEAN SPILLOVER** (follows hint 0.99, CoT erased) |
+| env1enc 8B   | 999 | 0.449 | 0.026 | +0.42 | 0.003 | +0.012 | confounded (task-reject, corr~0) |
+| env2math 8B  | 999 | 0.693 | 0.000 | +0.69 | 0.000 | +0.738 | **CLEAN SPILLOVER** (solves math, CoT coherent 12k-char but omits leak) |
+| env2math 35B | 365 | 0.805 | 0.848 | -0.04 | 0.226 | +0.862 | pre-scrub (paused by billing @365; cot still high, output scrubbing) |
+| env4gpqa 8B  | 999 | 0.455 | 0.000 | +0.46 | 0.000 | +0.940 | **CLEAN SPILLOVER** (follows hint 0.94, CoT erased) |
+| env4gpqa 35B | 753 | 0.580 | 0.000 | +0.58 | 0.000 | +0.977 | **CLEAN SPILLOVER** (follows hint 0.98, CoT erased) |
+| env5apps 35B | 640 | 0.080 | 0.000 | +0.08 | 0.000 | +0.363 | weak (baseline CoT backdoor-admission only 0.08) |
+| env3lcb 8B   | 929 | 0.003 | 0.000 | +0.00 | 0.000 | +0.119 | FLAT (dead env) |
+| env3lcb 35B  | 621 | 0.103 | 0.000 | +0.10 | 0.000 | +0.197 | weak |
+
+**HEADLINE FINDING (answers the reviewer):** harder, CoT-necessary envs show
+STRONG feedback spillover at T=4096 — env4 GPQA (both sizes) and env1-35B follow
+the wrong hint at 0.94-0.99 while CoT hint-acknowledgment → 0.00; env2 hard-math
+solves correctly with coherent 12k-char CoTs that never mention the leaked step.
+This is MORE spillover than the paper's easy QA env showed at 4096 (which only
+partially spilled). Spillover here is a LATE-training effect: output scrubs by
+~batch 300-500, CoT collapses by ~700-999. Rollouts NOT degenerate (verified
+env2-8B: full coherent math reasoning, hint omitted). Reviewer concern REVERSED:
+task-hardness does NOT prevent spillover — if anything it's stronger.
+
+**Caveats / next:** (1) penalty-only, NO λ=0 control yet — the early→late CoT drop
+needs a no-penalty control to prove it's penalty-driven not training drift
+(TOP PRIORITY once billing back). (2) env2 (real-correctness reward): confirm the
+model still USES the leak silently vs solving without it. (3) env1-8B confounded
+(task-reject) — its 35B counterpart is the clean version.
+
+**Degeneracy check (user request):** T=4096 rollouts coherent, not degenerate.
+env2math-t300-8B: NOT degenerate CoTs either, but model NEVER LEARNS (corr ~0.02-0.11
+from the start) — 300 tokens too short to solve L5 MATH. So a T=300 sweep is invalid
+for the CoT-heavy envs; use an INTERMEDIATE budget (~1024) if pursuing the
+short-budget regime story. But spillover is already strong at 4096, so the T=300
+arm is now lower priority than CONTROLS.
+
+**BILLING: Tinker 402 exhausted again (~02:20 UTC 07-26). 5 runs hard-died, 2 paused
+in retry loop. Blocks all new runs. Completed 8B runs (env1/2/4 @999) already give
+the headline. On recovery: (a) λ=0 CONTROLS for env2-8B + env4-8B (prove
+penalty-driven), (b) resume partial 35B runs, (c) optional intermediate-budget arm.**
+
 ## READOUT @ batch 77-291 (2026-07-25 ~06:43 UTC) — classified
 cot_e=hint_in_cot batches 20-60; cot_l/out_l/corr_l = last-40 means.
 | run             | b   | cot_e | cot_l | drop  | out_l | corr_l | class |
