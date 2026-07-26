@@ -35,7 +35,7 @@ JUDGE_PROMPTS = {
 
 
 async def main_async(args):
-    rollouts = [json.loads(l) for l in open(Path(args.run) / "rollouts.jsonl")]
+    rollouts = [json.loads(line) for line in open(Path(args.run) / "rollouts.jsonl")]
     judge = SoftConversationJudge(prompt=JUDGE_PROMPTS[args.env])
     logger.info(f"{len(rollouts)} rollouts; re-scoring with {args.env} judge "
                 f"(concurrency {args.concurrency})")
