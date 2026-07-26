@@ -108,6 +108,20 @@ task-rejection case (corr≈0). env3 flat-dead. Need batch ~300 (output scrubbed
 contend for Tinker/judge capacity (~55-66s/batch effective on 8B), so batch 300 is
 ~2h out on 8B, many hours on 35B.
 
+## Controls + judge-contention lesson (2026-07-26 ~03:20 UTC, after billing top-up)
+Billing recovered. Launched 4 λ=0 controls + resumed 3 died 35B penalty runs = 9
+concurrent runs → **OpenAI gpt-4o-mini judge rate-limited** (168 retries/200 log
+lines; monitor/hint_in_cot stuck at 0.000 = judge failures scored 0, NOT real).
+Programmatic correctness unaffected. LESSON: the judge-based monitors cap total
+concurrent runs at ~2-4, not 9 — the earlier 9-run T=4096 campaign only worked
+because 35B runs are slow (judge calls spread out) and launches were staggered.
+FIX: cut to the 2 rigor-critical 8B controls (env2math-ctrl-8b, env4gpqa-ctrl-8b,
+λ=0). Killed the 3 resumed 35B penalty runs (env1enc/env4gpqa/env5apps-35b — their
+spillover already captured at batch 888/753/640), env2math-t300-8b (non-learning),
+env2math-35b (will re-resume later at low concurrency). Once the 2 controls show
+CoT STAYING HIGH (contrast vs penalty runs' CoT→0) = spillover confirmed
+penalty-driven. Remaining runs to finish later, ≤3 at a time to keep judge healthy.
+
 ## *** CORRECTED FULL-RUN READOUT (2026-07-26 ~02:24 UTC) — supersedes earlier "no spillover" reads ***
 Earlier "CoT holds at 4096" was WRONG — read at batch ~150 BEFORE output scrubbed.
 At batch 600-999 (output fully scrubbed) the CoT DOES collapse. Windowed:
