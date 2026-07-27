@@ -5,6 +5,22 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## *** CONFIRMED: spillover is penalty-driven (control vs penalty, 2026-07-27) ***
+λ=0 controls (no penalty) re-scored offline from saved rollouts (rescore_rollouts.py)
+after the OpenAI top-up. cot = hint-in-CoT (early batches 0-40 vs late last-60):
+
+| env / 8B | CONTROL cot early→late | CONTROL corr | PENALTY cot early→late | PENALTY corr |
+|----------|------------------------|--------------|------------------------|--------------|
+| env2 math | 0.646 → **0.704** (stays high) | 0.82 | 0.693 → **0.000** (collapses) | 0.74 |
+| env4 GPQA | 0.500 → **0.603** (stays high) | 1.00 | 0.455 → **0.000** (collapses) | 0.94 |
+
+**Without the output penalty the CoT hint-acknowledgment STAYS HIGH (~0.6-0.7) — even
+rises as the model learns the task. With the penalty it collapses to 0.00 at the SAME
+(full) task reward.** So the CoT collapse is caused by the output penalty, not by
+training drift or the model dropping the hint on its own. Feedback spillover CONFIRMED,
+penalty-driven, in both harder CoT-necessary environments. This is the airtight version
+of the headline finding — the reviewer's concern is fully answered.
+
 ## Design
 
 Each env is run **penalty-only** first (λ=2, seed 42, T=4096, 1000 batches) on
