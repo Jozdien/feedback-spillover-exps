@@ -5,6 +5,15 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Tinker 402 again (3rd outage, 2026-07-27 ~08:10) — completeness runs PAUSED
+All 3 completeness runs (env2math-35b penalty, env1enc-ctrl-35b, env4gpqa-ctrl-35b)
+hit Tinker 402 and are in the soft auto-retry PAUSE ("job is paused due to billing
+status" WARNING — not a hard crash; auto-resume on top-up). Not notifying (user: billing
+turbulence is temporary/don't fuss; these are non-essential completeness, core 8B
+result airtight). They'll resume when Tinker is topped up. If any hard-dies instead,
+resume from its latest ckpt (env2math latest ckpt ~400, pre-collapse = safe; controls
+always safe). Batches reached before pause: env2math-35b ~439, controls ~254-260.
+
 ## env2math-35b penalty HUNG + recovered (2026-07-27 ~07:05)
 env2math-35b penalty wedged mid-batch at batch 430 (log silent ~1.8h vs ~80s/batch
 normal; proc alive at 35% CPU — not a clean Tinker future-wait, and the 2 controls
