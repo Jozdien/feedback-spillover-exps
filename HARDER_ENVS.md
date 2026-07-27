@@ -5,6 +5,23 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Resume-fragility observation + batch decisions (2026-07-27)
+Resuming env4gpqa-35b penalty from its batch-700 checkpoint (where the ORIGINAL run
+was solidly collapsed, cot=0.00 for batches ~500-753) did NOT reproduce the collapse
+— the resumed rollouts came back at cot 0.6-0.9. Same weights/env/seed. Most likely a
+resume artifact (Adam state reset + fresh RNG knocking the policy off the collapsed
+point), NOT a real "spillover reverses" result — do not over-claim. But it's a
+tentative hint that the collapsed state may be less of a hard attractor than the
+within-env vuln/hysteresis result suggested; worth a dedicated resume-from-collapsed
+probe later if we care. DECISIONS: (1) KILLED env4gpqa-35b resume — its original 0-753
+run already shows the clean collapse (that IS the result); use original trajectory.
+(2) plot_harder_envs.py now dedups metrics by first-occurrence per batch, so resume
+dups can't pollute the readout (env4gpqa-35b late-60 = 0.00 confirmed after dedup).
+(3) KEPT env2math-35b penalty (resumed from PRE-collapse ckpt 300, tracking normally
+~0.81) + the 2 fresh 35B controls (env1enc-ctrl 0.88, env4gpqa-ctrl 0.58 — behaving as
+controls). Lesson: only resume from a checkpoint EARLIER than the collapse; a
+post-collapse resume diverges.
+
 ## Completeness batch launched (2026-07-27, OpenAI recovered)
 Plots: plots/harder_spillover_trajectory.png (control vs penalty CoT collapse, 8B),
 plots/harder_spillover_summary.png (cross-env; incomplete 35B runs flagged).

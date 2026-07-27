@@ -82,6 +82,14 @@ def fig_summary():
     # penalty CoT early (b20-60) vs late (last 60), per env/model
     def win(run, hi_from_end=False):
         rows = [json.loads(x) for x in open(f"logs/grpo-{run}-pw2-s42/metrics.jsonl")]
+        # dedup by first occurrence per batch — drops divergent resume duplicates
+        # (e.g. env4gpqa-35b resumed from a collapsed checkpoint and re-explored)
+        seen, uniq = set(), []
+        for r in rows:
+            bt = r["progress/batch"]
+            if bt not in seen:
+                seen.add(bt); uniq.append(r)
+        rows = uniq
         b = np.array([r["progress/batch"] for r in rows])
         v = np.array([r.get("monitor/hint_in_cot", np.nan) for r in rows])
         if hi_from_end:
