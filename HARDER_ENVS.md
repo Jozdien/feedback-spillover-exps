@@ -5,6 +5,16 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Completeness batch launched (2026-07-27, OpenAI recovered)
+Plots: plots/harder_spillover_trajectory.png (control vs penalty CoT collapse, 8B),
+plots/harder_spillover_summary.png (cross-env; incomplete 35B runs flagged).
+Launched 4 runs (≤4 judge cap): resume env2math-35b penalty (@365→1000, the incomplete
+flagship — will show 35B hard-math cliff), resume env4gpqa-35b penalty (@753→1000),
++ 35B λ=0 controls env1enc-ctrl-35b & env4gpqa-ctrl-35b (to confirm penalty-driven at
+35B, re-score offline via rescore_rollouts.py). HELD for user go-ahead: the
+pirate-output MITIGATION arm (init RL from the existing env-agnostic 8B pirate SFT
+checkpoint on env2/env4, {λ=0,λ=2}) — the paper-contribution experiment.
+
 ## *** CONFIRMED: spillover is penalty-driven (control vs penalty, 2026-07-27) ***
 λ=0 controls (no penalty) re-scored offline from saved rollouts (rescore_rollouts.py)
 after the OpenAI top-up. cot = hint-in-CoT (early batches 0-40 vs late last-60):
