@@ -7,8 +7,8 @@ safety-relevant envs. Started 2026-07-25.*
 
 ## Tinker 402 again (3rd outage, 2026-07-27 ~08:10) — completeness runs PAUSED
 All 3 completeness runs (env2math-35b penalty, env1enc-ctrl-35b, env4gpqa-ctrl-35b)
-hit Tinker 402 and are in the soft auto-retry PAUSE ("job is paused due to billing
-status" WARNING — not a hard crash; auto-resume on top-up). Not notifying (user: billing
+hit Tinker 402 and HARD-DIED (402 APIStatusError → process exit; the soft pause escalated). Need
+active relaunch-from-checkpoint once Tinker recovers (NOT auto-resume — procs exited). Not notifying (user: billing
 turbulence is temporary/don't fuss; these are non-essential completeness, core 8B
 result airtight). They'll resume when Tinker is topped up. If any hard-dies instead,
 resume from its latest ckpt (env2math latest ckpt ~400, pre-collapse = safe; controls
