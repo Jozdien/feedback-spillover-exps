@@ -5,6 +5,13 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## env2math-35b penalty HUNG + recovered (2026-07-27 ~07:05)
+env2math-35b penalty wedged mid-batch at batch 430 (log silent ~1.8h vs ~80s/batch
+normal; proc alive at 35% CPU — not a clean Tinker future-wait, and the 2 controls
+kept advancing, so process-specific not global). pkill -9'd it and relaunched;
+auto-resumed from ckpt 400 (PRE-collapse, safe per the resume rule). Single clean
+instance confirmed (no competing writer). Watch for recurrence.
+
 ## Resume-fragility observation + batch decisions (2026-07-27)
 Resuming env4gpqa-35b penalty from its batch-700 checkpoint (where the ORIGINAL run
 was solidly collapsed, cot=0.00 for batches ~500-753) did NOT reproduce the collapse
