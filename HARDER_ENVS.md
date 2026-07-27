@@ -5,6 +5,29 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## 35B COMPLETENESS DEFERRED — ending silent poll (2026-07-27 ~19:30)
+3rd Tinker 402 outage ran >11h and hard-killed the 3 completeness runs (env2math-35b
+penalty @~430, env1enc-ctrl-35b @~260, env4gpqa-ctrl-35b @~254). Per user guidance
+(billing turbulence temporary, don't fuss) and since these are NON-ESSENTIAL (the core
+8B result is complete + penalty-driven-confirmed + plotted; env4gpqa-35b penalty +
+env1enc-35b penalty already showed 35B spillover), stopping the hourly Claude poll.
+A 12h watcher (scratchpad/resume_completeness.sh, log /resume_completeness.log) keeps
+probing Tinker every 5min and will AUTO-RELAUNCH all 3 from their safe checkpoints on
+top-up — no user action needed for resume. When it resumes / when user re-engages: do
+the 35B readout (env2math-35b passes ~b760 collapse; controls pass ~b500 → re-score
+via rescore_rollouts.py --env qa_encoded/qa_hard, add 35B control-vs-penalty rows,
+regen plots). If the 12h watcher expires first, user re-runs scratchpad/resume_completeness.sh
+after topping up. STILL PENDING: pirate-output MITIGATION arm (user go-ahead).
+
+### WHAT'S DONE & SOLID (the deliverable):
+- 5 harder/safety-relevant envs built + tested (env1 encoded hints, env2 hard-math,
+  env3 Impossible-LCB, env4 uplift-filtered GPQA, env5 APPS backdoor).
+- Headline: strong feedback spillover in CoT-necessary envs at T=4096 — CoT hint
+  detection → 0.00 at full task reward (env2 8B, env4 8B+35B, env1 35B).
+- CONFIRMED penalty-driven: 8B λ=0 controls keep CoT ~0.6-0.7 while penalty →0.00.
+- Plots: plots/harder_spillover_trajectory.png, plots/harder_spillover_summary.png.
+- Answers the reviewer: task-hardness does NOT prevent spillover (if anything stronger).
+
 ## Tinker 402 again (3rd outage, 2026-07-27 ~08:10) — completeness runs PAUSED
 All 3 completeness runs (env2math-35b penalty, env1enc-ctrl-35b, env4gpqa-ctrl-35b)
 hit Tinker 402 and HARD-DIED (402 APIStatusError → process exit; the soft pause escalated). Need
