@@ -5,6 +5,15 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## 4th Tinker 402 (2026-07-28 ~04:43) — $236 batch ran out of funds mid-run
+The topped-up balance was exhausted ~4.5h in; all 6 runs (4 pirate mitigation 8B @batch
+~70, 2 completeness 35B controls @~250) hard-died on 402. NEEDS MORE FUNDS to finish
+(the $236 estimate was for the full runs; ~$40-50 consumed before the balance ran dry —
+so either the top-up was partial or the balance was already low). Watcher
+scratchpad/resume_batch.sh (24h window) auto-relaunches all 6 from checkpoints on
+top-up (mitigation from pirate SFT init since <batch 100, ~70 batches lost = ~$3;
+controls from ckpt 200). Core 8B spillover result AIRTIGHT + plots done regardless.
+
 ## $260 batch LAUNCHED (2026-07-28, Tinker topped up) — mitigation + completeness
 6 runs, judge healthy at 6 concurrent (0 retries). ~$236 total.
 MITIGATION (the paper-contribution experiment; 8B, init RL from env-agnostic pirate-output
