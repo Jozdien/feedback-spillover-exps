@@ -5,6 +5,22 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## $260 batch LAUNCHED (2026-07-28, Tinker topped up) — mitigation + completeness
+6 runs, judge healthy at 6 concurrent (0 retries). ~$236 total.
+MITIGATION (the paper-contribution experiment; 8B, init RL from env-agnostic pirate-output
+SFT ckpt tinker://e970f303-...:train:0/weights/final):
+  - grpo-env2pirate-8b-{pw2,ctrl}-s42 (hard-math, λ=2 penalty + λ=0 control)
+  - grpo-env4pirate-8b-{pw2,ctrl}-s42 (GPQA, λ=2 + λ=0)
+  QUESTION: does pirate-output's CoT COLLAPSE under λ=2 (spillover → mitigation FAILS) or
+  STAY HIGH (mitigation WORKS in CoT-necessary envs)? Compare pirate-λ2 late CoT vs its
+  λ=0 control AND vs no-SFT-λ2 (env2-8b/env4-8b, which →0.00). Baseline CoT (batch 0):
+  env2pirate 0.85-0.91, env4pirate 0.26-0.38.
+COMPLETENESS (35B controls, resumed from ckpt 200, CAPPED at batch 700 via num_episodes=8400
+to save ~$50; past the 35B penalty collapse points): grpo-env1enc-ctrl-35ba3b, grpo-env4gpqa-ctrl-35ba3b.
+  Re-score offline (rescore_rollouts.py) → confirm 35B control CoT stays high vs 35B penalty→0.
+SKIPPED (per user $260 budget): env2math-35b penalty (35B spillover already shown by env1enc/env4gpqa-35b).
+DEFERRED to next funding: 35B mitigation + seed 43 (user will add funds later).
+
 ## 35B COMPLETENESS DEFERRED — ending silent poll (2026-07-27 ~19:30)
 3rd Tinker 402 outage ran >11h and hard-killed the 3 completeness runs (env2math-35b
 penalty @~430, env1enc-ctrl-35b @~260, env4gpqa-ctrl-35b @~254). Per user guidance
