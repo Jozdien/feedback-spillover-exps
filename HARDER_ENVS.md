@@ -5,6 +5,10 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## env2pirate-λ2 HUNG @b483 + recovered (2026-07-28 ~22:45)
+env2pirate-8b-pw2 (key hard-math mitigation run) wedged at batch 483 (~57min silent, 35B-style
+hang) while other 5 advanced. pkill -9 + relaunched from ckpt 400 (pre-collapse, safe). Watch
+for recurrence — this env has hung twice now. 
 ## Matched-batch mitigation comparison @ ~b400 (2026-07-28, still pre-cliff)
 env2 math: pirate-λ2 holds (b360-410 cot=0.72 ≈ its ctrl 0.73) while no-SFT-λ2 has begun
 drifting (0.68→0.64) — divergence STARTING, consistent w/ mitigation preserving CoT.
