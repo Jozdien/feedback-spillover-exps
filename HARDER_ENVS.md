@@ -5,6 +5,11 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Matched-batch mitigation comparison @ ~b400 (2026-07-28, still pre-cliff)
+env2 math: pirate-λ2 holds (b360-410 cot=0.72 ≈ its ctrl 0.73) while no-SFT-λ2 has begun
+drifting (0.68→0.64) — divergence STARTING, consistent w/ mitigation preserving CoT.
+env4 GPQA: ambiguous — pirate-λ2 (0.43) ≈ no-SFT-λ2 (0.45), both < pirate-ctrl (0.60); no
+clear separation yet. All PRE-cliff (no-SFT collapse ~b700) — decisive readout at b750.
 ## Early mitigation trend @ batch ~280 (2026-07-28, PROMISING but pre-collapse)
 Recent-40 window: env2pirate-λ2 cot=0.72 out=0.01 corr=0.66 (output SCRUBBED, CoT ≈ its
 λ0 control 0.71); env4pirate-λ2 cot=0.42 out=0.00 corr=0.85 (vs ctrl 0.55). So pirate-output
