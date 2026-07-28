@@ -5,6 +5,12 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## RESUMED 2026-07-28 ~13:58 (Tinker topped up) — all 6 back
+Watcher auto-relaunched all 6 on Tinker recovery. Mitigation (env2pirate/env4pirate 8B
+{pw2,ctrl}) restarted from pirate SFT init (were <batch 100; ~70 batches lost ≈ $3);
+completeness controls (env1enc/env4gpqa 35B) resumed from ckpt 200. Judge clean, no 402.
+Readouts: mitigation ~batch 750 (~30-36h at 6-run contention), completeness ~batch 700
+(~24h). If funds run out again the watcher re-resumes (24h window). 
 ## 4th Tinker 402 (2026-07-28 ~04:43) — $236 batch ran out of funds mid-run
 The topped-up balance was exhausted ~4.5h in; all 6 runs (4 pirate mitigation 8B @batch
 ~70, 2 completeness 35B controls @~250) hard-died on 402. NEEDS MORE FUNDS to finish
