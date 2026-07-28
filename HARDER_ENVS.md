@@ -5,6 +5,12 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Early mitigation trend @ batch ~280 (2026-07-28, PROMISING but pre-collapse)
+Recent-40 window: env2pirate-λ2 cot=0.72 out=0.01 corr=0.66 (output SCRUBBED, CoT ≈ its
+λ0 control 0.71); env4pirate-λ2 cot=0.42 out=0.00 corr=0.85 (vs ctrl 0.55). So pirate-output
+holds the CoT near its control level while the output is scrubbed — the "mitigation works"
+signature. NOT conclusive: no-SFT collapse was a LATE cliff (~batch 700); these are at ~280
+where no-SFT was also still high. Confirm at batch 750+. 
 ## RESUMED 2026-07-28 ~13:58 (Tinker topped up) — all 6 back
 Watcher auto-relaunched all 6 on Tinker recovery. Mitigation (env2pirate/env4pirate 8B
 {pw2,ctrl}) restarted from pirate SFT init (were <batch 100; ~70 batches lost ≈ $3);
