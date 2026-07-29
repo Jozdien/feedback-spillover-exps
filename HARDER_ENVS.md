@@ -5,6 +5,13 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## Tinker 402 outage killed whole batch ~14-17h (2026-07-28→29), recovered 15:01 UTC
+All 6 runs (4 pirate-8B mitigation + 2 completeness-35B controls) died on a Tinker 402
+billing block; old 24h resume watcher had already lapsed so nothing relaunched them.
+Recovered 2026-07-29 15:01 UTC: relaunched all 6 from latest pre-collapse ckpts (8B from
+400/500, 35B from 200). New robust watcher scratchpad/resume_watch2.sh (48h, auto-resumes
+DEAD runs from latest ckpt, SKIPS runs >=batch 680 = post-collapse). ~15h wall-clock lost
+but Tinker bills per-token so no wasted spend; b750 mitigation readout pushed back ~15h. 
 ## env2pirate-λ2 HUNG @b483 + recovered (2026-07-28 ~22:45)
 env2pirate-8b-pw2 (key hard-math mitigation run) wedged at batch 483 (~57min silent, 35B-style
 hang) while other 5 advanced. pkill -9 + relaunched from ckpt 400 (pre-collapse, safe). Watch
