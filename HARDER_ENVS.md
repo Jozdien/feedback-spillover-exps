@@ -41,6 +41,23 @@ Testing whether bigger models rescue the two capability-gated envs.
 Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
 NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
 
+## CORRECTED SPILLOVER RANKING — Env1 encoded 35B is STRONGEST (2026-07-29 18:xx)
+Clean pre-outage windows, rescored penalty + rescored/low-contam control. CoT gap = ctrl-pen:
+  Env1 encoded 35B (b400-480):  pen cot 0.52 vs ctrl ~1.00  => gap +0.48  (out 0.73->0.39)  STRONG
+  Env4 GPQA    8B  (b650-750):  pen cot 0.34 vs ctrl 0.62   => gap +0.28  (out 0.32->0.06)  real/modest
+  Env2 math    8B  (b650-750):  pen cot 0.63 vs ctrl 0.71   => gap +0.08                    little
+  Env4 GPQA   35B  (b400-480):  pen cot 0.72 vs ctrl 0.68   => gap -0.04  (out 0.18->0.11)  NONE (CoT stays up)
+Env1 35B is GENUINE spillover (not control-drift): penalty cut output 0.73->0.39 AND CoT fell
+0.79->0.52 in absolute terms => ~80% of output-suppression spilled to CoT (vs ~46% GPQA-8B).
+Most interesting conceptually: hint is ENCODED (using it REQUIRES CoT) yet acknowledgment still
+partially leaves the CoT under penalty. I under-credited it earlier because (a) my rescore table
+quoted its OUTAGE-CONTAMINATED late window (cot 0.97, penalty off) not the clean pre-outage window,
+(b) the 8B version is confounded (task rejected, correct~0) so I mis-filed all of Env1.
+NOTE: spillover is model+env dependent — GPQA spills at 8B but NOT 35B (CoT rises). 
+ACTION: clean re-run Env1 encoded 35B from ~ckpt500 (analog of r700) to complete uncontaminated
+trajectory (~$25-30) — pending user ok. Env1 35B control is live (9 scattered 429s; outages only
+lower metric so true ctrl >=1.0 — gap is a lower bound).
+
 ## RESCORE RESULTS — true (judge-corrected) trajectories (2026-07-29 ~16:50 UTC)
 Full offline rescore of all 6 penalty runs done (logs/rescore_all.log). Format cot / out / correct.
 IMPORTANT two-layer problem: (a) rescore FIXES the metric (recompute cot from saved text w/ healthy
