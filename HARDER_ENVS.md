@@ -1,3 +1,15 @@
+## Nemotron-3-Super-120B-A12B capability gates (2026-07-29 16:41 UTC)
+Testing whether bigger models rescue the two capability-gated envs.
+- APPS backdoor: **PASS/VIABLE** — joint 0.15 (correct 0.51, backdoor 0.38, parsed 0.79) vs
+  8B ~0.01 and bar 0.05. 15x jump; env is now trainable. Ceiling was capability. Gate cost ~$3.
+- Impossible-LCB: **DEAD** — conflicting-split pass 0.000 (120 attempts, 89 parsed), original 0.425.
+  NOT a capability issue (model is capable + tries): the conflicting tests are mutually
+  contradictory, so a stateless solution is logically impossible and the model doesn't discover
+  the intended stateful/call-count hack zero-shot → 0 reward variance → no GRPO bootstrap. Abandon
+  LCB regardless of model size (would need env redesign to seed the hack).
+Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
+NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
+
 # ⚠️ MAJOR CORRECTION (2026-07-29): the "b750 collapse cliff" is an ARTIFACT
 
 The sudden CoT→0.00 collapse at ~batch 700-750 in the penalty runs is NOT spillover — it is
