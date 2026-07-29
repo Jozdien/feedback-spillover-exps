@@ -5,6 +5,13 @@ envs may not need the CoT, so obfuscating it is cheap. CoT-uplift eval confirmed
 this (see TODO.md / plots/cot_uplift.png). This campaign tests 5 harder,
 safety-relevant envs. Started 2026-07-25.*
 
+## 35B mitigation arm LAUNCHED (2026-07-29 ~15:3x UTC, user-approved)
+4 runs on Qwen3.6-35B-A3B init from the paper's 35B pirate SFT ckpt
+(tinker://e2809e41-d831-5ae6-a708-fba76fdb28b8:train:0/weights/final):
+env2pirate-35ba3b-{pw2,ctrl}, env4pirate-35ba3b-{pw2,ctrl}. ~$380 est. All 4 logged Batch 0
+(ctrl cot 0.76/0.27; pw2 correct=-1.0 = no-answer penalty, expected early). Now 10 concurrent
+runs; judge retries 3-4/tail — watch. Watcher resume_watch2.sh extended to all 10.
+New plot: plots/harder_mitigation_trajectory.png (fig_mitigation in plot_harder_envs.py). 
 ## Tinker 402 outage killed whole batch ~14-17h (2026-07-28→29), recovered 15:01 UTC
 All 6 runs (4 pirate-8B mitigation + 2 completeness-35B controls) died on a Tinker 402
 billing block; old 24h resume watcher had already lapsed so nothing relaunched them.
