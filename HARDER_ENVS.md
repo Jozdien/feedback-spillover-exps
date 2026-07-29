@@ -1,3 +1,27 @@
+# ⚠️ MAJOR CORRECTION (2026-07-29): the "b750 collapse cliff" is an ARTIFACT
+
+The sudden CoT→0.00 collapse at ~batch 700-750 in the penalty runs is NOT spillover — it is
+the OpenAI quota outage. `SoftConversationJudge` silently returns 0.0 on exhausted retries;
+429/insufficient_quota errors explode at exactly the "cliff" batches in every "collapsed" run
+(env2math-8b b750+, env4gpqa-8b b750+, env4gpqa-35b b500-750, env1enc-35b b600-850,
+env5apps-35b b400-600). All runs hit the outage at the same wall-clock time → same "cliff batch".
+
+Decisive check (rescored same rollouts with healthy judge, n=60/window):
+- hard-math 8B: live 0.675/0.000/0.000 (pre/post/late) → RESCORED 0.661/0.660/0.669. NO collapse.
+- GPQA 8B: live 0.339/0.220/0.000 → RESCORED 0.337/0.334/0.383. NO collapse.
+Rescore matches live exactly where the judge was healthy (validates method).
+
+Consequences:
+1. During outage windows the PENALTY was also zeroed (out_score from same judge) — those
+   batches were effectively unpenalized training. Valid penalized window = pre-outage only.
+2. What survives: GPQA 8B shows genuine GRADUAL spillover pre-cliff (penalty CoT ~0.34 vs
+   control ~0.60). Hard-math 8B shows little (0.66 vs ~0.70). No cliff anywhere.
+3. The "resume from post-collapse ckpt diverges" rule was a MISREAD: the env4gpqa-35b resume
+   showing CoT 0.6-0.9 was the TRUE value (judge healthy again) — original "collapse" was artifact.
+4. Full offline rescores of all 6 affected penalty runs running (logs/rescore_all.log);
+   plots + conclusions to be rebuilt from rescored.jsonl.
+5. Judge patched to log failures loudly (was silent 0.0).
+
 # Harder / safety-relevant environments — pilot campaign
 
 *Reviewer feedback (2026-07-23): the paper's MMLU-elementary and poly-factoring
