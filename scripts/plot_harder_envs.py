@@ -11,7 +11,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-PLOTS = Path("plots"); PLOTS.mkdir(exist_ok=True)
+PLOTS = Path("plots")
+PLOTS.mkdir(exist_ok=True)
 
 
 def penalty_traj(run, key="monitor/hint_in_cot"):
@@ -88,7 +89,8 @@ def fig_summary():
         for r in rows:
             bt = r["progress/batch"]
             if bt not in seen:
-                seen.add(bt); uniq.append(r)
+                seen.add(bt)
+                uniq.append(r)
         rows = uniq
         b = np.array([r["progress/batch"] for r in rows])
         v = np.array([r.get("monitor/hint_in_cot", np.nan) for r in rows])
@@ -112,15 +114,20 @@ def fig_summary():
         (ll, _) = win(run, hi_from_end=True)
         tag = "  ‡INCOMPLETE" if maxb < 700 and lab != "Impossible-LCB 8B" else ""
         labels.append(f"{lab} (b{maxb}){tag}")
-        early.append(e); late.append(ll)
+        early.append(e)
+        late.append(ll)
     y = np.arange(len(labels))
     fig, ax = plt.subplots(figsize=(11, 6.5))
     ax.barh(y - 0.2, early, 0.4, color="#4878CF", label="CoT early in training (batch 20–60)")
     ax.barh(y + 0.2, late, 0.4, color="#D65F5F", label="CoT late in training (last 60 batches)")
-    for i, (e, l) in enumerate(zip(early, late)):
-        if not np.isnan(e): ax.text(e + .01, i - 0.2, f"{e:.2f}", va="center", fontsize=9)
-        if not np.isnan(l): ax.text(l + .01, i + 0.2, f"{l:.2f}", va="center", fontsize=9)
-    ax.set_yticks(y); ax.set_yticklabels(labels, fontsize=11); ax.invert_yaxis()
+    for i, (e, lt) in enumerate(zip(early, late)):
+        if not np.isnan(e):
+            ax.text(e + .01, i - 0.2, f"{e:.2f}", va="center", fontsize=9)
+        if not np.isnan(lt):
+            ax.text(lt + .01, i + 0.2, f"{lt:.2f}", va="center", fontsize=9)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.invert_yaxis()
     ax.set_xlabel("Hint acknowledgment in CoT under the output penalty (λ=2)", fontsize=12)
     ax.set_xlim(0, 1.0)
     ax.set_title(
@@ -136,6 +143,72 @@ def fig_summary():
     print("saved", out)
 
 
+def _dedup_traj(run, key="monitor/hint_in_cot"):
+    """Per-batch trajectory, deduped by first occurrence (drops resume duplicates)."""
+    rows = [json.loads(x) for x in open(f"logs/grpo-{run}-s42/metrics.jsonl")]
+    seen, uniq = set(), []
+    for r in rows:
+        bt = r["progress/batch"]
+        if bt not in seen:
+            seen.add(bt)
+            uniq.append(r)
+    b = np.array([r["progress/batch"] for r in uniq])
+    v = np.array([r.get(key, np.nan) for r in uniq])
+    return b, v
+
+
+def fig_mitigation():
+    """Pirate-output SFT mitigation on the harder envs (8B, in progress).
+
+    Per env: no-SFT penalty (collapses to 0 at the ~b750 cliff), pirate-SFT penalty,
+    and pirate-SFT control. The mitigation works iff the pirate penalty line survives
+    the cliff that killed the no-SFT run.
+    """
+    envs = [
+        ("env2math-8b-pw2", "env2pirate-8b-pw2", "env2pirate-8b-ctrl",
+         "Hard math (leaked solution step)"),
+        ("env4gpqa-8b-pw2", "env4pirate-8b-pw2", "env4pirate-8b-ctrl",
+         "GPQA (wrong-answer hint)"),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.5), sharey=True)
+    for ax, (nosft, pir, pirctrl, title) in zip(axes, envs):
+        for run, color, label in [
+            (nosft, "#D65F5F", "No SFT, penalty λ=2 (collapses)"),
+            (pir, "#6ACC65", "Pirate-output SFT, penalty λ=2"),
+            (pirctrl, "#4878CF", "Pirate-output SFT, control λ=0"),
+        ]:
+            b, v = _dedup_traj(run)
+            s = smooth(v)
+            ax.plot(b[: len(s)], s, color=color, lw=2.5, label=label)
+        # mark the no-SFT collapse cliff + how far the mitigation runs have gotten
+        ax.axvspan(700, 800, color="#D65F5F", alpha=0.08)
+        ax.text(750, 0.95, "no-SFT\ncollapse cliff", ha="center", va="top",
+                fontsize=10, color="#a04545")
+        pb, _ = _dedup_traj(pir)
+        ax.axvline(pb.max(), color="gray", ls="--", lw=1, alpha=0.6)
+        ax.text(pb.max() + 8, 0.02, f"mitigation runs\nat b{pb.max()} (running)",
+                fontsize=9, color="gray")
+        ax.set_title(title, fontsize=13)
+        ax.set_xlabel("Training batch", fontsize=13)
+        ax.set_xlim(0, 1000)
+        ax.set_ylim(-0.03, 1.0)
+        ax.grid(axis="y", alpha=0.25)
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].set_ylabel("Hint acknowledgment in CoT (↑ = monitorable)", fontsize=13)
+    axes[0].legend(fontsize=10.5, loc="lower left")
+    fig.suptitle(
+        "Pirate-output SFT mitigation on harder envs (Qwen3-8B, in progress): on hard math the "
+        "mitigated CoT tracks its\ncontrol while the no-SFT run drifts; decisive test is whether "
+        "it survives the ~batch-750 collapse cliff",
+        fontsize=13.5,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.90])
+    out = PLOTS / "harder_mitigation_trajectory.png"
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    print("saved", out)
+
+
 if __name__ == "__main__":
     fig_trajectory()
     fig_summary()
+    fig_mitigation()
