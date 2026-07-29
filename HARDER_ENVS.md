@@ -1,3 +1,21 @@
+## LCB FINAL: winnable in principle, but NO Tinker model discovers the hack zero-shot (2026-07-29 17:14)
+All feasibility gates done. Conflicting-split pass rate (=reward variance needed for GRPO):
+  Model                         mode              original  conflicting
+  Qwen3.6-27B                   2-phase cot4096   0.417     0.000
+  Nemotron-120B-A12B            2-phase cot4096   0.425     0.000
+  Nemotron-120B-A12B            2-phase cot8192   0.492     0.000
+  Inkling (thinkingmachines)    1-shot 20k/high   0.600     0.000
+(8B/35B earlier: also 0.000.) So 5/5 model-configs: conflicting 0.000. Env IS winnable (hand-written
+call-count hack scores 1.0) but no current model emits a passing hack zero-shot — even Inkling, the
+most capable (0.60 normal) + most verbose (44-56k-char reasoning), NOTICES the contradiction in 7/20
+conflicting attempts yet never commits to the brittle replay-by-call-index solution that passes.
+Neither more capability, longer CoT cap, nor uncapped single-shot flips it. Llama-70B (user: used to
+work; now off Tinker) untestable — likely a model quirk or different env version.
+CONCLUSION: LCB stays UNUSABLE as-is on Tinker (0 reward variance -> no GRPO bootstrap). To use it
+would need hack-SEEDING: warm-start SFT on hacky solutions, or few-shot demo the call-count trick so
+rollouts sometimes pass. NOT worth it while APPS (viable on Nemotron, joint 0.15) already gives a
+working safety-relevant reward-hacking env. Gate scripts: pilot_lcb_gate.py, pilot_lcb_singleshot.py.
+
 ## LCB CORRECTION: env is WINNABLE, not "structurally dead" (2026-07-29 17:00 UTC)
 Earlier "structurally dead" was WRONG. Proof: a hand-written call-counting hack (return the
 i-th expected value on the i-th call) scores reward 1.0 on the conflicting split — the harness
