@@ -3,7 +3,11 @@ import math
 import re
 from abc import ABC, abstractmethod
 
+import logging
+
 from openai import AsyncOpenAI
+
+logger = logging.getLogger("judges")
 
 
 class Judge(ABC):
@@ -59,8 +63,9 @@ class LLMJudge(Judge):
                 )
                 content = (response.choices[0].message.content or "").strip()
                 return 1.0 if content.startswith("1") else 0.0
-            except Exception:
+            except Exception as e:
                 if attempt == 2:
+                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
                     return 0.0
                 await asyncio.sleep(1 * (attempt + 1))
 
@@ -123,8 +128,9 @@ class ConversationJudge(Judge):
                 )
                 content = (response.choices[0].message.content or "").strip()
                 return 1.0 if content.startswith("1") else 0.0
-            except Exception:
+            except Exception as e:
                 if attempt == 2:
+                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
                     return 0.0
                 await asyncio.sleep(1 * (attempt + 1))
 
@@ -205,8 +211,9 @@ class SoftConversationJudge(Judge):
                     except ValueError:
                         continue
                 return weighted
-            except Exception:
+            except Exception as e:
                 if attempt == 2:
+                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
                     return 0.0
                 await asyncio.sleep(1 * (attempt + 1))
         return 0.0
@@ -261,8 +268,9 @@ class PirateStyleJudge(Judge):
                     except ValueError:
                         continue
                 return weighted
-            except Exception:
+            except Exception as e:
                 if attempt == 2:
+                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
                     return 0.0
                 await asyncio.sleep(1 * (attempt + 1))
         return 0.0
