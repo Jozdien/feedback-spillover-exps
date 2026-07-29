@@ -74,12 +74,31 @@ def check_math_answer(output: str, gold: str) -> float:
     goldn = _normalize_answer(gold)
     if pred == goldn:
         return 1.0
-    try:
-        from sympy import sympify, simplify
-        d = simplify(sympify(pred.replace("^", "**")) - sympify(goldn.replace("^", "**")))
-        return 1.0 if d == 0 else 0.0
-    except Exception:
-        return 0.0
+    return _sympy_equal(pred, goldn)
+
+
+def _sympy_equal(pred: str, goldn: str, timeout: float = 5.0) -> float:
+    """1.0 iff pred == goldn symbolically. Runs sympy in a daemon thread with a
+    hard timeout: simplify() can hang forever on pathological model outputs, which
+    (called on the training event loop) would freeze the whole batch. On timeout
+    or error, fall back to 0.0 (a non-exact-match we can't verify counts as wrong).
+    """
+    import threading
+
+    result = [0.0]
+
+    def work():
+        try:
+            from sympy import simplify, sympify
+            d = simplify(sympify(pred.replace("^", "**")) - sympify(goldn.replace("^", "**")))
+            result[0] = 1.0 if d == 0 else 0.0
+        except Exception:
+            result[0] = 0.0
+
+    t = threading.Thread(target=work, daemon=True)
+    t.start()
+    t.join(timeout)
+    return result[0]
 
 
 def has_boxed(output: str) -> bool:
