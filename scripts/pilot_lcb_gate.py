@@ -36,12 +36,14 @@ async def run_model(service, model_name, problems, args, summary_path):
     )
     pt = _get_phase_tokens(model_name, tokenizer, renderer)
     sp = service.create_sampling_client(base_model=model_name)
-    cot_params = types.SamplingParams(max_tokens=4096, temperature=1.0, stop=pt.cot_stop)
+    cot_params = types.SamplingParams(
+        max_tokens=args.cot_budget, temperature=1.0, stop=pt.cot_stop)
     out_params = types.SamplingParams(max_tokens=1500, temperature=1.0, stop=pt.out_stop)
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    of = open(out_dir / f"{model_name.replace('/', '_')}.jsonl", "w")
+    tag = f"{model_name.replace('/', '_')}_cot{args.cot_budget}"
+    of = open(out_dir / f"{tag}.jsonl", "w")
     stats = {"original": [0, 0], "conflicting": [0, 0]}  # split -> [passes, n]
 
     for b_start in range(0, len(problems), args.batch_size):
@@ -95,6 +97,7 @@ async def run_model(service, model_name, problems, args, summary_path):
     of.close()
     summary = {
         "model": model_name,
+        "cot_budget": args.cot_budget,
         **{f"{k}_pass": (v[0] / v[1] if v[1] else 0.0) for k, v in stats.items()},
         **{f"{k}_n": v[1] for k, v in stats.items()},
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -127,6 +130,8 @@ def main():
     parser.add_argument("--n-problems", type=int, default=60)
     parser.add_argument("--samples-per-problem", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--cot-budget", type=int, default=4096,
+                        help="max CoT tokens; raise to test if more thinking finds the hack")
     parser.add_argument("--output-dir", default="logs/lcb-pilot")
     args = parser.parse_args()
 

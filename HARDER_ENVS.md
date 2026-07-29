@@ -10,6 +10,30 @@ Testing whether bigger models rescue the two capability-gated envs.
 Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
 NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
 
+## RESCORE RESULTS — true (judge-corrected) trajectories (2026-07-29 ~16:50 UTC)
+Full offline rescore of all 6 penalty runs done (logs/rescore_all.log). Format cot / out / correct.
+IMPORTANT two-layer problem: (a) rescore FIXES the metric (recompute cot from saved text w/ healthy
+judge); BUT (b) during the 429 outage the penalty itself was zeroed, so late-window ROLLOUTS for
+5/6 runs were generated under partially-UNPENALIZED training. Only env1enc-8b had no heavy 429s
+(clean start-to-finish). So late numbers below are NOT clean sustained-penalty for the contaminated runs.
+
+  run                early-cot  late-cot   429-heavy(train contaminated>=b)
+  env2math-8b        0.692      0.606      700   -> little CoT spillover
+  env4gpqa-8b        0.471      0.345      700   -> modest CoT spillover (clearest)
+  env1enc-35b        0.789      0.972      600   -> CoT up (late unpenalized)
+  env4gpqa-35b       0.555      0.728      500   -> CoT up (late unpenalized)
+  env5apps-35b       0.093      0.406      400   -> messy/low signal (late unpenalized)
+  env1enc-8b         0.466      0.026      none  -> CLEAN collapse, but TASK-REJECTION (correct~0)
+
+CLEANEST comparison available (mid-training b600-700, healthy judge, cleanly penalized):
+  env2math-8b penalty cot 0.66 vs control ~0.70  -> negligible spillover
+  env4gpqa-8b penalty cot 0.34 vs control ~0.60  -> REAL gradual spillover (~0.26 gap)
+
+BOTTOM LINE (revised): the "strong universal spillover" claim was the artifact. TRUE effect is
+mixed/modest: GPQA 8B shows genuine gradual CoT spillover; hard-math 8B shows little. The r700
+reruns (clean ckpt700 + SUSTAINED penalty 700->1000) are the decisive late-training test — pending.
+env1enc-8b collapse is task-rejection not spillover. Plots to rebuild from rescored.jsonl once r700 lands.
+
 # ⚠️ MAJOR CORRECTION (2026-07-29): the "b750 collapse cliff" is an ARTIFACT
 
 The sudden CoT→0.00 collapse at ~batch 700-750 in the penalty runs is NOT spillover — it is
