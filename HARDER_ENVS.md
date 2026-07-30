@@ -41,6 +41,25 @@ Testing whether bigger models rescue the two capability-gated envs.
 Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
 NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
 
+## 8B MITIGATION VERDICT — pirate-SFT (style separation) WORKS in harder envs (2026-07-30 04:45)
+Late CoT (last 60), 8B mitigation runs complete (b999). Higher = more monitorable:
+  GPQA (real spillover):  no-SFT penalty 0.26 -> +pirate-SFT 0.48 (ctrl 0.59) => +0.22, ~65% of
+    the 0.34 spillover gap RECOVERED. Style separation restores CoT monitorability.
+  Hard-math (modest):     no-SFT penalty 0.58 -> +pirate-SFT 0.70 (ctrl 0.74) => +0.12, gap ~gone.
+HEADLINE POSITIVE RESULT: replicates the paper's core mitigation (style separation cheaply blocks
+feedback spillover) in the NEW harder, CoT-necessary envs — directly answers the reviewer. Green
+mitigation line sits above red penalty in plots/all_env_trajectories.png (GPQA panel).
+35B mitigation still training (env2/4pirate-35ba3b) — will test if it holds at scale.
+
+## ROOT-CAUSE FIX — env2-35B penalty hangs were CATASTROPHIC REGEX BACKTRACKING (2026-07-30 04:4x)
+check_math_answer's fallback boxed regex `\boxed\{([^{}]+|\{[^{}]*\}|[^{}])+\}` catastrophically
+backtracks on malformed outputs (a `oxed{` with NO closing brace — common in penalty-run rollouts).
+Confirmed: hung >15s on one bad input. This (NOT sympy) is why env2pirate-35ba3b-pw2 hung at ~b53
+every run x9 restarts (penalty=>more malformed outputs; deterministic seed=>same bad batch ~53;
+control twin fine). Sympy 5s-timeout didnt help (hang is in the regex, before sympy). FIX: replaced
+with O(n) brace-counter _extract_boxed(). Verified malformed case now 0.000s, all normal cases pass.
+env2pirate-35ba3b-pw2 relaunched on fixed code — VERIFY it clears b100 next check.
+
 ## r700 CLEAN-RERUN VERDICT — decisive late-training spillover (2026-07-30 03:5x)
 Both r700 reruns COMPLETE (clean ckpt700 + SUSTAINED penalty 700->1000, patched judge, 0 JUDGE_FAIL).
 DEFINITIVE (replaces the retracted artifact):
