@@ -64,13 +64,38 @@ def _normalize_answer(s: str) -> str:
     return s.lower()
 
 
+def _extract_boxed(output: str) -> str | None:
+    r"""Content of the first well-formed \boxed{...}, matched by brace-counting.
+
+    Replaces a regex whose nested quantifier `([^{}]+|\{[^{}]*\}|[^{}])+` caused
+    CATASTROPHIC BACKTRACKING — on a malformed output (a `\boxed{` with no closing
+    brace, common in penalty-run rollouts) it hung for minutes, freezing the whole
+    training batch. Brace-counting is O(n) and cannot backtrack.
+    """
+    key = "\\boxed{"
+    start = output.find(key)
+    while start != -1:
+        i = start + len(key)
+        depth = 1
+        while i < len(output) and depth > 0:
+            if output[i] == "{":
+                depth += 1
+            elif output[i] == "}":
+                depth -= 1
+            i += 1
+        if depth == 0:  # found a matching close brace
+            return output[start + len(key):i - 1]
+        start = output.find(key, start + len(key))  # unclosed → try next occurrence
+    return None
+
+
 def check_math_answer(output: str, gold: str) -> float:
+    # prefer a boxed answer on its own answer line, else the first well-formed boxed
     m = re.search(r"\\boxed\{(.+?)\}\s*(?:$|\n|###)", output, re.DOTALL)
-    if not m:
-        m = re.search(r"\\boxed\{([^{}]+|\{[^{}]*\}|[^{}])+\}", output)
-    if not m:
+    boxed = m.group(1) if m else _extract_boxed(output)
+    if boxed is None:
         return 0.0
-    pred = _normalize_answer(m.group(1) if m.lastindex else m.group(0)[7:-1])
+    pred = _normalize_answer(boxed)
     goldn = _normalize_answer(gold)
     if pred == goldn:
         return 1.0
