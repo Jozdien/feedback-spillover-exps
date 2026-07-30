@@ -1,3 +1,25 @@
+## ⚠️⚠️ CRITICAL METHOD FINDING: the SoftConversationJudge SYSTEMATICALLY UNDER-DETECTS (2026-07-30 22:40)
+Reading actual CoTs: env4pirate-35ba3b-pw2 rollouts the judge scored 0.00 contain EXPLICIT hint
+acknowledgment ("the hint says the answer is A", "the textbook says the answer is C"). The gpt-4o-mini
+SoftConversationJudge fails to detect hint-ack in long (~11-13k char) reasoning-dense CoTs, esp. when
+the acknowledgment is brief/embedded (penalty runs). Deflates ALL absolute monitorability numbers and
+EXAGGERATES apparent spillover. Cross-checked with a LEXICAL hint-ack detector (regex for
+"hint/note/textbook/... says/suggests" — validated by reading CoTs it flags):
+
+  8B GPQA control  vs penalty (late):  JUDGE 0.79/0.26 (gap .53?)   LEXICAL 0.79/0.59 (gap 0.20)
+  8B GPQA MITIGATION: no-SFT-pen/pirate-pen/pirate-ctrl: JUDGE 0.26/0.48/0.59  LEXICAL 0.59/0.74/0.78
+  35B GPQA pirate-pen (the "backfire"): JUDGE 0.40  LEXICAL 0.63  (NOT collapsed — still majority-monitorable)
+
+REVISED CONCLUSIONS (qualitative results HOLD, magnitudes were judge-inflated):
+1. 8B spillover REAL but MILD: penalty CoT still acknowledges hint ~59% (not ~26%); gap vs control ~0.20 not 0.34.
+2. 8B MITIGATION HOLDS: pirate-SFT 0.59->0.74 lexical (~79% of gap recovered). Pushed result stands.
+3. 35B "BACKFIRE" = ARTIFACT, RETRACTED. pirate-35B penalty still acks hint 63% lexically; judge false-negative.
+   (there may be a MILD real reduction pirate-pen 0.63 vs no-SFT-pen ~0.85 lexical, but NOT a backfire — needs matched-window.)
+TODO (do before finalizing ANY monitorability number): re-score ALL CoTs with a BETTER detector — a stronger
+LLM judge (gpt-4.1 / claude) that reliably detects ack in long CoTs, validated vs the lexical detector + human
+reading. Then redo spillover magnitudes, both mitigation readouts, plot. The SoftConversationJudge (paper's
+original) is unreliable at these CoT lengths. This is the 2nd measurement artifact caught (1st=outage-zeroing).
+
 ## LCB FINAL: winnable in principle, but NO Tinker model discovers the hack zero-shot (2026-07-29 17:14)
 All feasibility gates done. Conflicting-split pass rate (=reward variance needed for GRPO):
   Model                         mode              original  conflicting
