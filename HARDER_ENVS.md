@@ -41,6 +41,21 @@ Testing whether bigger models rescue the two capability-gated envs.
 Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
 NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
 
+## 35B MITIGATION — PRELIMINARY + SURPRISING: pirate-SFT BACKFIRES at 35B GPQA (2026-07-30 21:40)
+env4pirate-35ba3b pair near-done (b979). Matched-window (live, 429s low/scattered=clean), within-model
+penalty-vs-own-control CoT:
+  no-SFT   35B GPQA: penalty 0.72 vs ctrl 0.68  => gap ~0     (NO spillover — established)
+  pirate   35B GPQA: penalty 0.40 vs ctrl 0.79  => gap +0.39  (STRONG spillover INDUCED)
+Consistent across early(b150-230: pen0.44/ctrl0.75), mid(b400-480: 0.46/0.82), late(b900-979: 0.39/0.79).
+Output fully scrubbed in pirate+penalty (out=0.00 vs no-SFT pen 0.11) — pirate style lets penalty fully
+remove hint from output, and that spills HARDER to CoT. => OPPOSITE of 8B (where pirate-SFT RECOVERED
+CoT 0.26->0.48). Style-separation mitigation is MODEL-SCALE-DEPENDENT: helps at 8B, backfires at 35B GPQA.
+CAVEATS/TODO before this is a headline (DO NOT push yet): (1) env2 hard-math 35B mitigation not done
+(env2pirate-35ba3b-pw2 ~694) — corroborate. (2) inspect actual pirate-35B penalty CoTs (is hint-use
+obfuscated/gone, or judge missing piratey-CoT?). (3) confirm at exact b1000 window. (4) sanity: pirate
+SFT checkpoint quality at 35B. If it holds, this is a NUANCED but publishable result (mitigation doesn't
+universally generalize to scale). Plot: add 35B pirate lines to Env4 panel once b1000.
+
 ## 8B MITIGATION VERDICT — pirate-SFT (style separation) WORKS in harder envs (2026-07-30 04:45)
 Late CoT (last 60), 8B mitigation runs complete (b999). Higher = more monitorable:
   GPQA (real spillover):  no-SFT penalty 0.26 -> +pirate-SFT 0.48 (ctrl 0.59) => +0.22, ~65% of
