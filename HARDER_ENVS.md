@@ -41,6 +41,17 @@ Testing whether bigger models rescue the two capability-gated envs.
 Gate scripts: scripts/pilot_apps_backdoor.py, scripts/pilot_lcb_gate.py. Logs: logs/{apps,lcb}-pilot-nemotron.log.
 NEXT (pending user spend approval): APPS penalty pilot on Nemotron ~$105 (+$105 control).
 
+## r700 CLEAN-RERUN VERDICT — decisive late-training spillover (2026-07-30 03:5x)
+Both r700 reruns COMPLETE (clean ckpt700 + SUSTAINED penalty 700->1000, patched judge, 0 JUDGE_FAIL).
+DEFINITIVE (replaces the retracted artifact):
+  GPQA 8B:   r700 entry(g700) 0.32 -> LATE(g940-999) 0.26   vs control 0.60   => gap 0.34  REAL SPILLOVER
+  Hardmath 8B: r700 entry 0.65 -> LATE 0.58                  vs control 0.72   => gap 0.14  modest
+KEY: sustained-penalty GPQA CoT (0.26) is LOWER than the outage-contaminated original (0.35) — the
+artifact UNDER-stated true spillover (outage kept switching penalty off, letting CoT recover). GPQA
+CoT declines monotonically 0.32->0.26 over the 300 clean batches. Headline 8B spillover = GPQA.
+Plot refreshed: plots/all_env_trajectories.png (orange r700 lines now extend to b1000, GPQA panel
+is the clean money-shot: red->orange declines to 0.25 vs blue control 0.6).
+
 ## CORRECTED SPILLOVER RANKING — Env1 encoded 35B is STRONGEST (2026-07-29 18:xx)
 Clean pre-outage windows, rescored penalty + rescored/low-contam control. CoT gap = ctrl-pen:
   Env1 encoded 35B (b400-480):  pen cot 0.52 vs ctrl ~1.00  => gap +0.48  (out 0.73->0.39)  STRONG
