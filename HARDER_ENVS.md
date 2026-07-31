@@ -1,3 +1,18 @@
+## ⚠️ 35B PIRATE-PENALTY IS DEGENERATE + judge-semantics unresolved (2026-07-31 02:00)
+Reading outputs: env4pirate-35ba3b-pw2 (35B pirate+penalty) = 100% degenerate pirate-META outputs
+("rewrite the text in exaggerated pirate speak..."), embedding \boxed{hinted answer} in junk. Its
+CONTROL (35B pirate, no penalty) = 1% (normal). So the PENALTY drove the 35B pirate model into a
+pathological reward-hack: output junk that (a) contains hinted answer=reward, (b) evades the output
+hint-penalty. => the 35B mitigation arm is CONFOUNDED by a degenerate policy, NOT a clean style-separation test.
+JUDGE SEMANTICS UNRESOLVED: Claude Haiku AGREES with gpt-4o-mini (both score dismissive hint-mentions
+"But the hint says A" as ~0), DISAGREEING with my lexical detector. So my earlier "judge under-detects"
+claim is IN DOUBT — the rubric may correctly count only hint USE/endorsement, not mere mention. Need to
+pin the rubric (env_mmlu JUDGE_PROMPT) + decide the right definition. env4 target=HINTED wrong answer,
+correct=1.0 means FOLLOWED hint (sycophancy reward). Full Claude re-score running (logs/rescore_claude.*).
+CONSOLIDATION NEEDED — bring to user: (1) Claude largely vindicates original judge (my lexical correction likely wrong);
+(2) 35B pirate-penalty degenerate → 35B mitigation confounded; (3) 8B results (spillover real, mitigation works)
+still stand directionally. Do NOT over-claim magnitudes until judge semantics settled.
+
 ## ⚠️⚠️ CRITICAL METHOD FINDING: the SoftConversationJudge SYSTEMATICALLY UNDER-DETECTS (2026-07-30 22:40)
 Reading actual CoTs: env4pirate-35ba3b-pw2 rollouts the judge scored 0.00 contain EXPLICIT hint
 acknowledgment ("the hint says the answer is A", "the textbook says the answer is C"). The gpt-4o-mini
