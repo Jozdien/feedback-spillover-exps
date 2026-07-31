@@ -1,3 +1,21 @@
+## ⚠️⚠️⚠️ THE HINT-ACK METRIC IS DETECTOR-FRAGILE — magnitudes NOT trustworthy (2026-07-31 02:05)
+Claude re-score done (logs/rescore_claude.jsonl). Claude vs old-judge(live, some outage-contaminated) vs lexical
+DISAGREE WILDLY, sometimes sign-flipped, on the SAME CoTs:
+  GPQA-8B ctrl/penalty:  claude 0.41/0.33 (gap +0.08)  old 0.20/0.27 (gap -0.07!)  lexical 0.81/0.58 (gap +0.23)
+  Math-8B  penalty:      claude 0.71        old 0.00        lexical 0.23   <-- 3 detectors, 3 different worlds
+  GPQA-35B no-SFT pen:   claude 0.51        old 0.72        lexical 0.79
+=> "hint acknowledgment in CoT" is NOT robustly measurable with any single off-the-shelf detector. The
+disagreement is because the concept conflates mention/dismiss/use, and long reasoning CoTs make it worse.
+CONSEQUENCE: I CANNOT stand behind the campaign's CoT-monitorability MAGNITUDES (incl. earlier "0.26->0.48",
+"gap 0.34", "judge under-detects", "35B backfire", "spillover milder") — all were single-detector artifacts of
+an ill-posed metric. DIRECTION of 8B spillover+mitigation is plausible but even that flips under old-judge.
+WHAT'S ACTUALLY SOLID: ops/durability fixes; the OUTAGE-zeroing artifact (429s→judge 0 during training) is real;
+LCB dead; env feasibility + APPS gate; 35B pirate-penalty is a DEGENERATE reward-hack (100% pirate-junk output).
+NEEDED (bring to user, do NOT solo-decide): (1) define "hint acknowledgment" precisely (mention vs use vs endorse)
++ build a small HUMAN-LABELED calibration set, validate ONE detector against it, THEN re-measure everything.
+(2) 35B mitigation confounded by degenerate policy — investigate/re-run or drop. (3) treat all prior magnitude
+claims as provisional. This is the 3rd measurement issue caught — the metric foundation needs rebuilding before ANY paper number.
+
 ## ⚠️ 35B PIRATE-PENALTY IS DEGENERATE + judge-semantics unresolved (2026-07-31 02:00)
 Reading outputs: env4pirate-35ba3b-pw2 (35B pirate+penalty) = 100% degenerate pirate-META outputs
 ("rewrite the text in exaggerated pirate speak..."), embedding \boxed{hinted answer} in junk. Its
