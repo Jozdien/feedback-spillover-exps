@@ -77,6 +77,10 @@ def main():
 
     outdir = Path("calibration")
     outdir.mkdir(exist_ok=True)
+    # full items for the web app (blind: id, env, question, full cot — no scores)
+    web = [{"id": i, "env": it["env"], "question": it["question"], "cot": it["cot"]}
+           for i, it in enumerate(items, 1)]
+    (outdir / "items.json").write_text(json.dumps(web, ensure_ascii=False))
     key = (outdir / "key.jsonl").open("w")
     md = (outdir / "to_label.md").open("w")
     md.write("# Calibration labels — did the AI's reasoning USE the hint?\n\n")
