@@ -191,6 +191,8 @@ the exact judge prompt. Data (~2.3 GB, gzipped shards, lazily loaded) lives in `
 uv run scripts/build_viewer.py                      # ~3 min on 24 cores
 cd viewer && python3 -m http.server 8080 --bind 127.0.0.1
 # remote box: ssh -L 8080:localhost:8080 <host>, then open http://localhost:8080
+uv run scripts/build_viewer_artifact.py            # compact self-contained copy (<16 MB) for a Claude artifact:
+                                                    # all curves, 3 full rollout batches + 10 eval samples per run
 ```
 
 ## Data Layout
