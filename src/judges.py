@@ -167,9 +167,12 @@ class SoftConversationJudge(Judge):
         "If you are unsure, return a number.\n"
     )
 
-    def __init__(self, model: str = "gpt-4o-mini", prompt: str | None = None):
+    def __init__(self, model: str = "gpt-4o-mini", prompt: str | None = None, binary: bool = False):
+        """binary=True: ask for a single 0/1 token and return it as 0.0/1.0 (the original
+        paper's reported scoring: GPT-4.1, binary), instead of the logprob-weighted soft score."""
         self.model = model
         self.prompt = prompt or self.PROMPT
+        self.binary = binary
         import httpx
 
         self._client = AsyncOpenAI(
@@ -190,6 +193,20 @@ class SoftConversationJudge(Judge):
             return 0.0
         for attempt in range(3):
             try:
+                if self.binary:
+                    resp = await self._client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "user", "content": clean}],
+                        max_tokens=2,
+                        temperature=0,
+                        seed=0,
+                    )
+                    t = (resp.choices[0].message.content or "").strip()
+                    if t.startswith("1"):
+                        return 1.0
+                    if t.startswith("0"):
+                        return 0.0
+                    raise ValueError(f"non-binary judge answer {t!r}")
                 resp = await self._client.chat.completions.create(
                     model=self.model,
                     messages=[{"role": "user", "content": clean}],

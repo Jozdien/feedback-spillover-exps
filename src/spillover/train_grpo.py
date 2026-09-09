@@ -142,6 +142,15 @@ class Config:
     async_k: int = 0
     async_workers: int = 0
     loss_fn: str = "importance_sampling"  # or "ppo" (clipped) for larger staleness
+    # Judge (output monitor = penalty; CoT monitor = eval-only). The original paper used
+    # GPT-4.1 with a binary 0/1 answer; our runs so far used gpt-4o-mini soft scores.
+    judge_model: str = "gpt-4o-mini"
+    judge_binary: bool = False
+    # Advantage estimator. "grpo": per-group (x-mean)/std over group_size rollouts of a
+    # prompt (default). "reinforce": the original paper's REINFORCE with a per-batch mean
+    # baseline per reward component, no std normalization (use group_size=1); here the
+    # penalty_weight magnitude matters.
+    advantage_mode: str = "grpo"
 
 
 def _load_qa_data(cfg: Config, renderer):
@@ -465,18 +474,19 @@ def _compute_advantages(ctx: _Ctx, scores, batch_idx):
         cot_penalty_on = batch_idx < ctx.cot_pen_batches
 
     n = len(correct_vals)
-    correct_advs = _group_normalize(correct_vals, cfg.group_size)
-    penalty_advs = (
-        _group_normalize(penalty_vals, cfg.group_size) if out_penalty_on else [0.0] * n
-    )
-    pirate_advs = (
-        _group_normalize(pirate_vals, cfg.group_size)
-        if cfg.pirate_reward_weight != 0.0
-        else [0.0] * n
-    )
+    if cfg.advantage_mode == "reinforce":
+        def norm(vals):  # REINFORCE: per-batch mean baseline, no scaling
+            m = sum(vals) / len(vals)
+            return [v - m for v in vals]
+    else:
+        def norm(vals):
+            return _group_normalize(vals, cfg.group_size)
+    correct_advs = norm(correct_vals)
+    penalty_advs = norm(penalty_vals) if out_penalty_on else [0.0] * n
+    pirate_advs = norm(pirate_vals) if cfg.pirate_reward_weight != 0.0 else [0.0] * n
     if cot_penalty_on:
         cot_pen_vals = [cfg.penalty_weight * s for s in scores["cot"]]
-        cot_pen_advs = _group_normalize(cot_pen_vals, cfg.group_size)
+        cot_pen_advs = norm(cot_pen_vals)
     else:
         cot_pen_advs = [0.0] * n
     return {
@@ -744,6 +754,7 @@ async def train(cfg: Config):
     assert cfg.batch_size % cfg.group_size == 0, (
         f"batch_size ({cfg.batch_size}) must be divisible by group_size ({cfg.group_size})"
     )
+    assert cfg.advantage_mode in ("grpo", "reinforce"), cfg.advantage_mode
     prompts_per_step = cfg.batch_size // cfg.group_size
 
     ml_logger = ml_log.setup_logging(log_dir=cfg.log_path, config=cfg)
@@ -753,24 +764,25 @@ async def train(cfg: Config):
     )
     pt = _get_phase_tokens(cfg.model_name, tokenizer, renderer)
 
+    jk = dict(model=cfg.judge_model, binary=cfg.judge_binary)
     if cfg.task == "qa":
         items = _load_qa_data(cfg, renderer)
-        judge = SoftConversationJudge()
+        judge = SoftConversationJudge(**jk)
     elif cfg.task == "qa_encoded":
         items = _load_qa_encoded_data(cfg, renderer)
-        judge = SoftConversationJudge(prompt=ENCODED_JUDGE_PROMPT)
+        judge = SoftConversationJudge(prompt=ENCODED_JUDGE_PROMPT, **jk)
     elif cfg.task == "qa_hard":
         items = _load_qa_hard_data(cfg, renderer)
-        judge = SoftConversationJudge()  # plain hints, same rubric as qa
+        judge = SoftConversationJudge(**jk)  # plain hints, same rubric as qa
     elif cfg.task == "math":
         items = _load_math_data(cfg, renderer)
-        judge = SoftConversationJudge(prompt=MATH_JUDGE_PROMPT)
+        judge = SoftConversationJudge(prompt=MATH_JUDGE_PROMPT, **jk)
     elif cfg.task == "lcb":
         items = _load_lcb_data(cfg, renderer)
-        judge = SoftConversationJudge(prompt=LCB_JUDGE_PROMPT)
+        judge = SoftConversationJudge(prompt=LCB_JUDGE_PROMPT, **jk)
     elif cfg.task == "apps":
         items = _load_apps_data(cfg, renderer)
-        judge = SoftConversationJudge(prompt=APPS_JUDGE_PROMPT)
+        judge = SoftConversationJudge(prompt=APPS_JUDGE_PROMPT, **jk)
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
