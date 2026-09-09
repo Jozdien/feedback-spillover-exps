@@ -354,3 +354,24 @@ condition (cot → 0). Final-checkpoint evals will settle this.
   table averages two different outcomes; (2) because each reward component is group-normalized, the
   penalty weight's magnitude does not change the training signal at all (only its sign), so the λ-sweep
   in Appendix A compares runs with identical gradients; "syc - 2·out" is a display formula.
+
+## 2026-09-09 (night) — the judge is the problem; paper-exact re-runs launched
+- **Their setup vs ours (Drori et al. App. C.2):** judge PROMPT identical to ours; but their judge is
+  GPT-4.1 with a binary 0/1 answer (ours: gpt-4o-mini, probability-weighted — switched from gpt-4o to
+  4o-mini in March for cost, never GPT-4.1); REINFORCE with a per-batch mean baseline, 1 rollout per
+  prompt (ours: GRPO group-normalized, so λ's magnitude is irrelevant); Qwen3-4B full fine-tune (ours:
+  8B/32B LoRA; 4B is retired on Tinker); T=300 thinking (ours: 4096 main, 300 in §regime); 3200 episodes
+  (267 steps; ours 1000 steps); no no-answer penalty (ours -1); 10 seeds (ours 2). No anti-degeneration
+  tricks anywhere in their paper. Their code link (anonymous.4open.science) has expired.
+- **GPT-4.1 with the same prompt overturns our judge:** on 547 already-graded traces it says the CoT
+  acknowledges the hint 92% of the time; of 197 traces our judge scored "no", GPT-4.1 says "yes" on 162,
+  and never the reverse. Re-judging final eval files (378 samples each): CoT acknowledgment under the
+  penalty is 0.95 for 32B no-SFT (control 0.99), 0.98 for 8B pirate (control 0.98), 0.99 for reward
+  targeting — i.e. at T=4096 there is essentially NO CoT spillover under the paper's judge; our judge had
+  shown 0.52/0.79, 0.51/0.44, 0.17. At T=300 the effect is real: control 0.63 → penalty 0.17, pirate
+  penalty 0.54 (late-training rollouts). So the draft's T=4096 main results are mostly judge noise; the
+  T=300 regime section is where the paper's claim actually lives. Data: logs/rejudge-gpt41/,
+  calibration/gpt41_scores.jsonl.
+- **Launched 10 paper-exact runs** (scripts/launch_paper_exact.sh; Qwen3-8B, REINFORCE, T=300, GPT-4.1
+  binary judge, λ=2, 3200 episodes): no-SFT penalty/control ×3 seeds, pirate penalty/control ×2 seeds.
+  ~2 h, ~$15 each. Summarize with `uv run scripts/analyze_exact.py`.
