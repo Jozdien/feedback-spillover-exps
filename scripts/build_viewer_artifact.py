@@ -50,7 +50,7 @@ def build_payload(r, batches, eval_n, curve_step=1):
         rollouts[str(b)] = [x for x in shard if x["batch"] == b]
     evals = {}
     for fam, ck in (r.get("evals") or {}).items():
-        fin = next((c for c in ck if c in ("final", "001000", "000500")), None)
+        fin = next((c for c in ("final", "001000", "000500") if c in ck), None)
         if not fin:
             continue
         with gzip.open(DATA / "runs" / r["run"] / "evals" / f"{fam}_{fin}.json.gz", "rt") as f:
