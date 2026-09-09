@@ -335,3 +335,22 @@ condition (cot → 0). Final-checkpoint evals will settle this.
 - The paper's 32B result is real concealment and STRONGER under your rubric than the paper's judge says
   (0.96 -> 0.00 vs 0.70 -> 0.29): penalized reasoning mentions the hint, says it is dismissing it, then the answer
   follows it. Full numbers: HARDER_ENVS.md top section; data: calibration/natural_*.
+
+## 2026-09-09 (late) — async RL, paper-runs viewer, why 8B penalty reward is low
+- **Decision recorded:** new environments are parked; the paper keeps the original (Drori) environments.
+- **Async RL** landed in `src/spillover/train_grpo.py` (`async_k=K`): sampling workers run K steps
+  off-policy while the trainer consumes finished groups; stale groups are re-queued. Smoke-tested
+  sync + async on 8B. Tinker SDK had to be upgraded (0.22 -> 0.27; the old one is rejected).
+- **Viewer** for every paper run: `uv run scripts/build_viewer.py`, then
+  `cd viewer && python3 -m http.server 8080 --bind 127.0.0.1` (server currently running on this box;
+  `ssh -L 8080:localhost:8080` to reach it). 146 runs, 1.67M rollouts, all eval samples.
+- **Why no-SFT / normal-SFT 8B had low reward under the penalty:** the penalty stopped the model from
+  learning to follow the hint at all; it answers truthfully (99% of non-following rollouts give the true
+  answer). Mechanism: at the start only ~11% of rollouts follow the hint and those are the ones that
+  mention it in the output, so the penalty lands on exactly the rollouts the task reward wants; the dense
+  penalty gradient wins, following drops to 3-8%, and from there too few groups carry task signal.
+  Pirate-output SFT escapes because its outputs barely mention the hint from the start; 32B recovers late.
+  Two flags for the paper: (1) normal-SFT 8B is bimodal across seeds (s42 honest, s43 learned late), the
+  table averages two different outcomes; (2) because each reward component is group-normalized, the
+  penalty weight's magnitude does not change the training signal at all (only its sign), so the λ-sweep
+  in Appendix A compares runs with identical gradients; "syc - 2·out" is a display formula.

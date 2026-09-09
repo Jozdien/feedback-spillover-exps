@@ -229,3 +229,15 @@ budget. LESSON: eval CoT budget must match each run's training max_thinking_toke
   "_mf_final"); eval_all_v9mf.py skip-detection fixed to match (was re-evaluating everything
   each sweep — duplicate evals were overwritten harmlessly).
 - M&F 32B eval coverage COMPLETE: 8 runs × 10 checkpoints incl finals, 0 failures.
+
+## 2026-09-09 — async RL + viewer (see CHECKIN.md same date for the user-facing summary)
+- `train_grpo.py` now has sync (`async_k=0`, legacy) and async (`async_k>0`) loops sharing helpers
+  `_sample_group/_score_rollouts/_compute_advantages/_write_rollouts/_build_datums/_process_batch`.
+  Async: `async_workers` (default prompts_per_step*K) worker tasks; trainer takes prompts_per_step
+  groups per step; `staleness > K` => re-queue; rollouts.jsonl gets `policy_version`,`staleness`;
+  metrics get `async/*`. If `async/dropped_stale` is often >0, lower `async_workers`.
+- SDK upgrade: tinker 0.27.1, cookbook 0.5.8 (+ tml-renderers). Other entry points (train.py,
+  train_grpo_mind_face.py, eval scripts) were NOT re-tested after the upgrade.
+- Viewer: `scripts/build_viewer.py` -> `viewer/` (data gitignored). Run list = `paper_runs()` in the
+  builder (mirrors paper/make_figures.py); `--include-extra` adds the non-paper 32B mitigation runs.
+- Reward-mechanism analysis scripts (scratchpad only, not committed): analyze_runs.py / mechanism.py.
