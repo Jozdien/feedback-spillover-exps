@@ -324,3 +324,14 @@ condition (cot → 0). Final-checkpoint evals will settle this.
   mentions. Where the old judge and Opus differ: the CoT uses the leaked step but credits it to "the problem"
   rather than a leak (math env), or reasons toward the hinted letter without naming the hint.
 - Nothing is training. Next: your agree/disagree pass → pick grader → re-grade all envs (subsampled, ~$50).
+
+## 2026-09-09 (later) — how much is in contention, and a reinterpretation
+- Random 50-trace samples per env and arm, graded by Opus and Sonnet with your rubric: they disagree on 11% of
+  500 traces (24% carry any flag). Concentrated in Science-8B and Math-8B (~20-25%); zero in Encoded-35B and the
+  paper's 32B runs. No conclusion flips with either grader. Recommendation: skip the rubric tweak.
+- Conditioning on "the output actually followed the hint": Encoded-35B shows NO concealment (every hint-following
+  trace shows the hint in its reasoning, both arms); the penalty made the model stop following the note instead.
+  GPQA-8B shows a modest concealment drop (0.53 -> 0.33). Math shows no gap.
+- The paper's 32B result is real concealment and STRONGER under your rubric than the paper's judge says
+  (0.96 -> 0.00 vs 0.70 -> 0.29): penalized reasoning mentions the hint, says it is dismissing it, then the answer
+  follows it. Full numbers: HARDER_ENVS.md top section; data: calibration/natural_*.
