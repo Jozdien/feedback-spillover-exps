@@ -177,6 +177,22 @@ The dashboard includes:
 
 Live at: [feedback-spillover.pages.dev](https://feedback-spillover.pages.dev)
 
+### Paper-runs viewer (every rollout, every eval sample)
+
+`scripts/build_viewer.py` builds `viewer/` — a single-page browser over all 146 training runs
+used in the paper (the run list mirrors `paper/make_figures.py`): per-batch training curves
+(hint-following, output/CoT judge, no-answer rate, CoT length, step time), every training
+rollout by batch (prompt with the hint highlighted, CoT, output, judge scores, per-component
+advantages), every eval checkpoint's 378 samples with filters, config + checkpoint paths, and
+the exact judge prompt. Data (~2.3 GB, gzipped shards, lazily loaded) lives in `viewer/data/`
+(gitignored). Resumed runs are de-duplicated by (batch, rollout), keeping the last occurrence.
+
+```bash
+uv run scripts/build_viewer.py                      # ~3 min on 24 cores
+cd viewer && python3 -m http.server 8080 --bind 127.0.0.1
+# remote box: ssh -L 8080:localhost:8080 <host>, then open http://localhost:8080
+```
+
 ## Data Layout
 
 ```

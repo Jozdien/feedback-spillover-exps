@@ -30,3 +30,4 @@ deploy_dir/
 checkpoint_archives/
 exported_checkpoints/
 calibration/*.html
+viewer/data/
