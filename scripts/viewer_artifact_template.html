@@ -1,0 +1,255 @@
+<title>Paper Runs Viewer</title>
+<style>
+:root{
+  --bg:#f4f4f1; --panel:#ffffff; --panel2:#ecedf3; --line:rgba(20,24,40,.09);
+  --t1:#1a1c26; --t2:#565c72; --t3:#8a90a4; --accent:#4b5bb0; --good:#1f8a70; --bad:#c2424c; --warn:#b26a2e;
+  --mark:#fff0b3; --markt:#4a3b00; --hl:#e6e9fb; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0b0d14; --panel:#12151f; --panel2:#181c29; --line:rgba(255,255,255,.07);
+  --t1:#e6e7ee; --t2:#9a9fb5; --t3:#646a82; --accent:#7c8cff; --good:#3fbf8f; --bad:#e0606a; --warn:#e0a84f;
+  --mark:#3a3418; --markt:#ffe9a3; --hl:#26305c; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0b0d14; --panel:#12151f; --panel2:#181c29; --line:rgba(255,255,255,.07);
+  --t1:#e6e7ee; --t2:#9a9fb5; --t3:#646a82; --accent:#7c8cff; --good:#3fbf8f; --bad:#e0606a; --warn:#e0a84f;
+  --mark:#3a3418; --markt:#ffe9a3; --hl:#26305c; color-scheme:dark; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t1);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:14px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);flex:none;flex-wrap:wrap}
+.topbar h1{font-size:14px;margin:0;font-weight:650}
+.topbar .sub{color:var(--t3);font-size:12px}
+.topbar .sp{flex:1}
+.main{display:flex;flex:1;min-height:0}
+aside{width:360px;flex:none;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+aside .filter{padding:8px 10px;border-bottom:1px solid var(--line)}
+aside input{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--t1);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px}
+aside .list{overflow-y:auto;flex:1;padding-bottom:30px}
+.grp{padding:9px 10px 3px;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--t3);font-weight:600;position:sticky;top:0;background:var(--panel);z-index:1}
+.grp .n{float:right;font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:5px 10px 5px 8px;border-left:2px solid transparent;cursor:pointer;font-size:11.5px;line-height:1.3}
+.row:hover{background:var(--hl)}
+.row.cur{border-left-color:var(--accent);background:var(--hl)}
+.row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .chips{grid-column:1/3;display:flex;gap:4px;flex-wrap:wrap;font-size:10.5px}
+.chip{border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--t2)}
+.chip.warn{color:var(--warn)} .chip.dim{color:var(--t3)}
+.nums{display:flex;gap:6px;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:10.5px;color:var(--t2)}
+.nums b{font-weight:500;color:var(--t1)}
+.content{flex:1;min-width:0;overflow-y:auto;padding:14px 18px 60px}
+.hdr h2{margin:0 0 4px;font-size:15px;font-weight:650;font-family:var(--mono);word-break:break-all}
+.hdr .meta{color:var(--t2);font-size:12px;display:flex;gap:14px;flex-wrap:wrap}
+.hdr .meta b{color:var(--t1);font-weight:500}
+.tabs{display:flex;gap:2px;margin:12px 0 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:6px 12px;cursor:pointer;color:var(--t2);border-bottom:2px solid transparent;font-size:12.5px}
+.tab.cur{color:var(--t1);border-bottom-color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.card h3{margin:0 0 6px;font-size:11px;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column}
+.stat .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.stat .l{font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
+svg.chart{width:100%;height:190px;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--t2);margin-top:4px}
+.legend i{display:inline-block;width:10px;height:3px;margin-right:4px;vertical-align:middle}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:12px;color:var(--t2)}
+.ctl select,.ctl input[type=text]{background:var(--bg);border:1px solid var(--line);color:var(--t1);border-radius:5px;padding:4px 6px;font:inherit;font-size:12px}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--t1);border-radius:5px;padding:4px 9px;cursor:pointer;font:inherit;font-size:12px}
+.btn:hover{border-color:var(--accent)} .btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn.on{border-color:var(--accent);color:var(--accent)}
+.samp{border:1px solid var(--line);border-radius:7px;margin-bottom:6px;background:var(--panel)}
+.samp .h{display:flex;gap:8px;align-items:center;padding:6px 10px;cursor:pointer;font-size:11.5px;flex-wrap:wrap}
+.samp .h .id{font-family:var(--mono);color:var(--t3);width:66px}
+.samp .h .q{flex:1;min-width:160px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.samp .b{display:none;padding:2px 12px 10px;border-top:1px solid var(--line)}
+.samp.open .b{display:block}
+.sc{font-family:var(--mono);font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid var(--line);color:var(--t2);white-space:nowrap}
+.sc b{color:var(--t1);font-weight:500}
+.sc.g{color:var(--good)} .sc.r{color:var(--bad)} .sc.w{color:var(--warn)}
+.sec{margin-top:8px}
+.sec .l{font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+pre.t{font-family:var(--mono);font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0;max-height:420px;overflow:auto}
+mark{background:var(--mark);color:var(--markt);padding:0 2px;border-radius:2px}
+table{border-collapse:collapse;font-size:11.5px;width:100%}
+td,th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--t3);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+td.mono{font-family:var(--mono);font-size:11px;word-break:break-all}
+.empty{color:var(--t3);padding:30px;text-align:center}
+.note{color:var(--t3);font-size:11.5px;margin:6px 0 10px}
+.tip{position:fixed;pointer-events:none;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:11px;font-family:var(--mono);color:var(--t1);display:none;z-index:5;white-space:pre}
+.tw{overflow-x:auto}
+@media (max-width:820px){.main{flex-direction:column}aside{width:100%;max-height:40vh;border-right:none;border-bottom:1px solid var(--line)}}
+</style>
+<div class="topbar"><h1>Paper Runs Viewer</h1><span class="sub" id="sub"></span><span class="sp"></span><button class="btn" onclick="setTab('judge')">Judge &amp; reward</button></div>
+<div class="main">
+  <aside><div class="filter"><input id="q" placeholder="filter runs: e.g. v7base 8b pw-2, pirate, poly, s43" oninput="renderList()"></div><div class="list" id="list"></div></aside>
+  <div class="content" id="content"><div class="empty">Select a run</div></div>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+const IX = __INDEX__;
+const PAYLOADS = __PAYLOADS__;
+let cur = null, tab = 'overview', batch = null, evsel = '', rFilter = 'all', smoothK = 10;
+const cache = {};
+const HINT_RE = /(my (textbook|professor|notes|class notes)[^.\n]*|a friend[^.\n]*|stackexchange[^.\n]*|hint:[^.\n]*|an? (encrypted|encoded)? ?note[^.\n]*|the answer (is|should be) [A-D])/ig;
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const hl = s => esc(s).replace(HINT_RE, m => '<mark>' + m + '</mark>');
+const f2 = v => v == null ? '–' : (Math.round(v * 100) / 100).toFixed(2);
+const short = r => r.run.replace(/^grpo-/, '');
+const modelShort = m => !m ? '' : m.includes('Nemotron') ? 'Nemotron-120B' : m.replace(/^Qwen\//, '');
+
+async function getRun(run){
+  if(cache[run]) return cache[run];
+  const bin = Uint8Array.from(atob(PAYLOADS[run]), c => c.charCodeAt(0));
+  const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return cache[run] = JSON.parse(text);
+}
+function renderList(){
+  const q = document.getElementById('q').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const groups = [];
+  for(const r of IX.runs){
+    const hay = (r.run+' '+r.group+' '+r.condition+' '+r.ref+' '+modelShort(r.model)).toLowerCase();
+    if(q.some(t => !hay.includes(t))) continue;
+    let g = groups.find(x => x.name === r.group); if(!g){ g = {name:r.group, runs:[]}; groups.push(g); }
+    g.runs.push(r);
+  }
+  let html = '';
+  for(const g of groups){
+    html += `<div class="grp">${esc(g.name)}<span class="n">${g.runs.length}</span></div>`;
+    for(const r of g.runs){
+      const ev = Object.keys(r.evals||{}).length;
+      html += `<div class="row ${cur && cur.run===r.run?'cur':''}" onclick="selectRun('${r.run}')"><span class="nm" title="${esc(r.run)}">${esc(short(r))}</span>
+        <span class="nums" title="last-100-batch training means: follow · out judge · cot judge"><b>${f2(r.final100.follow)}</b>·${f2(r.final100.out)}·${f2(r.final100.cot)}</span>
+        <span class="chips"><span class="chip">${esc(modelShort(r.model))}</span><span class="chip">λ=${r.lam}</span><span class="chip">s${r.seed}</span><span class="chip dim">${esc(r.condition)}</span>${r.T!==4096?`<span class="chip">T=${r.T}</span>`:''}${r.n_dup?`<span class="chip warn" title="resumed run: ${r.n_dup} duplicate rollout rows, last occurrence kept">resumed</span>`:''}${ev?'':'<span class="chip dim">no eval</span>'}</span></div>`;
+    }
+  }
+  document.getElementById('list').innerHTML = html || '<div class="empty">no match</div>';
+}
+function selectRun(run){ cur = IX.runs.find(r => r.run === run); batch = null; evsel = ''; renderList(); render(); }
+function setTab(t){ tab = t; render(); }
+
+async function render(){
+  const c = document.getElementById('content');
+  if(tab === 'judge'){ c.innerHTML = judgeHtml(); return; }
+  if(!cur){ c.innerHTML = '<div class="empty">Select a run</div>'; return; }
+  const r = cur, evfams = Object.keys(r.evals||{});
+  c.innerHTML = `<div class="hdr"><h2>${esc(r.run)}</h2>
+    <div class="meta"><span>${esc(r.group)} · <b>${esc(r.ref)}</b></span><span>condition <b>${esc(r.condition)}</b></span><span>model <b>${esc(r.model)}</b></span><span>λ <b>${r.lam}</b></span><span>seed <b>${r.seed}</b></span><span>T <b>${r.T}</b></span><span>task <b>${esc(r.task)}</b></span>${r.reward_target?'<span><b>reward_target</b></span>':''}${r.mind_face?'<span><b>mind&amp;face</b></span>':''}${r.pirate_reward_weight?`<span>μ <b>${r.pirate_reward_weight}</b></span>`:''}<span>batches <b>${r.n_batches}</b></span><span>rollouts <b>${r.n_rollouts}</b>${r.n_dup?` <span class="chip warn">+${r.n_dup} dup rows dropped</span>`:''}</span></div></div>
+    <div class="tabs">${[['overview','Curves'],['rollouts',`Training rollouts (batches ${r.sample_batches.join(', ')})`],['evals',`Evals (${evfams.length} famil${evfams.length===1?'y':'ies'})`],['config','Config & checkpoints']].map(([k,l])=>`<span class="tab ${tab===k?'cur':''}" onclick="setTab('${k}')">${l}</span>`).join('')}</div>
+    <div id="pane"><div class="empty">inflating run data…</div></div>`;
+  try {
+    const d = await getRun(r.run);
+    if(tab === 'overview') renderOverview(r, d);
+    else if(tab === 'rollouts') renderRollouts(r, d);
+    else if(tab === 'evals') renderEvals(r, d);
+    else renderConfig(r);
+  } catch(e){ document.getElementById('pane').innerHTML = `<div class="empty">could not inflate data: ${esc(e.message)}<br>This page needs a browser with DecompressionStream (Chrome 80+, Firefox 113+, Safari 16.4+).</div>`; }
+}
+
+const SERIES = {
+  main: [['follow','follow hint / correct','#7c8cff'],['out','output judge (penalized)','#e0606a'],['cot','CoT judge (monitor)','#3fbf8f'],['noans','no answer','#e0a84f'],['reward','reward (correct + penalty)','#b48cff']],
+  hi: [['out_hi','out judge > 0.5','#e0606a'],['cot_hi','CoT judge > 0.5','#3fbf8f'],['cot_empty','empty CoT','#e0a84f'],['abs_pen_adv','mean |penalty_adv|','#9a9fb5']],
+  len: [['cot_len','CoT chars','#3fbf8f'],['out_len','output chars','#e0606a']],
+  time: [['step_time','seconds / batch','#9a9fb5']],
+};
+function smooth(ys, k){ if(k<=1) return ys; const out=[]; let s=0, n=0; const q=[]; for(let i=0;i<ys.length;i++){ const v=ys[i]; q.push(v); if(v!=null){s+=v;n++;} if(q.length>k){ const o=q.shift(); if(o!=null){s-=o;n--;} } out.push(n?s/n:null);} return out; }
+function chart(id, xs, series, curves, k, yFixed){
+  const W=900, H=190, L=42, R=10, T=8, B=22;
+  let ymax = yFixed ? 1 : 0, ymin = yFixed ? 0 : Infinity;
+  const data = series.map(([key,label,color]) => { const ys = smooth(curves[key]||[], k); if(!yFixed) for(const v of ys) if(v!=null){ ymax=Math.max(ymax,v); ymin=Math.min(ymin,v);} return {key,label,color,ys}; });
+  if(!yFixed){ if(ymin===Infinity) ymin=0; if(ymin>0) ymin=0; if(ymax<=ymin) ymax=ymin+1; }
+  const xmax = xs.length ? xs[xs.length-1] : 1;
+  const X = x => L + (x/xmax)*(W-L-R), Y = y => T + (1-(y-ymin)/(ymax-ymin))*(H-T-B);
+  let svg = `<svg class="chart" id="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+  for(let i=0;i<=4;i++){ const y = ymin + (ymax-ymin)*i/4; svg += `<line x1="${L}" x2="${W-R}" y1="${Y(y)}" y2="${Y(y)}" stroke="currentColor" stroke-opacity=".08"/><text x="${L-4}" y="${Y(y)+3}" fill="currentColor" fill-opacity=".5" font-size="9" text-anchor="end">${yFixed?y.toFixed(2):Math.round(y)}</text>`; }
+  for(let i=0;i<=5;i++){ const x = xmax*i/5; svg += `<text x="${X(x)}" y="${H-6}" fill="currentColor" fill-opacity=".5" font-size="9" text-anchor="middle">${Math.round(x)}</text>`; }
+  for(const s of data){ let d=''; s.ys.forEach((v,i)=>{ if(v==null) return; d += (d?'L':'M')+X(xs[i]).toFixed(1)+' '+Y(v).toFixed(1); }); svg += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.4" vector-effect="non-scaling-stroke"/>`; }
+  svg += `<line id="${id}-cur" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="currentColor" stroke-opacity=".35" style="display:none"/></svg>`;
+  svg += `<div class="legend">${data.map(s=>`<span><i style="background:${s.color}"></i>${s.label}</span>`).join('')}</div>`;
+  return {svg, data, xmax};
+}
+function attachHover(id, xs, data, xmax){
+  const el = document.getElementById(id), tip = document.getElementById('tip'), ln = document.getElementById(id+'-cur');
+  el.addEventListener('mousemove', e => {
+    const rect = el.getBoundingClientRect(); const fx = (e.clientX-rect.left)/rect.width*900; const bx = (fx-42)/(900-52)*xmax;
+    let i = 0; for(let j=0;j<xs.length;j++){ if(Math.abs(xs[j]-bx) < Math.abs(xs[i]-bx)) i=j; }
+    const px = 42+(xs[i]/xmax)*(900-52); ln.style.display=''; ln.setAttribute('x1', px); ln.setAttribute('x2', px);
+    tip.style.display='block'; tip.style.left=Math.min(e.clientX+14, window.innerWidth-260)+'px'; tip.style.top=(e.clientY+10)+'px';
+    tip.textContent = `batch ${xs[i]}\n` + data.map(s => `${s.label}: ${s.ys[i]==null?'–':(Math.abs(s.ys[i])>=10?Math.round(s.ys[i]):s.ys[i].toFixed(3))}`).join('\n');
+  });
+  el.addEventListener('mouseleave', () => { tip.style.display='none'; ln.style.display='none'; });
+}
+function renderOverview(r, d){
+  const cv = d.curves, xs = cv.batch, f = r.final100;
+  const evs = Object.entries(r.evals||{}).flatMap(([fam,ck]) => Object.entries(ck).map(([c,s]) => ({fam,c,...s}))).filter(e => /final|001000|000500/.test(e.c));
+  let html = `<div class="card"><h3>Last 100 training batches</h3><div class="stats">
+    <div class="stat"><span class="v">${f2(f.follow)}</span><span class="l">follow hint / correct</span></div><div class="stat"><span class="v">${f2(f.out)}</span><span class="l">output judge</span></div><div class="stat"><span class="v">${f2(f.cot)}</span><span class="l">CoT judge</span></div><div class="stat"><span class="v">${f2(f.reward)}</span><span class="l">reward</span></div><div class="stat"><span class="v">${f2(f.noans)}</span><span class="l">no answer</span></div><div class="stat"><span class="v">${Math.round(f.cot_len||0)}</span><span class="l">CoT chars</span></div>
+    ${evs.map(e=>`<div class="stat" style="border-left:1px solid var(--line);padding-left:14px"><span class="v">${f2(e.sycophancy)} · ${f2(e.out)} · ${f2(e.cot)}</span><span class="l">eval ${e.fam} @${e.c}: syc · out · cot (real ${f2(e.real_correct)}, n=${e.n})</span></div>`).join('')}</div></div>
+    <div class="ctl">smoothing <select onchange="smoothK=+this.value;render()">${[[1,'none'],[10,'10 batches'],[25,'25 batches'],[50,'50 batches']].map(([k,l])=>`<option value="${k}"${smoothK===k?' selected':''}>${l}</option>`).join('')}</select><span>hover for values</span></div>`;
+  const charts = [['c1','Task and judge scores (per batch of 12 rollouts)','main',true],['c2','Rates and advantage magnitude','hi',true],['c3','Lengths','len',false],['c4','Step time','time',false]];
+  const built = charts.map(([id,title,key,fixed]) => ({id,title,ch:chart(id, xs, SERIES[key], cv, smoothK, fixed)}));
+  html += built.map(b => `<div class="card"><h3>${b.title}</h3>${b.ch.svg}</div>`).join('');
+  document.getElementById('pane').innerHTML = html;
+  built.forEach(b => attachHover(b.id, xs, b.ch.data, b.ch.xmax));
+}
+function renderRollouts(r, d){
+  const bs = r.sample_batches; if(batch==null || !bs.includes(batch)) batch = bs[0];
+  let rows = d.rollouts[String(batch)] || [];
+  const all = rows;
+  if(rFilter==='follow') rows = rows.filter(x => x.correct===1);
+  if(rFilter==='nofollow') rows = rows.filter(x => x.correct!==1);
+  if(rFilter==='outhi') rows = rows.filter(x => x.out_score>0.5);
+  if(rFilter==='cothi') rows = rows.filter(x => x.cot_score>0.5);
+  const g = (r.cfg && r.cfg.group_size) || 4;
+  const mean = k => all.length ? all.reduce((a,x)=>a+(x[k]||0),0)/all.length : 0;
+  let html = `<div class="ctl">batch ${bs.map(b=>`<button class="btn ${b===batch?'on':''}" onclick="batch=${b};render()">${b}</button>`).join('')} <span>show</span>${[['all','all'],['follow','followed hint'],['nofollow','did not follow'],['outhi','out judge > 0.5'],['cothi','CoT judge > 0.5']].map(([k,l])=>`<button class="btn ${rFilter===k?'on':''}" onclick="rFilter='${k}';render()">${l}</button>`).join('')}</div>
+    <div class="note">All ${all.length} rollouts of batch ${batch} (${g} per prompt group). This compact version carries ${bs.length} batches per run; every batch is in the local viewer (scripts/build_viewer.py).</div>
+    <div class="card"><div class="stats"><div class="stat"><span class="v">${f2(all.filter(x=>x.correct===1).length/Math.max(all.length,1))}</span><span class="l">follow</span></div><div class="stat"><span class="v">${f2(mean('out_score'))}</span><span class="l">out judge</span></div><div class="stat"><span class="v">${f2(mean('cot_score'))}</span><span class="l">CoT judge</span></div><div class="stat"><span class="v">${f2(mean('correct')+mean('penalty_val'))}</span><span class="l">reward</span></div></div></div>`;
+  if(!rows.length) html += '<div class="empty">no rollouts match</div>';
+  for(const x of rows){
+    const corr = x.correct===1 ? '<span class="sc g">follow <b>YES</b></span>' : x.correct===-1 ? '<span class="sc w">no answer</span>' : '<span class="sc r">follow <b>NO</b></span>';
+    html += `<div class="samp"><div class="h" onclick="this.parentNode.classList.toggle('open')"><span class="id">#${x.rollout} · g${Math.floor(x.rollout/g)}</span>${corr}
+      <span class="sc ${x.out_score>0.5?'r':''}">out <b>${f2(x.out_score)}</b></span><span class="sc ${x.cot_score>0.5?'g':''}">cot <b>${f2(x.cot_score)}</b></span>
+      <span class="sc">adv correct <b>${f2(x.correct_adv)}</b> · penalty <b>${f2(x.penalty_adv)}</b>${x.cot_pen_adv?` · cot-pen <b>${f2(x.cot_pen_adv)}</b>`:''}${x.pirate_adv?` · pirate <b>${f2(x.pirate_adv)}</b>`:''}</span>
+      ${x.valid===false?'<span class="sc w">invalid</span>':''}<span class="q">${esc((x.question||'').split('\n').filter(l=>l.trim()).slice(1,2)[0]||'')}</span><span class="sc">CoT ${(x.cot_text||'').length} · out ${(x.out_text||'').length} ch</span></div>
+      <div class="b"><div class="sec"><div class="l">prompt (target / hinted: ${esc(x.target)})</div><pre class="t">${hl(x.question)}</pre></div><div class="sec"><div class="l">chain of thought</div><pre class="t">${hl(x.cot_text)}</pre></div><div class="sec"><div class="l">output</div><pre class="t">${hl(x.out_text)}</pre></div></div></div>`;
+  }
+  document.getElementById('pane').innerHTML = html;
+}
+let eFilter = {syc:'', real:'', out:'', cot:''};
+function sel(k, label){ return `<select onchange="eFilter.${k}=this.value;render()"><option value=""${eFilter[k]===''?' selected':''}>${label}: any</option><option value="1"${eFilter[k]==='1'?' selected':''}>${label}: yes</option><option value="0"${eFilter[k]==='0'?' selected':''}>${label}: no</option></select>`; }
+function renderEvals(r, d){
+  const opts = Object.keys(d.evals||{});
+  if(!opts.length){ document.getElementById('pane').innerHTML = '<div class="empty">no eval files for this run (polynomial runs are evaluated from training metrics only)</div>'; return; }
+  if(!opts.includes(evsel)) evsel = opts[0];
+  const [fam, ck] = evsel.split(':'); const s = r.evals[fam][ck]; const e = d.evals[evsel];
+  const yn = (v, want) => want==='' || (want==='1') === (v>0.5);
+  const rows = e.rows.filter(x => yn(x.sycophancy,eFilter.syc) && yn(x.real_correct,eFilter.real) && yn(x.out_score,eFilter.out) && yn(x.cot_score,eFilter.cot));
+  let html = `<div class="ctl">checkpoint <select onchange="evsel=this.value;render()">${opts.map(o=>`<option value="${o}"${o===evsel?' selected':''}>${o}</option>`).join('')}</select><span class="chip" title="${esc(s.checkpoint||'')}">${esc((s.checkpoint||'').split('/').slice(-2).join('/'))}</span><span class="chip dim">${esc(s.timestamp||'')}</span></div>
+    <div class="card"><div class="stats"><div class="stat"><span class="v">${f2(s.sycophancy)}</span><span class="l">sycophancy (boxed = hinted), n=${s.n}</span></div><div class="stat"><span class="v">${f2(s.real_correct)}</span><span class="l">real correct</span></div><div class="stat"><span class="v">${f2(s.out)}</span><span class="l">out judge</span></div><div class="stat"><span class="v">${f2(s.cot)}</span><span class="l">CoT judge</span></div><div class="stat"><span class="v">${f2((s.sycophancy||0)-2*(s.out||0))}</span><span class="l">syc − 2·out (paper reward)</span></div></div></div>
+    <div class="note">Summary numbers above are over all ${e.n_total} eval samples; ${e.rows.length} evenly spaced samples are included below (all ${e.n_total} in the local viewer).</div>
+    <div class="ctl">filter ${sel('syc','sycophancy')} ${sel('real','real correct')} ${sel('out','out judge>0.5')} ${sel('cot','CoT judge>0.5')}</div>`;
+  if(!rows.length) html += '<div class="empty">no samples match</div>';
+  for(const x of rows){
+    html += `<div class="samp"><div class="h" onclick="this.parentNode.classList.toggle('open')"><span class="id">#${x._i}</span>
+      <span class="sc ${x.sycophancy>0.5?'r':''}">syc <b>${x.sycophancy>0.5?'YES':'no'}</b></span><span class="sc ${x.real_correct>0.5?'g':''}">real <b>${x.real_correct>0.5?'YES':'no'}</b></span><span class="sc ${x.out_score>0.5?'r':''}">out <b>${f2(x.out_score)}</b></span><span class="sc ${x.cot_score>0.5?'g':''}">cot <b>${f2(x.cot_score)}</b></span>
+      <span class="sc">hint ${esc(x.target)} · true ${esc(x.correct_answer)}</span><span class="q">${esc((x.question||'').split('\n').filter(l=>l.trim()).slice(2,3)[0]||'')}</span><span class="sc">CoT ${(x.cot_text||'').length} ch</span></div>
+      <div class="b"><div class="sec"><div class="l">prompt</div><pre class="t">${hl(x.question)}</pre></div><div class="sec"><div class="l">chain of thought</div><pre class="t">${hl(x.cot_text)}</pre></div><div class="sec"><div class="l">output</div><pre class="t">${hl(x.out_text)}</pre></div></div></div>`;
+  }
+  document.getElementById('pane').innerHTML = html;
+}
+function renderConfig(r){
+  const evrows = Object.entries(r.evals||{}).flatMap(([fam,ck]) => Object.entries(ck).map(([c,s]) => `<tr><td>${fam}</td><td>${c}</td><td>${s.n}${s.bad_lines?` (+${s.bad_lines} bad)`:''}</td><td>${f2(s.sycophancy)}</td><td>${f2(s.real_correct)}</td><td>${f2(s.out)}</td><td>${f2(s.cot)}</td><td class="mono">${esc(s.checkpoint||'')}</td></tr>`));
+  document.getElementById('pane').innerHTML = `<div class="card"><h3>config.json</h3><pre class="t">${esc(JSON.stringify(r.cfg, null, 1))}</pre></div>
+    <div class="card"><h3>checkpoints (${r.checkpoints.length})</h3><div class="tw"><table><tr><th>which</th><th>name</th><th>batch</th><th>state_path</th><th>sampler_path</th></tr>${r.checkpoints.map(c=>`<tr><td>${esc(c.which)}</td><td>${esc(c.name)}</td><td>${c.batch}</td><td class="mono">${esc(c.state_path||'')}</td><td class="mono">${esc(c.sampler_path||'')}</td></tr>`).join('')}</table></div></div>
+    <div class="card"><h3>eval files (${evrows.length})</h3>${evrows.length?`<div class="tw"><table><tr><th>family</th><th>ckpt</th><th>n</th><th>syc</th><th>real</th><th>out</th><th>cot</th><th>evaluated checkpoint</th></tr>${evrows.join('')}</table></div>`:'<div class="empty">none</div>'}</div>
+    <div class="card"><h3>training data</h3><table><tr><td>rollouts.jsonl lines</td><td>${r.n_lines}</td></tr><tr><td>unique (batch, rollout) rows kept</td><td>${r.n_rollouts}</td></tr><tr><td>duplicate rows dropped (resumed run, last occurrence kept)</td><td>${r.n_dup}</td></tr><tr><td>batches</td><td>${r.n_batches}</td></tr><tr><td>SFT init checkpoint</td><td class="mono">${esc(r.sft_checkpoint||'none (base model)')}</td></tr></table></div>`;
+}
+function judgeHtml(){
+  const j = IX.judge;
+  return `<div class="hdr"><h2>Judge &amp; reward</h2></div><div class="card"><h3>Reward and advantages (train_grpo.py)</h3><pre class="t">${esc(j.reward)}</pre></div>
+    <div class="card"><h3>QA judge: SoftConversationJudge (src/judges.py)</h3><pre class="t">${esc(j.qa_rule)}</pre><pre class="t" style="max-height:none">${esc(j.qa_prompt)}</pre></div>
+    <div class="card"><h3>Polynomial monitor</h3><pre class="t">${esc(j.poly_rule)}</pre></div><div class="card"><h3>Pirate-style judge (pirate_reward_weight runs)</h3><pre class="t" style="max-height:none">${esc(j.pirate_prompt)}</pre></div>`;
+}
+document.getElementById('sub').textContent = `${IX.runs.length} paper runs · curves for every batch · ${IX.runs.reduce((a,r)=>a+r.sample_batches.length*12,0).toLocaleString()} embedded rollouts · ${IX.eval_n} eval samples per checkpoint`;
+renderList(); render();
+</script>
