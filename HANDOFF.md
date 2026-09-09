@@ -241,3 +241,11 @@ budget. LESSON: eval CoT budget must match each run's training max_thinking_toke
 - Viewer: `scripts/build_viewer.py` -> `viewer/` (data gitignored). Run list = `paper_runs()` in the
   builder (mirrors paper/make_figures.py); `--include-extra` adds the non-paper 32B mitigation runs.
 - Reward-mechanism analysis scripts (scratchpad only, not committed): analyze_runs.py / mechanism.py.
+
+## 2026-09-09 late — judge + paper-exact protocol
+- Judge: use `judge_model=gpt-4.1 judge_binary=true` for all new runs (gpt-4o-mini soft under-detects
+  acknowledgment: 162/197 false negatives vs GPT-4.1, zero false positives). Cost ~$10/run at T=300.
+- `advantage_mode=reinforce` reproduces Drori's estimator (batch-mean baseline, group_size=1); at λ=2
+  on 8B LoRA it fails to learn the task — use GRPO for the paper.
+- T=300 CoTs are truncated ~90% of the time; say so in the paper (the original has the same property).
+- Full re-judge of old eval files with GPT-4.1: `scripts/rejudge_evals_gpt41.py` (edit RUNS).

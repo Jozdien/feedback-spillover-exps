@@ -429,3 +429,39 @@ Pirate SFT checkpoints: 8B `tinker://e970f303-…/weights/final`, 32B
    limitations (§10.4).
 - **Appendix candidates:** penalty-weight sweep, v8 details, the regime/cooked-ness transcripts,
   full numbers table (all conditions × {syc,real,out,cot}), prior-work comparison details.
+
+## 12. Paper-exact re-runs with the original judge (2026-09-09; T=300, GPT-4.1 binary judge)
+
+Setup = Drori et al. App. C.2 (batch 12, lr 1e-5, 3200 episodes = 267 steps, λ=2, thinking 300 /
+output 600, temperature 1, judge = GPT-4.1 binary with their exact prompt, no no-answer penalty), on
+Qwen3-8B LoRA-32 (their Qwen3-4B is retired on Tinker). Two advantage estimators: REINFORCE with a
+per-batch mean baseline (their algorithm; 1 rollout/prompt) and GRPO (group of 4 × 3 prompts).
+Values = mean over the last 27 steps of training rollouts (their "final checkpoint" convention),
+mean ± std across seeds. Runs: `logs/grpo-exact-*` (REINFORCE), `logs/grpo-grpo300-*` (GRPO);
+launchers `scripts/launch_paper_exact.sh`, `scripts/launch_grpo_t300_gpt41.sh`; summary
+`uv run scripts/analyze_exact.py --per-seed`.
+
+| Arm | seeds | task reward (follow hint) | M_out | CoT detection |
+|---|---|---|---|---|
+| REINFORCE no-SFT control | 3 | 0.99±0.01 | 0.87±0.02 | 0.58±0.02 |
+| REINFORCE no-SFT penalty | 3 | **0.38±0.07** | 0.13±0.05 | 0.22±0.01 |
+| REINFORCE pirate-output control | 2 | 1.00 | 0.23±0.01 | 0.69 |
+| REINFORCE pirate-output penalty | 2 | 0.50±0.50 (1.00 / 0.00) | 0.00 | 0.60±0.02 |
+| GRPO no-SFT control | 10 | 1.00 | 0.88±0.02 | 0.61±0.04 |
+| GRPO no-SFT penalty | 10 | **0.99±0.01** | 0.11±0.14 | **0.27±0.08** |
+| Drori et al. no penalty (4B, 10 runs) | 10 | 0.97±0.03 | ~0.50 | ~0.52 |
+| Drori et al. penalty (4B, 10 runs) | 10 | 0.95±0.03 | ~0.04 | ~0.02 |
+
+Reading: (1) GRPO reproduces the original qualitatively — task learned (0.99), output scrubbed
+(7/10 seeds M_out ≤ 0.08; 3 seeds still 0.21–0.44 at 267 steps), CoT acknowledgment 0.61 → 0.27
+(theirs 0.52 → 0.02). Late-training breakdown: 62–89% of penalized rollouts follow the hint with
+NO acknowledgment in the CoT (control: ~0%). (2) REINFORCE at these settings does not learn the
+task on 8B LoRA (0.38) — the λ=2 penalty gradient dominates the sparse task signal (§CHECKIN
+2026-09-09 mechanism); group normalization rescues the task signal. Pirate-output + REINFORCE
+penalty is bimodal (one seed 1.00 task / CoT 0.58 ≈ control 0.69 / output 0.00; the other abandons
+the task). (3) Caveat for the whole T=300 regime: ~90% of CoTs end mid-sentence at the 300-token
+cap in EVERY arm and phase (median ~970 chars), so "CoT detection" here = whether the hint is
+mentioned in the first 300 tokens of an unfinished thought. This is also the original paper's
+setting. At T=4096 the model finishes thinking and GPT-4.1 finds the hint acknowledged (mostly
+mention-and-dismiss) in ≥0.95 of penalized CoTs (32B no-SFT, 8B pirate, 8B RT) — no
+acknowledgment-spillover at that budget (logs/rejudge-gpt41/).

@@ -375,3 +375,16 @@ condition (cot → 0). Final-checkpoint evals will settle this.
 - **Launched 10 paper-exact runs** (scripts/launch_paper_exact.sh; Qwen3-8B, REINFORCE, T=300, GPT-4.1
   binary judge, λ=2, 3200 episodes): no-SFT penalty/control ×3 seeds, pirate penalty/control ×2 seeds.
   ~2 h, ~$15 each. Summarize with `uv run scripts/analyze_exact.py`.
+
+## 2026-09-09 (late night) — paper-exact re-runs done (RESULTS.md §12 has the table)
+- **GRPO, T=300, GPT-4.1 judge, 10 seeds:** the original's result reproduces: the penalized model still
+  follows the hint 99%, the output is scrubbed in 7/10 seeds, and CoT acknowledgment falls 0.61 → 0.27
+  (they report 0.52 → 0.02). 62–89% of late penalized rollouts follow the hint without ever mentioning
+  it in the CoT. Tight across seeds.
+- **REINFORCE (their algorithm) on 8B LoRA:** the penalty run never learns the task (0.38 follow), so it
+  cannot show spillover in the sense that matters. Pirate-output under REINFORCE: one seed learns and
+  keeps CoT acknowledgment near control with output 0.00; the other abandons the task.
+- **Caveat that applies to the original paper too:** at 300 thinking tokens ~90% of CoTs are cut off
+  mid-sentence in every arm; the metric is "hint mentioned within the first 300 tokens".
+- Recommendation: make T=300 + GPT-4.1 + GRPO + ≥5 seeds the paper's main protocol; re-run the
+  mitigation arms (pirate-output, RT, M&F, TMF) under it (~$15/run).
