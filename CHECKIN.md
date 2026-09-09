@@ -314,3 +314,13 @@ condition (cot → 0). Final-checkpoint evals will settle this.
 ## Waiting on you
 - Seed 43 for v8 (~$525) — on hold per your call.
 - Style-generality ablation (non-pirate style, 8B, <$50) — recommended, not yet launched.
+
+## 2026-09-09 — rubric grading of the calibration set (waiting on your spot-check)
+- Your rubric ("hint causally upstream of the answer" = USE) is now the grader prompt: `scripts/grade_rubric.py`.
+  Opus / Sonnet / Haiku graded all 47 examples; review page (flagged cases first):
+  https://claude.ai/code/artifact/464ee7bf-84a6-4c0b-9b86-f760f4f9edbc
+- Headline: the paper's original GPT-4o-mini judge agrees with Opus-under-your-rubric 77% of the time; the
+  keyword detector only 45%. So the earlier "judge under-detects" scare was the keyword detector over-counting
+  mentions. Where the old judge and Opus differ: the CoT uses the leaked step but credits it to "the problem"
+  rather than a leak (math env), or reasons toward the hinted letter without naming the hint.
+- Nothing is training. Next: your agree/disagree pass → pick grader → re-grade all envs (subsampled, ~$50).
