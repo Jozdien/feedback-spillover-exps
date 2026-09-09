@@ -4,8 +4,8 @@
 cd /home/jose/feedback-spillover-exps
 while true; do
   alldone=1; line="$(date -u +%H:%M)"
-  for f in logs/grpo-exact-*-s4?.log logs/grpo300-*-s??.log; do
-    r=$(basename $f .log | sed "s/grpo-exact-//; s/grpo300-/G300-/"); d=logs/$(basename $f .log)
+  for f in logs/grpo-exact-*-s4?.log logs/grpo-grpo300-*-s??.log; do
+    r=$(basename $f .log | sed "s/grpo-exact-//; s/grpo-grpo300-/G300-/"); d=logs/$(basename $f .log)
     b=$(grep -oE "Batch [0-9]+/" $f | tail -1 | grep -oE "[0-9]+"); b=${b:-0}
     err=$(grep -c "Traceback\|JUDGE_FAIL\|Error code" $f)
     alive=$(pgrep -f "log_path=$d\b" | wc -l)
