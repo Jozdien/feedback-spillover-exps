@@ -111,6 +111,17 @@ bash scripts/launch_sft_all.sh
 bash scripts/launch_grpo_penalty_v2.sh   # V2: penalty_weight=-2
 bash scripts/launch_grpo_penalty_v3.sh   # V3: penalty_weight=-1
 bash scripts/launch_grpo_control.sh      # Control: penalty_weight=0
+
+# Single run (all knobs are chz CLI overrides of train_grpo.Config)
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 log_path=logs/grpo-my-run
+
+# Async RL: sample and train concurrently, at most K optimizer steps off-policy.
+# async_workers prompt-groups (default prompts_per_step * K) are sampled+judged in
+# parallel; groups whose policy is >K steps old are re-queued. Each rollout logs
+# policy_version + staleness; metrics.jsonl gets async/staleness_* and async/dropped_stale.
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 async_k=4 log_path=logs/grpo-my-run
+# loss_fn=ppo (clipped) is available for larger K; default importance_sampling.
+# If metrics.jsonl shows async/dropped_stale > 0 on most steps, lower async_workers.
 ```
 
 ### Evaluation
