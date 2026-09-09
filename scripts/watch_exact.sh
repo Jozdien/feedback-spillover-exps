@@ -15,7 +15,7 @@ try:
     ms=[json.loads(l) for l in open('$d/metrics.jsonl')][-20:]
     n=len(ms); print(f\"corr={sum(x['reward/correct'] for x in ms)/n:.2f} out={sum(x['monitor/hint_in_output'] for x in ms)/n:.2f} cot={sum(x['monitor/hint_in_cot'] for x in ms)/n:.2f}\")
 except Exception as e: print('-')" 2>/dev/null)
-    fin=$(grep -c "weights/final" $f)
+    fin=$(grep -c "Saved checkpoints.*weights/final" $f)
     line="$line | $r b$b $m err=$err$( [ $fin -gt 0 ] && echo ' DONE' || ([ $alive -eq 0 ] && echo ' DEAD'))"
     [ $fin -eq 0 ] && [ $alive -gt 0 ] && alldone=0
   done
