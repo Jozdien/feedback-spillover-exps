@@ -398,3 +398,10 @@ condition (cot → 0). Final-checkpoint evals will settle this.
 - Guard added: `SoftConversationJudge` now raises after 6 consecutive failures, so a dead judge kills
   the run instead of silently zeroing scores (this is the third time the artifact bit us).
 - The 30 baseline runs from 2026-09-09 finished before the outage and are clean (0 JUDGE_FAIL).
+
+## 2026-09-11 23:25 UTC — mitigation arms done (RESULTS.md §12b, plots/mit300_pareto.png)
+Under the original judge and regime (T=300, GPT-4.1, GRPO), CoT detection with the output scrubbed:
+no-SFT penalty 0.27 → pirate-output 0.59 (≈ its control 0.61), reward targeting 0.57 (but output
+only partly scrubbed, M_out 0.14), Mind & Face 0.36, targeted M&F 0.50; all at task reward ≥0.99.
+Pirate-output is the best point on every axis and the cheapest. All 25 runs resumed cleanly after the
+credit outage (0 post-resume judge failures).

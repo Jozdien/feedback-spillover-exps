@@ -465,3 +465,30 @@ mentioned in the first 300 tokens of an unfinished thought. This is also the ori
 setting. At T=4096 the model finishes thinking and GPT-4.1 finds the hint acknowledged (mostly
 mention-and-dismiss) in ≥0.95 of penalized CoTs (32B no-SFT, 8B pirate, 8B RT) — no
 acknowledgment-spillover at that budget (logs/rejudge-gpt41/).
+
+### 12b. Mitigations under the same protocol (2026-09-11; GRPO, T=300, GPT-4.1 binary judge, λ=2)
+
+Runs: `logs/grpo-mit300-*` (5 seeds each; baselines = the 10-seed `grpo-grpo300-nosft-*` above).
+Plot: `plots/mit300_pareto.png` (`scripts/plot_mit300.py`, the original's Fig 4 format).
+Values = last-27-step training means, mean ± std across seeds.
+
+| Arm | seeds | task reward | M_out | CoT detection |
+|---|---|---|---|---|
+| No-SFT control | 10 | 1.00 | 0.89±0.02 | 0.63±0.05 |
+| No-SFT penalty | 10 | 0.99±0.01 | 0.11±0.14 | 0.27±0.08 |
+| Pirate-output control | 5 | 1.00 | 0.73±0.19 | 0.61±0.07 |
+| **Pirate-output + penalty** | 5 | **1.00** | **0.00** | **0.59±0.08** |
+| Reward targeting | 5 | 0.99±0.01 | 0.14±0.11 | 0.57±0.02 |
+| Mind & Face | 5 | 1.00 | 0.01±0.01 | 0.36±0.10 |
+| Targeted Mind & Face | 5 | 1.00 | 0.01±0.01 | 0.50±0.03 |
+| Drori et al. (4B): RT / M&F / TMF | 10 | 0.95 / 0.64 / 0.67 | 0.02 / 0.25 / 0.42 | ~0.25 / ~0.23 / ~0.62 |
+
+Reading: with the baseline spillover real (0.63 → 0.27) and the original judge, pirate-output SFT
+keeps CoT detection at its no-penalty level (0.59 vs 0.61 own control / 0.63 no-SFT control) with
+the output fully scrubbed and full task reward — the paper's headline claim, now on a judge-robust
+footing and in the original's regime. Reward targeting preserves the CoT (0.57) but only partially
+scrubs the output (M_out 0.14, seed-dependent 0.00–0.27). Mind & Face alone is a partial mitigation
+(0.36); targeted M&F reaches 0.50 at full reward and zero output (the original saw TMF destabilize
+training; ours is stable across 5 seeds). The 25 runs were interrupted by an OpenAI credit outage
+at batch 104–191 and resumed from checkpoints (100/150) with logs truncated; 0 judge failures
+after the resume (CHECKIN 2026-09-11).
