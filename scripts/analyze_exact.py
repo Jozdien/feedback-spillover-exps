@@ -19,9 +19,9 @@ def main():
     ap.add_argument("--per-seed", action="store_true")
     a = ap.parse_args()
     arms = defaultdict(list)
-    for d in sorted(glob.glob("logs/grpo-exact-*-s4?") + glob.glob("logs/grpo-grpo300-*-s??")):
-        m = re.match(r"logs/grpo-(exact|grpo300)-(.+)-s(\d+)$", d)
-        arm, seed = ("REINFORCE " if m.group(1) == "exact" else "GRPO ") + m.group(2), m.group(3)
+    for d in sorted(glob.glob("logs/grpo-exact-*-s4?") + glob.glob("logs/grpo-grpo300-*-s??") + glob.glob("logs/grpo-mit300-*-s??")):
+        m = re.match(r"logs/grpo-(exact|grpo300|mit300)-(.+)-s(\d+)$", d)
+        arm, seed = {"exact": "REINFORCE ", "grpo300": "GRPO ", "mit300": "GRPO "}[m.group(1)] + m.group(2), m.group(3)
         try:
             ms = [json.loads(ln) for ln in open(f"{d}/metrics.jsonl")]
         except FileNotFoundError:

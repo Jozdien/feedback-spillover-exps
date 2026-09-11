@@ -100,6 +100,8 @@ class Config:
     num_problems: int = 2000
     min_degree: int = 5
     max_degree: int = 8
+    judge_model: str = "gpt-4o-mini"  # original paper: gpt-4.1 with judge_binary=True
+    judge_binary: bool = False
 
 
 def _load_qa_data(cfg: Config, renderer):
@@ -179,7 +181,7 @@ async def train(cfg: Config):
 
     if cfg.task == "qa":
         items = _load_qa_data(cfg, renderer)
-        judge = SoftConversationJudge()
+        judge = SoftConversationJudge(model=cfg.judge_model, binary=cfg.judge_binary)
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
