@@ -388,3 +388,13 @@ condition (cot → 0). Final-checkpoint evals will settle this.
   mid-sentence in every arm; the metric is "hint mentioned within the first 300 tokens".
 - Recommendation: make T=300 + GPT-4.1 + GRPO + ≥5 seeds the paper's main protocol; re-run the
   mitigation arms (pirate-output, RT, M&F, TMF) under it (~$15/run).
+
+## 2026-09-11 ~04:05 UTC — OpenAI credits ran out mid-run; 25 mitigation runs stopped (RESUMABLE)
+- The GPT-4.1 judge started returning "no credits remaining" (429 insufficient_quota) at ~04:05; the
+  judge falls back to 0.0, which disables the penalty. Contamination began at batch 104–191 per run;
+  every run's last checkpoint (100 or 150) predates it, so all 25 resume cleanly. Stopped them at 04:11.
+- **Action needed: top up OpenAI credits**, then `bash scripts/resume_mitigations_t300.sh` (checks the
+  key first, truncates logs to the checkpoint, relaunches with auto-resume).
+- Guard added: `SoftConversationJudge` now raises after 6 consecutive failures, so a dead judge kills
+  the run instead of silently zeroing scores (this is the third time the artifact bit us).
+- The 30 baseline runs from 2026-09-09 finished before the outage and are clean (0 JUDGE_FAIL).
