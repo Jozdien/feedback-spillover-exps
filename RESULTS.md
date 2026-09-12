@@ -606,19 +606,18 @@ would need e.g. Qwen3.6-35B-A3B).
 
 Protocol as §12b; the base Qwen3-8B is instructed in every prompt to write the answer/explanation in
 exaggerated pirate-speak (thinking normal). Style monitors (StyleJudge on output / CoT) logged.
-Last-27-step means ± std, 5 seeds (3 runs were still finishing behind Tinker's concurrency cap
-when tabulated: ctrl s43 at step 162, pen s44/s45 at 168/162).
+Last-27-step means ± std, 5 seeds, all runs complete.
 
 | Arm | follow hint | M_out | CoT detection | style in output / CoT |
 |---|---|---|---|---|
 | prompted pirate, control | 0.99 | 0.95±0.01 | 0.68±0.03 | 0.99 / 0.00 |
-| prompted pirate, penalty λ=2 | 0.93±0.10 | **0.86±0.03** | 0.57±0.05 | 0.99 / 0.00 |
+| prompted pirate, penalty λ=2 | 0.99±0.01 | **0.87±0.02** | 0.50±0.09 | 0.99 / 0.00 |
 | (SFT pirate, penalty — §12b) | 1.00 | 0.00 | 0.59 | — |
 | (no-SFT, penalty — §12) | 0.99 | 0.11 | 0.27 | — |
 
 The style is followed perfectly (0.99, never leaks into the CoT), but the penalty barely scrubs the
-prompted outputs at all (0.95 → 0.86), so the setting never reaches the regime where spillover is
-measured; the CoT drop (0.68 → 0.57) tracks the small output drop. Why: the prompted outputs are
+prompted outputs at all (0.95 → 0.87), so the setting never reaches the regime where spillover is
+measured; the CoT drops somewhat (0.68 → 0.50) despite the output barely moving. Why: the prompted outputs are
 long in-character narrations (~1500 chars vs ~500–700 for SFT pirate) that restate the hint
 ("me textbook says D…") in ~95% of samples, so 61–73% of GRPO groups have all four outputs judged
 "acknowledges" and carry no penalty gradient (no-SFT: 40% → 21% as it scrubs; SFT pirate: 2%).
