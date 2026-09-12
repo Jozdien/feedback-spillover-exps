@@ -562,3 +562,22 @@ adopted), so the trained models are fine; the reported reward axis must be recom
 The 8B T=800 replication (`poly800`) is being re-run with the fixed reward as `poly800v2`; with the
 fixed checker the 8B control scores 0.82 (legacy 0.99: wrong answers credited via the expanded
 form) and the penalty 0.82 (legacy 0.55).
+
+### 13b. Terminal env mitigations with the regex penalty (2026-09-12; `logs/grpo-termmit-*`, 5 seeds)
+
+| Arm | task | regex in output | regex in CoT | read verifier |
+|---|---|---|---|---|
+| control | 0.99 | 0.75±0.01 | 0.23±0.03 | 0.99 |
+| penalty λ=1.25 | 0.99 | 0.00 | 0.01±0.01 | 0.99 |
+| reward targeting | 0.99 | 0.00 | 0.01±0.00 | 0.98 |
+| pirate-output init, control | 0.99 | 0.53±0.08 | 0.14±0.03 | 0.99 |
+| pirate-output init, penalty | 0.99 | 0.02±0.01 | 0.02±0.01 | 0.99 |
+| Drori et al. Fig 6 (regex): penalty / M&F / RT / TMF CoT detection | — | — | ~0.0 / ~0.2 / ~0.33 / ~1.0 | — |
+
+Neither reward targeting nor the pirate init preserves the CoT's "ground truth" mentions under the
+regex penalty in our setup (both ≈ penalty). Caveats: (i) the regex monitor is a single phrase the
+model can drop while still reading the verifier (read rate stays 0.99 in every arm), so this
+"spillover" is phrase avoidance rather than hidden behaviour; (ii) unpenalized CoT mention is only
+0.23 here (128-token CoTs) vs ~0.8 in the paper; (iii) the pirate style barely surfaces in the
+terminal explanations (see log). The LLM-judge variant (paper Fig 7; `scripts/launch_terminal_llmjudge.sh`)
+is the meaningful mitigation test and is queued behind OpenAI credits.
