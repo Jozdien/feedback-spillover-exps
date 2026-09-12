@@ -377,7 +377,6 @@ class _Ctx:
     cfg: Config
     pt: PhaseTokens
     tokenizer: object
-    max_token_id: int = 10**9  # sampled ids above this (padding rows of the embedding) crash Tinker training
     judge: object
     pirate_judge: object
     items: list
@@ -390,6 +389,7 @@ class _Ctx:
     n_batches: int
     prompts_per_step: int
     ml_logger: object
+    max_token_id: int = 10**9  # sampled ids above this (padding rows of the embedding) crash Tinker training
 
 
 async def _sample_one(sp, prompt_tokens, params):
