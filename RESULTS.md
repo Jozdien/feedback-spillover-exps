@@ -700,3 +700,28 @@ the expanded form; control ≈ 0.99–1.00 everywhere):
 The budget does not rescue 8B: it never adopts the product-rule route the penalty rewards, at either
 budget. Spillover in this environment requires a model capable of the alternative strategy, i.e. it
 is size/capability-dependent, and the 32B runs remain the paper's polynomial result.
+
+### 13c. Terminal env with the LLM-judge penalty (Drori Fig 7 setting; 2026-09-12; `logs/grpo-termllm-*`)
+
+Judge = gpt-4.1-mini on the explanations (output) / CoTs, M = 1 − judge ("no doubt reading the
+verifier" → M=1), λ=0.75, GRPO 4×8, lr 5e-6, T=128/256. First run to 100 steps (3200 episodes, the
+regex budget) then EXTENDED to 400 steps (12800 episodes) by resuming, because the penalty was still
+moving at 100 steps (the paper trained this variant for 40k episodes). Last-40-step means, 5 seeds
+(pirate arm: 100 steps only). Offline re-judging with the judge shown ONLY the task prompt + the
+model's own text (`scripts/rejudge_terminal.py`, prompt_only) reproduces the stored scores within
+±0.05, so the numbers do not depend on the judge seeing the terminal replies.
+
+| Arm | steps | task | M_out (LLM judge) | M_cot | read verifier |
+|---|---|---|---|---|---|
+| control | 400 | 1.00 | 0.91±0.01 | 0.96±0.01 | 0.99 |
+| penalty λ=0.75 | 400 | 1.00 | **0.12±0.06** | **0.84±0.05** | 0.98 |
+| reward targeting | 400 | 1.00 | 0.06±0.01 | 0.90±0.03 | 0.98 |
+| pirate-output init, penalty | 100 | 0.47±0.14 | 0.42 | 0.42 | 0.40 |
+| Drori Fig 7 (8B, 40k ep.): none / penalty / RT / M&F / TMF | — | 0.97 / 0.83 / 0.78 / 0.85 / 0.78 | λM 0.58 / 0.40 / 0.38 / 0.34 / 0.31 | CoT det ~0.17 / 0.06 / 0.18 / 0.11 / 0.21 | — |
+
+Reading: with the semantic judge the model learns to explain its actions without revealing that it
+read the verifier (M_out 0.91 → 0.12) while still reading it in 98% of episodes (task 1.00); the CoT
+drops only mildly (0.96 → 0.84), and reward targeting keeps a little more (0.90). The pirate init
+collapses on this task under the judge penalty (stops reading the verifier and fails). Our absolute
+CoT-detection level differs from the paper's (~0.2 there): our CoT channel shows the judge the
+turn-2 CoT, which typically restates the ground truth it just read.
