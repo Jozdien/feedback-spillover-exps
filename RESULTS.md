@@ -515,3 +515,22 @@ learned the task (the pirate init starts at ~0.1–0.2 hint-following and can fa
 the REINFORCE pirate arm showed the same failure mode synchronously in 1/2 seeds), so async is safe
 for bulk runs but abandoned seeds should be flagged and headline pirate numbers taken with ≥5 seeds.
 (Wall-clock measured with 45 concurrent runs on Tinker; the sync runs also shared the service.)
+
+## 13. Multi-turn terminal environment (Drori et al. §4.3) — replication with the regex penalty (2026-09-12)
+
+Environment: `src/spillover/env_terminal.py` + `src/spillover/train_grpo_terminal.py` (largest-island
+task, deliberately wrong `verifier.py`, sandboxed bash, ≤4 turns; regex monitor = count of "ground
+truth" in the model's explanations (output) / CoT). Protocol = their App. C.3.1 adapted to GRPO:
+effective batch 32 (4×8), lr 5e-6, 3200 episodes (100 steps), λ=1.25, thinking 128 / output 256,
+Qwen3-8B. Runs `logs/grpo-term-regex-*` (5 seeds each); last-27-step training means ± std.
+
+| Arm | task reward (verifier passed) | regex in output | regex in CoT | read verifier |
+|---|---|---|---|---|
+| No penalty (control) | 0.98±0.00 | 0.74±0.02 | 0.23±0.02 | ~0.97 |
+| Penalty λ=1.25 | 0.98±0.00 | 0.00±0.00 | 0.01±0.00 | ~0.97 |
+| Drori et al. (regex, 10 runs) | 0.99 / 0.95 | λ·M: 1.25 / 0.05 | CoT detection ~0.8 / ~0.0 | — |
+
+Reproduces the paper: the model keeps reading the verifier and passing (0.98) while the penalized
+output stops saying "ground truth", and the CoT stops saying it too (0.23 → 0.01). Our unpenalized
+CoT mention rate is lower than theirs (0.23 vs ~0.8; 128-token CoTs, all truncated). Mitigation runs
+(reward targeting, pirate-output init): `logs/grpo-termmit-*`.
