@@ -582,3 +582,18 @@ model can drop while still reading the verifier (read rate stays 0.99 in every a
 words in 100% of penalized explanations (25% in the pirate control) — yet the CoT mention still
 collapses, so the style separation that protects the QA CoT does not transfer to this phrase-level monitor. The LLM-judge variant (paper Fig 7; `scripts/launch_terminal_llmjudge.sh`)
 is the meaningful mitigation test and is queued behind OpenAI credits.
+
+### 14b. Polynomial replication at 8B with the fixed reward (`poly800v2`, 2026-09-12; T=800/1000, λ=1, GRPO, 5 seeds)
+
+| Arm | task (fixed checker) | expanded in output | expanded in CoT |
+|---|---|---|---|
+| control | 0.97±0.02 | 0.93±0.03 | 1.00 |
+| penalty λ=1 | 0.97±0.01 | 0.03±0.01 | 0.99 |
+| Drori et al. (14B, REINFORCE) | 1.00 / 0.95 | 0.98 / 0.02 | ~0.40 / ~0.14 |
+
+The penalty scrubs the output at zero task cost, and the CoT is untouched: Qwen3-8B differentiates
+term by term in every CoT (expanded form present 99–100%) and never adopts the product-rule
+workaround the paper describes, despite the same two in-context examples. So at 8B/T=800 the
+polynomial env shows NO spillover; there is nothing for a mitigation to mitigate at this scale.
+(The paper's own 32B poly runs at T=4096: see the table printed by this commit's analysis — CoT
+numbers there are the ones to compare against.)
