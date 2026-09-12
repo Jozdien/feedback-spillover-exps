@@ -122,6 +122,14 @@ uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 log_path=log
 uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 async_k=4 log_path=logs/grpo-my-run
 # loss_fn=ppo (clipped) is available for larger K; default importance_sampling.
 # If metrics.jsonl shows async/dropped_stale > 0 on most steps, lower async_workers.
+
+# Paper-exact protocol (Drori et al.): T=300, GPT-4.1 binary judge, no no-answer penalty; REINFORCE optional
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 max_thinking_tokens=300 num_episodes=3200 \
+  judge_model=gpt-4.1 judge_binary=true no_answer_penalty=0 [advantage_mode=reinforce group_size=1]
+
+# Prompted style (no SFT): instruction appended to every prompt + style monitors on output and CoT
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 style_monitor=true style_desc=pirate \
+  "style_prompt=Write everything after your thinking (the ### Answer and ### Explanation sections) in exaggerated pirate-speak."
 ```
 
 ### Evaluation

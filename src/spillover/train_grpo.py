@@ -34,7 +34,7 @@ from tinker_cookbook import checkpoint_utils, model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
-from src.judges import PirateStyleJudge, SoftConversationJudge
+from src.judges import SoftConversationJudge, StyleJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
 from src.spillover.env_mmlu_encoded import (
     JUDGE_PROMPT as ENCODED_JUDGE_PROMPT,
@@ -151,10 +151,20 @@ class Config:
     # baseline per reward component, no std normalization (use group_size=1); here the
     # penalty_weight magnitude matters.
     advantage_mode: str = "grpo"
+    # Prompted style (no SFT): an instruction appended to every QA prompt, e.g.
+    # "Write everything after your thinking (the answer and explanation) in pirate-speak."
+    # style_monitor=True scores output AND CoT with StyleJudge(style_desc) as monitors
+    # (monitor/style_in_output, monitor/style_in_cot); style_desc in {pirate, chinese, piglatin}.
+    style_prompt: str = ""
+    style_monitor: bool = False
+    style_desc: str = "pirate"
 
 
 def _load_qa_data(cfg: Config, renderer):
     questions = load_mmlu_questions(seed=cfg.seed)
+    if cfg.style_prompt:
+        for q in questions:
+            q["prompt"] = q["prompt"].rstrip() + "\n\n" + cfg.style_prompt.strip() + "\n"
     items = []
     for q in questions:
         messages = [{"role": "user", "content": q["prompt"]}]
@@ -447,13 +457,16 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
     # Reward for keeping the output in pirate-speak (output-channel only)
     if ctx.pirate_judge is not None:
         pirate_scores = list(await asyncio.gather(*[ctx.pirate_judge.score(o) for o in outs]))
+        pirate_cot = list(await asyncio.gather(*[ctx.pirate_judge.score(c) for c in cots]))
     else:
         pirate_scores = [0.0] * len(outs)
+        pirate_cot = [0.0] * len(outs)
     return {
         "correct": corrects,
         "out": [float(s) for s in out_scores],
         "cot": [float(s) for s in cot_scores],
         "pirate": [float(p) for p in pirate_scores],
+        "pirate_cot": [float(p) for p in pirate_cot],
     }
 
 
@@ -526,6 +539,7 @@ def _write_rollouts(ctx: _Ctx, batch_idx, flat_items, rollouts, scores, adv, ver
                 "penalty_adv": adv["penalty"][i],
                 "cot_pen_adv": adv["cot_pen"][i],
                 "pirate_score": scores["pirate"][i],
+                "pirate_cot_score": scores["pirate_cot"][i],
                 "pirate_adv": adv["pirate"][i],
                 "policy_version": versions[i],
                 "staleness": batch_idx - versions[i],
@@ -611,7 +625,8 @@ async def _process_batch(ctx: _Ctx, batch_idx, flat_items, rollouts, scores, ver
     metrics["monitor/cot_penalty_active"] = float(adv["cot_penalty_on"])
     metrics["monitor/out_penalty_active"] = float(adv["out_penalty_on"])
     if ctx.pirate_judge is not None:
-        metrics["monitor/pirate_in_output"] = sum(scores["pirate"]) / n
+        metrics["monitor/pirate_in_output"] = sum(scores["pirate"]) / n  # style score (name kept)
+        metrics["monitor/style_in_cot"] = sum(scores["pirate_cot"]) / n
     metrics["monitor/n_valid_rollouts"] = n_valid
     metrics.update(extra)
     metrics["time/total"] = time.time() - t0
@@ -787,8 +802,8 @@ async def train(cfg: Config):
         items = _load_poly_data(cfg, renderer)
         judge = None
     pirate_judge = (
-        PirateStyleJudge()
-        if cfg.task.startswith("qa") and cfg.pirate_reward_weight != 0.0
+        StyleJudge(cfg.style_desc, model=cfg.judge_model)
+        if cfg.task.startswith("qa") and (cfg.pirate_reward_weight != 0.0 or cfg.style_monitor)
         else None
     )
 

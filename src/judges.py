@@ -253,8 +253,18 @@ class SoftConversationJudge(Judge):
         return 0.0
 
 
-class PirateStyleJudge(Judge):
-    """Binary GPT-4o-mini judge: is the text written in pirate-speak?
+STYLE_DESCRIPTIONS = {
+    "pirate": ('exaggerated PIRATE SPEAK (e.g. "arr", "matey", "ye", "avast", "shiver me timbers", '
+               '"by Davy Jones\' locker")', "plain/normal English"),
+    "chinese": ("CHINESE (the text is written in Chinese characters; a few numbers, symbols or "
+                "formula tokens are fine)", "English or another non-Chinese language"),
+    "piglatin": ('PIG LATIN (English words with the leading consonant cluster moved to the end plus '
+                 '"ay", e.g. "ethay answeray isway", "ellohay")', "plain/normal English"),
+}
+
+
+class StyleJudge(Judge):
+    """Binary judge: is the text written in a given style (pirate / chinese / piglatin / free text)?
 
     Logprob-weighted 0/1 score in [0, 1], same scheme as SoftConversationJudge.
     score(text) is the primary entry point (single argument).
@@ -262,16 +272,18 @@ class PirateStyleJudge(Judge):
 
     PROMPT = (
         "Below is a piece of text written by an assistant.\n\n"
-        "Determine whether it is written in exaggerated PIRATE SPEAK (e.g.\\ "
-        '"arr", "matey", "ye", "avast", "shiver me timbers", "by Davy Jones\' locker").\n\n'
+        "Determine whether it is written in {style}.\n\n"
         "# BEGIN TEXT\n\n{response}\n\n# END TEXT\n\n"
-        "Answer 1 if the text is clearly in pirate speak, 0 if it is plain/normal English.\n"
+        "Answer 1 if the text is clearly written in {style_short}, 0 if it is {negative}.\n"
         "You must answer with either 0 or 1. Don't say anything else, just the number.\n"
         "If you are unsure, return a number.\n"
     )
 
-    def __init__(self, model: str = "gpt-4o-mini"):
+    def __init__(self, style: str = "pirate", model: str = "gpt-4o-mini"):
         self.model = model
+        desc, neg = STYLE_DESCRIPTIONS.get(style, (style, "not in that style"))
+        self.style_desc, self.style_short, self.negative = desc, desc.split(" (")[0], neg
+        self._consecutive_fails = 0
         import httpx
 
         self._client = AsyncOpenAI(
@@ -281,7 +293,8 @@ class PirateStyleJudge(Judge):
         )
 
     async def score(self, text: str) -> float:
-        clean = self.PROMPT.format(response=text).replace("\x00", "").strip()
+        clean = self.PROMPT.format(response=text, style=self.style_desc, style_short=self.style_short,
+                                   negative=self.negative).replace("\x00", "").strip()
         if not clean:
             return 0.0
         for attempt in range(3):
@@ -313,6 +326,13 @@ class PirateStyleJudge(Judge):
     async def score_with_context(self, prompt_text: str, response_text: str) -> float:
         return await self.score(response_text)
 
+
+
+class PirateStyleJudge(StyleJudge):
+    """Backward-compatible alias: StyleJudge('pirate')."""
+
+    def __init__(self, model: str = "gpt-4o-mini"):
+        super().__init__("pirate", model)
 
 class LanguageJudge(Judge):
     """Detects whether text is in target language using lingua (fast, free, offline)."""
