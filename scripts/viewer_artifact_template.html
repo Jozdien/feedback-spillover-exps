@@ -1,4 +1,4 @@
-<title>Paper Runs Viewer</title>
+<title>__TITLE__</title>
 <style>
 :root{
   --bg:#f4f4f1; --panel:#ffffff; --panel2:#ecedf3; --line:rgba(20,24,40,.09);
@@ -79,9 +79,9 @@ td.mono{font-family:var(--mono);font-size:11px;word-break:break-all}
 .tw{overflow-x:auto}
 @media (max-width:820px){.main{flex-direction:column}aside{width:100%;max-height:40vh;border-right:none;border-bottom:1px solid var(--line)}}
 </style>
-<div class="topbar"><h1>Paper Runs Viewer</h1><span class="sub" id="sub"></span><span class="sp"></span><button class="btn" onclick="setTab('judge')">Judge &amp; reward</button></div>
+<div class="topbar"><h1>__TITLE__</h1><span class="sub" id="sub"></span><span class="sp"></span><button class="btn" onclick="setTab('judge')">Judge &amp; reward</button></div>
 <div class="main">
-  <aside><div class="filter"><input id="q" placeholder="filter runs: e.g. v7base 8b pw-2, pirate, poly, s43" oninput="renderList()"></div><div class="list" id="list"></div></aside>
+  <aside><div class="filter"><input id="q" placeholder="filter runs: e.g. pirate, poly, termllm pen, s43" oninput="renderList()"></div><div class="list" id="list"></div></aside>
   <div class="content" id="content"><div class="empty">Select a run</div></div>
 </div>
 <div class="tip" id="tip"></div>
@@ -250,6 +250,6 @@ function judgeHtml(){
     <div class="card"><h3>QA judge: SoftConversationJudge (src/judges.py)</h3><pre class="t">${esc(j.qa_rule)}</pre><pre class="t" style="max-height:none">${esc(j.qa_prompt)}</pre></div>
     <div class="card"><h3>Polynomial monitor</h3><pre class="t">${esc(j.poly_rule)}</pre></div><div class="card"><h3>Pirate-style judge (pirate_reward_weight runs)</h3><pre class="t" style="max-height:none">${esc(j.pirate_prompt)}</pre></div>`;
 }
-document.getElementById('sub').textContent = `${IX.runs.length} paper runs · curves for every batch · ${IX.runs.reduce((a,r)=>a+r.sample_batches.length*12,0).toLocaleString()} embedded rollouts · ${IX.eval_n} eval samples per checkpoint`;
+document.getElementById('sub').textContent = `${IX.runs.length} ${IX.label||'paper runs'} · curves for every batch · ${IX.runs.reduce((a,r)=>a+r.sample_batches.length*Math.round(r.n_rollouts/r.n_batches),0).toLocaleString()} embedded rollouts` + (Object.values(IX.runs).some(r=>r.evals&&Object.keys(r.evals).length)?` · ${IX.eval_n} eval samples per checkpoint`:'');
 renderList(); render();
 </script>

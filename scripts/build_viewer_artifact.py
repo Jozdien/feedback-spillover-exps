@@ -67,8 +67,19 @@ def main():
     ap.add_argument("--batches", default="first,mid,last")
     ap.add_argument("--max-mb", type=float, default=15.5)
     ap.add_argument("--curve-step", type=int, default=1, help="keep every Nth batch in the curves")
+    ap.add_argument("--group-prefix", default=None,
+                    help="only runs whose group starts with this (e.g. '2026-09 campaign'); default: all")
+    ap.add_argument("--exclude-group-prefix", default=None, help="drop runs whose group starts with this")
+    ap.add_argument("--out", default=None, help="output html (default viewer/artifact.html)")
+    ap.add_argument("--title", default="Paper Runs Viewer", help="page name (tab + header)")
+    ap.add_argument("--label", default="paper runs", help="noun for the subtitle, e.g. 'campaign runs'")
     a = ap.parse_args()
+    out = Path(a.out) if a.out else OUT
     ix = json.load(open(DATA / "index.json"))
+    if a.group_prefix:
+        ix["runs"] = [r for r in ix["runs"] if r["group"].startswith(a.group_prefix)]
+    if a.exclude_group_prefix:
+        ix["runs"] = [r for r in ix["runs"] if not r["group"].startswith(a.exclude_group_prefix)]
     which = a.batches.split(",")
     payloads, sizes, part_tot = {}, {}, {}
     for r in ix["runs"]:
@@ -83,15 +94,16 @@ def main():
         sizes[r["run"]] = (len(raw), len(gz))
         r["sample_batches"] = b
     slim = {"runs": [{k: v for k, v in r.items() if k != "cfg"} | {"cfg": r["cfg"]} for r in ix["runs"]],
-            "judge": ix["judge"], "window": ix["window"], "eval_n": a.eval_n}
-    html = TEMPLATE.read_text().replace("__INDEX__", json.dumps(slim, separators=(",", ":"))) \
+            "judge": ix["judge"], "window": ix["window"], "eval_n": a.eval_n, "label": a.label}
+    html = TEMPLATE.read_text().replace("__TITLE__", a.title) \
+                               .replace("__INDEX__", json.dumps(slim, separators=(",", ":"))) \
                                .replace("__PAYLOADS__", json.dumps(payloads, separators=(",", ":")))
-    OUT.write_text(html)
+    out.write_text(html)
     raw = sum(s[0] for s in sizes.values()) / 1e6
     gzs = sum(s[1] for s in sizes.values()) / 1e6
-    print(f"{len(payloads)} runs; payload raw {raw:.1f} MB, gz {gzs:.1f} MB, page {OUT.stat().st_size / 1e6:.2f} MB -> {OUT}")
+    print(f"{len(payloads)} runs; payload raw {raw:.1f} MB, gz {gzs:.1f} MB, page {out.stat().st_size / 1e6:.2f} MB -> {out}")
     print("raw MB by part:", {k: round(v / 1e6, 1) for k, v in part_tot.items()})
-    if OUT.stat().st_size / 1e6 > a.max_mb:
+    if out.stat().st_size / 1e6 > a.max_mb:
         print(f"WARNING: page exceeds {a.max_mb} MB; rerun with fewer --batches or smaller --eval-n")
 
 

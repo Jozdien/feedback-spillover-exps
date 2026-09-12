@@ -1,6 +1,6 @@
 # Check-in — feedback spillover experiments
 
-*Last updated: 2026-07-04. (Detailed version for Claudes: HANDOFF.md)*
+*Last updated: 2026-09-12. (Detailed version for Claudes: HANDOFF.md)*
 
 ## ✅ 2026-07-05: All three 7/4 launches COMPLETE (results in RESULTS.md §8 + paper)
 1. **Lambda-sweep for mitigations** (Jose's 12 runs): done + evaluated @4096. Ranking flat in λ
@@ -414,3 +414,73 @@ credit outage (0 post-resume judge failures).
 - 8B poly replication relaunched with the fixed reward (poly800v2). Terminal mitigations (RT, pirate
   init) running. Prompted-pirate and style runs paused on OpenAI credits (resume:
   `bash scripts/resume_runs.sh prompt300 style300`).
+
+## 2026-09-12 ~21:30 UTC — the whole batch you asked for, consolidated (details: RESULTS.md §12c–§16)
+
+**1. Async RL gives the same answers, 7× faster (RESULTS §12c; plots/async_vs_sync.png).**
+With up to 4 optimizer steps of staleness (12 sampling workers), the no-SFT control and penalty arms
+land on the same numbers as the synchronous runs (control CoT detection 0.63 vs 0.63, penalty 0.27 vs
+0.27, output 0.11 vs 0.12, task 0.99) in ~20 min instead of ~2.5 h per run. One caveat: 1 of 5 async
+pirate-output seeds never learned the task (it starts at ~0.1–0.2 hint-following and can fail to
+bootstrap; the synchronous REINFORCE pirate arm did the same in 1/2 seeds). So async is safe for bulk
+runs, but pirate-init numbers need ≥5 seeds and "never learned" seeds flagged. ~50% of sampled groups
+get dropped as too stale with 12 workers; 6 workers is the better setting for future async runs.
+
+**2. The other Drori environments.**
+- *Polynomial factoring.* First the bug (reported earlier): the task checker couldn't parse factored
+  answers and then credited the EXPANDED derivative — exactly what the penalty removes — so the
+  paper's 32B penalized arms actually score ~0.98 task reward, not 0.55–0.78. With the fixed reward:
+  Qwen3-8B shows NO spillover at all (penalized CoT still contains the expanded form 99–100% at T=800
+  and at T=4096), Qwen3.6-27B (your suggestion, dense, same size class as 32B) shows partial spillover
+  (0.81±0.13 across 3 seeds: 0.62 / 0.91 / 0.89, dipping to ~0.69 mid-training), and the paper's
+  32B runs show strong spillover (0.18). The 8B model simply never discovers the product-rule
+  shortcut the penalty rewards, at any thinking budget, so there is nothing to mitigate at 8B; the
+  paper's polynomial result stays at 32B. (RESULTS §14, §14b–d; `scripts/rescore_poly.py` re-scores
+  old runs with the fixed checker.)
+- *Multi-turn terminal task (read the verifier, pass the test).* Built from scratch
+  (`src/spillover/env_terminal.py`, 12 tests). With the paper's regex monitor ("ground truth"), the
+  penalty removes the phrase from the output AND the CoT in every arm (control 0.23 → 0.01 in CoT;
+  reward targeting and pirate init 0.01–0.02), while the model keeps reading the verifier in 99% of
+  episodes. So that is phrase avoidance, not hidden behaviour, and nothing mitigates it. With the
+  paper's LLM-judge monitor (gpt-4.1-mini, 400 steps), the story is closer to the QA one: the model
+  learns to explain its commands without revealing it read the verifier (output monitor 0.91 → 0.10)
+  while still reading it 98% of the time; the CoT drops only mildly (0.96 → 0.83) and reward targeting
+  keeps a bit more (0.90). The pirate-output init collapses on this task under the judge penalty
+  (stops reading the verifier, task 0.47 at 100 steps). Final seed of the penalty arm is finishing;
+  RESULTS §13c carries the definitive table. (§13, §13b, §13c.)
+
+**3. Different styles (RESULTS §16).** CoT detection with the output penalty on, T=300, 5 seeds each:
+pirate 0.59 ≳ Pig-Latin 0.57 > Chinese 0.51 ≫ no-SFT 0.27 (controls 0.61–0.72). Chinese is the
+weakest style and unstable — 2 of 5 penalized seeds reverted to English output — which matches your
+colleague's report; "Chinese is in-distribution for Qwen" is consistent with this but not tested
+directly. **The important finding is HOW the penalty gets satisfied:** every style-SFT model zeroes
+the output monitor by dropping the explanation. Late in training, pirate and Chinese emit a bare
+`\boxed{X}` with no explanation in 100% of rollouts (mean output 35–80 characters); Pig-Latin emits
+"ayayay…" junk half the time. The no-SFT model keeps a real explanation and scrubs the hint from it,
+and that is the arm whose CoT spills. Reward targeting is the only mitigation that keeps both a real
+explanation (99% normal, ~470 chars) and the CoT (0.57). So mechanistically, "style separation
+preserves the CoT" reads as "style-SFT makes dropping the explanation the cheapest way to zero the
+penalty, so the CoT never has to change". A `min_explanation_words` option exists in the trainer
+(explanation shorter than N words → task reward = no-answer penalty) for a fair rerun; I have NOT
+launched it because it changes the reward definition for the paper's main comparison — your call
+(pirate-pen + no-SFT-pen, 5 seeds each ≈ $100–130 of judge cost).
+
+**4. Prompted style instead of SFT (RESULTS §15).** Asking the base model for pirate output in the
+prompt gives perfect style (0.99, never leaks into the CoT) but the penalty barely scrubs the
+output (0.95 → 0.87), so the setup never reaches the regime where spillover is measured; the CoT
+still drifts 0.68 → 0.50. Mechanism: the prompted outputs are long in-character narrations that
+restate the hint in ~95% of samples, so 61–73% of GRPO groups have all four outputs flagged and carry
+no penalty gradient (no-SFT: 40% → 21%; SFT pirate: 2%). This replicates your colleague's
+"prompting doesn't work", with the cause being penalty-signal starvation rather than a failure of
+style separation.
+
+**Ops.** OpenAI credits ran out a second time (2026-09-12 ~03:45 UTC); all affected runs were resumed
+from checkpoints after your top-up. The judge now aborts a run when ≥25% of recent calls fail
+(the old consecutive-failure guard missed intermittent outages). Today one terminal control seed
+crashed on a stale attribute in the terminal judge's failure path (fixed; seed resumed from its
+checkpoint). The paper-runs viewer now also contains every run from this campaign (313 runs; local
+`viewer/`, rebuilt; a separate artifact for the campaign runs is being published).
+
+**Waiting on you.** (a) explanation-required rerun (above); (b) whether to re-judge the paper's old
+T=4096 eval files with GPT-4.1 (the old gpt-4o-mini judge under-detects); (c) regenerating the
+paper's polynomial figure reward axis from rollouts with the fixed checker (script exists).

@@ -249,3 +249,33 @@ budget. LESSON: eval CoT budget must match each run's training max_thinking_toke
   on 8B LoRA it fails to learn the task — use GRPO for the paper.
 - T=300 CoTs are truncated ~90% of the time; say so in the paper (the original has the same property).
 - Full re-judge of old eval files with GPT-4.1: `scripts/rejudge_evals_gpt41.py` (edit RUNS).
+
+## 2026-09-12 — campaign wrap-up: tools, fixes, gotchas (user-facing summary: CHECKIN.md same date)
+
+Results: RESULTS.md §12c (async validation), §13/13b/13c (terminal env), §14–14d (poly bug + size
+dependence), §15 (prompted style), §16 (style ablations + output degeneration). Memory file
+`project_sep2026_findings.md` has the one-paragraph version.
+
+Tools added/changed today:
+- `src/spillover/env_terminal.py` + `train_grpo_terminal.py` (+ `tests/test_env_terminal.py`):
+  multi-turn terminal env; `VerifierJudge` uses the shared rate-based `_OutageGuard` (a stale
+  `MAX_CONSECUTIVE_FAILS` reference crashed `termllm-ctrl-8b-s45` on a single non-binary judge
+  answer "<command"; fixed; non-binary answers now count as one failure, no retry storm).
+- `scripts/resume_runs.sh <prefix>...`: relaunches from the LAST "Command line invocation" line
+  (extended runs keep their raised `num_episodes`); "finished" = last rollout batch ≥ target from
+  config.json (the old grep for "weights/final" misfired on extended runs). Still skips runs whose
+  `log_path` appears in a live process.
+- `scripts/build_viewer.py --prefix <fam>...` pulls every `logs/grpo-<fam>-*` run into the viewer
+  (group "2026-09 campaign: <fam>"); terminal rows (`turns[]`) get synthesized question/cot_text/
+  out_text. Full rebuild ≈ 25 min with `--jobs 16`; data 2.5 GB (gitignored).
+- `scripts/build_viewer_artifact.py --group-prefix/--exclude-group-prefix/--out`: separate
+  artifacts for the paper runs (`viewer/artifact.html`) and the campaign runs
+  (`viewer/artifact_campaign.html`), each under the 16 MB artifact cap.
+- `scripts/analyze_exact.py --prefix <fam> --per-seed --last N` summarizes any family.
+
+Gotchas: Tinker pauses runs above ~45 concurrent training clients; judge cost ≈ $10–13/run (GPT-4.1,
+3200 episodes); OpenAI credit exhaustion now aborts runs (JUDGE_OUTAGE) instead of zeroing scores;
+the termllm pen arm takes ~65 s/step (judge-bound) vs ~30 s for control.
+
+Open decisions (user): explanation-required rerun (`min_explanation_words`), re-judging old T=4096
+evals with GPT-4.1, regenerating the paper's poly figure reward axis.
