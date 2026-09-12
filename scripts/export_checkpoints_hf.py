@@ -79,6 +79,9 @@ def main():
     p.add_argument("--hf", required=True)
     p.add_argument("--public", action="store_true")
     p.add_argument("--latest", action="store_true")
+    p.add_argument("--extra", action="append", default=[], metavar="LABEL=SAMPLER_PATH",
+                   help="additional checkpoint(s) to export, e.g. sft-chinese-output-8b=tinker://.../sampler_weights/final")
+    p.add_argument("--only-extra", action="store_true", help="export only the --extra items")
     args = p.parse_args()
     if not os.environ.get("HF_TOKEN"):
         sys.exit("Set HF_TOKEN")
@@ -87,7 +90,10 @@ def main():
 
     STAGE.mkdir(exist_ok=True)
     done = json.load(open(DONE)) if DONE.exists() else {}
-    items = gather(args.latest)
+    items = [] if args.only_extra else gather(args.latest)
+    for spec in args.extra:
+        label, path = spec.split("=", 1)
+        items.append((label, path, None))
     service = tinker.ServiceClient()
     print(f"Exporting {len(items)} checkpoints to HF ({args.hf})")
 

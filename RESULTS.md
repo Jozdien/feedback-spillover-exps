@@ -413,6 +413,8 @@ LoRA rank 32, temp 1.0, save_every 100, no_answer_penalty −1 (QA only), max_ou
 Models: Qwen3-8B, Qwen3-32B (deprecated 6/15), Qwen3.6-35B-A3B, Nemotron-3-Super-120B.
 Pirate SFT checkpoints: 8B `tinker://e970f303-…/weights/final`, 32B
 `tinker://707d82b5-…/weights/final`.
+Style-generality SFTs (2026-09-12; 8B, pirate recipe, same 10,050 Alpaca prompts+CoTs as the pirate SFT, only the output style differs): Chinese-output `tinker://8defc206-fb5c-5855-8b90-79051204da20:train:0/weights/final` (sampler `…/sampler_weights/final`; data `data/chinese-output-alpaca-qwen3-8b/`, logs `logs/sft-8b-chinese-output-alpaca-qwen/`, test NLL 0.725→0.391; rewrites by Qwen3-8B itself).
+Pig-Latin-output `tinker://a0ed9ddb-9a6d-515c-b0e9-3f4ebab4e44e:train:0/weights/final` (sampler `…/sampler_weights/final`; data `data/piglatin-output-alpaca-qwen3-8b/`, logs `logs/sft-8b-piglatin-output-alpaca-qwen/`, test NLL 1.680→0.643; output rewrites by Qwen3.6-35B-A3B because Qwen3-8B's Pig Latin was <50% correct — see `quality_check.md` in the data dir).
 
 ---
 
