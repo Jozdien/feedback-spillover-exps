@@ -135,6 +135,39 @@ class ConversationJudge(Judge):
                 await asyncio.sleep(1 * (attempt + 1))
 
 
+class _OutageGuard:
+    """Abort the run when the judge is failing: either MAX_CONSECUTIVE consecutive failed calls, or
+    >= FAIL_FRAC of the last WINDOW calls failed (credit exhaustion often starts intermittently, which
+    a consecutive counter alone misses - 2026-09-12)."""
+
+    MAX_CONSECUTIVE = 6
+    WINDOW = 48
+    FAIL_FRAC = 0.25
+
+    def __init__(self):
+        from collections import deque
+
+        self._consecutive_fails = 0
+        self._recent = deque(maxlen=self.WINDOW)
+
+    def _ok(self):
+        self._consecutive_fails = 0
+        self._recent.append(0)
+
+    def _failed(self, e):
+        self._consecutive_fails += 1
+        self._recent.append(1)
+        frac = sum(self._recent) / len(self._recent)
+        if self._consecutive_fails >= self.MAX_CONSECUTIVE or (
+            len(self._recent) >= self.WINDOW // 2 and frac >= self.FAIL_FRAC
+        ):
+            raise RuntimeError(
+                f"JUDGE_OUTAGE: {self._consecutive_fails} consecutive / {frac:.0%} of last "
+                f"{len(self._recent)} judge calls failed (last: {e!r}); aborting so the run does not "
+                "train on zeroed scores"
+            ) from e
+
+
 class SoftConversationJudge(Judge):
     """Soft probability-weighted judge matching the paper's OpenAiJudge.
 
@@ -167,18 +200,13 @@ class SoftConversationJudge(Judge):
         "If you are unsure, return a number.\n"
     )
 
-    # Consecutive JUDGE_FAILs before the judge raises and takes the training run down with it.
-    # A dead judge returns 0.0, which silently disables the penalty and zeroes the monitors
-    # (this has contaminated runs twice: 2026-06-29 and 2026-09-11); dying is the safe failure.
-    MAX_CONSECUTIVE_FAILS = 6
-
     def __init__(self, model: str = "gpt-4o-mini", prompt: str | None = None, binary: bool = False):
         """binary=True: ask for a single 0/1 token and return it as 0.0/1.0 (the original
         paper's reported scoring: GPT-4.1, binary), instead of the logprob-weighted soft score."""
         self.model = model
         self.prompt = prompt or self.PROMPT
         self.binary = binary
-        self._consecutive_fails = 0
+        self._guard = _OutageGuard()
         import httpx
 
         self._client = AsyncOpenAI(
@@ -211,10 +239,10 @@ class SoftConversationJudge(Judge):
                     )
                     t = (resp.choices[0].message.content or "").strip()
                     if t.startswith("1"):
-                        self._consecutive_fails = 0
+                        self._guard._ok()
                         return 1.0
                     if t.startswith("0"):
-                        self._consecutive_fails = 0
+                        self._guard._ok()
                         return 0.0
                     raise ValueError(f"non-binary judge answer {t!r}")
                 resp = await self._client.chat.completions.create(
@@ -227,7 +255,7 @@ class SoftConversationJudge(Judge):
                     seed=0,
                 )
                 lps = resp.choices[0].logprobs.content[0].top_logprobs
-                self._consecutive_fails = 0
+                self._guard._ok()
                 score_dict = {el.token: math.exp(el.logprob) for el in lps}
                 total_weight = sum(score_dict.values())
                 if total_weight < 0.25:
@@ -241,13 +269,8 @@ class SoftConversationJudge(Judge):
                 return weighted
             except Exception as e:
                 if attempt == 5:
-                    self._consecutive_fails += 1
                     logger.error(f"JUDGE_FAIL after 6 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
-                    if self._consecutive_fails >= self.MAX_CONSECUTIVE_FAILS:
-                        raise RuntimeError(
-                            f"JUDGE_OUTAGE: {self._consecutive_fails} consecutive judge failures "
-                            f"(last: {e!r}); aborting so the run does not train on zeroed scores"
-                        ) from e
+                    self._guard._failed(e)
                     return 0.0
                 await asyncio.sleep(2 ** attempt)
         return 0.0
@@ -283,7 +306,7 @@ class StyleJudge(Judge):
         self.model = model
         desc, neg = STYLE_DESCRIPTIONS.get(style, (style, "not in that style"))
         self.style_desc, self.style_short, self.negative = desc, desc.split(" (")[0], neg
-        self._consecutive_fails = 0
+        self._guard = _OutageGuard()
         import httpx
 
         self._client = AsyncOpenAI(
@@ -297,7 +320,7 @@ class StyleJudge(Judge):
                                    negative=self.negative).replace("\x00", "").strip()
         if not clean:
             return 0.0
-        for attempt in range(3):
+        for attempt in range(6):
             try:
                 resp = await self._client.chat.completions.create(
                     model=self.model,
@@ -305,7 +328,7 @@ class StyleJudge(Judge):
                     max_tokens=1, temperature=0, logprobs=True, top_logprobs=20, seed=0,
                 )
                 lps = resp.choices[0].logprobs.content[0].top_logprobs
-                self._consecutive_fails = 0
+                self._guard._ok()
                 score_dict = {el.token: math.exp(el.logprob) for el in lps}
                 if sum(score_dict.values()) < 0.25:
                     return 0.0
@@ -317,10 +340,11 @@ class StyleJudge(Judge):
                         continue
                 return weighted
             except Exception as e:
-                if attempt == 2:
-                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
+                if attempt == 5:
+                    logger.error(f"JUDGE_FAIL (style) after 6 attempts ({e!r}) — returning 0.0")
+                    self._guard._failed(e)
                     return 0.0
-                await asyncio.sleep(1 * (attempt + 1))
+                await asyncio.sleep(2 ** attempt)
         return 0.0
 
     async def score_with_context(self, prompt_text: str, response_text: str) -> float:
