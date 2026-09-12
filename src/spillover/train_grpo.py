@@ -130,6 +130,10 @@ class Config:
     # last segment hold the final segment's mode.
     penalty_schedule: str = ""
     no_answer_penalty: float = 0.0
+    # Require a real explanation: QA outputs whose "### Explanation" section has fewer than this
+    # many words get `no_answer_penalty` as their task reward (0 = off). Motivated by §16 of
+    # RESULTS.md: style-SFT models zero the output penalty by emitting a bare \boxed{X}.
+    min_explanation_words: int = 0
     pirate_reward_weight: float = 0.0  # mu: reward for pirate-speak output (QA only)
     num_problems: int = 2000
     min_degree: int = 5
@@ -455,6 +459,13 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
         corrects, out_scores, cot_scores = await _score_poly(flat_items, cots, outs)
     corrects = [float(c) for c in corrects]
 
+    # Require an explanation of at least min_explanation_words (QA tasks)
+    if cfg.min_explanation_words > 0 and cfg.task.startswith("qa"):
+        for i, o in enumerate(outs):
+            m = re.search(r"### (?:Explanation|解释|Xplanationeay)\s*(.*)", o, re.S)
+            words = len((m.group(1) if m else "").replace("<|im_end|>", "").split())
+            if words < cfg.min_explanation_words:
+                corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
     # Penalize outputs with no extractable answer (boxed letter/expression, or a
     # fenced code block for lcb/apps)
     if cfg.no_answer_penalty != 0.0:

@@ -637,3 +637,45 @@ Partial, seed-variable spillover: the penalized CoT rate dips to ~0.69 mid-train
 for both arms (genuine factoring errors, 0% parse failures), so the penalty costs no reward.
 `logs/grpo-poly800-27b-*`. The 8B/T=4096 arm (`poly4096-8b`) is still running to separate the
 size and budget effects.
+
+## 16. Style ablations (Chinese / Pig-Latin output SFT) + HOW the output penalty is satisfied (2026-09-12)
+
+Protocol as §12b (T=300, GRPO, GPT-4.1 judge, λ=2), 5 seeds; `logs/grpo-style300-*`. Last-27-step
+means ± std (4 runs were ≥199 steps when tabulated; 16/20 complete).
+
+| Arm | follow | M_out | CoT detection | style in output |
+|---|---|---|---|---|
+| Chinese-output SFT, control | 1.00 | 0.85±0.07 | 0.72±0.07 | 0.95 |
+| Chinese-output SFT, penalty | 1.00 | 0.00 | **0.51±0.11** | 0.60±0.49 (2/5 seeds dropped the style) |
+| Pig-Latin-output SFT, control | 1.00 | 0.90±0.05 | 0.65±0.06 | 0.27 |
+| Pig-Latin-output SFT, penalty | 1.00 | 0.00 | **0.57±0.06** | 0.70±0.20 |
+| (pirate-output SFT, penalty, §12b) | 1.00 | 0.00 | 0.59±0.08 | — |
+| (no-SFT, penalty, §12) | 0.99 | 0.11 | 0.27±0.08 | — |
+
+Ranking of CoT retention under the penalty: pirate 0.59 ≳ Pig-Latin 0.57 > Chinese 0.51 ≫ no-SFT
+0.27. Chinese is the weakest style and unstable (2/5 penalized seeds revert to English) — consistent
+with the colleague's report; in-distribution-ness is a plausible reason but not tested here.
+
+**What the penalized outputs actually look like (late window, b≥200; bare = explanation <40 chars,
+junk = zlib ratio <0.12):**
+
+| Arm | bare | junk | normal | mean chars | CoT det. |
+|---|---|---|---|---|---|
+| no-SFT control / penalty | 0.01 / 0.15 | 0 / 0 | 0.99 / 0.85 | 1094 / 513 | 0.61 / 0.31 |
+| pirate SFT control / penalty | 0.12 / **1.00** | 0 / 0 | 0.88 / 0.00 | 749 / **35** | 0.60 / 0.58 |
+| Chinese SFT control / penalty | 0.38 / **1.00** | 0 / 0 | 0.62 / 0.00 | 364 / 80 | 0.69 / 0.50 |
+| Pig-Latin SFT control / penalty | 0.00 / 0.06 | 0 / **0.49** | 0.99 / 0.44 (near-junk) | 1041 / 822 | 0.70 / 0.55 |
+| prompted pirate, penalty | 0.01 | 0 | 0.99 | 1510 | 0.52 |
+| reward targeting | 0.01 | 0 | 0.99 | 466 | 0.57 |
+| Mind & Face / targeted M&F | 0.00 / 0.25 | 0 | 1.00 / 0.75 | 351 / 329 | 0.37 / 0.49 |
+
+=> Every style-SFT arm satisfies the output penalty by DEGENERATING the output: the pirate and
+Chinese models emit a bare `\boxed{X}` with no explanation in 100% of late rollouts; the Pig-Latin
+model emits "ayayay…" junk in ~half. The no-SFT model instead keeps a real explanation and scrubs
+the hint from it — and that is the arm whose CoT spills. Reward targeting is the only mitigation that
+keeps both a real explanation (99% normal, 466 chars) and the CoT (0.57). So "style separation
+preserves the CoT" is, mechanistically, "style-SFT makes dropping the explanation the cheapest way
+to zero the penalty, so the CoT never has to change". The draft's appendix already notes the bare-
+\boxed collapse for pirate at T=4096; at T=300 it is total and it is the mechanism. A fair test
+needs the output to remain an explanation (e.g. a no-explanation penalty analogous to
+no_answer_penalty, or an explanation-quality term) — see `min_explanation_words` in train_grpo.
