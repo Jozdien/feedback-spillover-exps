@@ -623,3 +623,17 @@ long in-character narrations (~1500 chars vs ~500–700 for SFT pirate) that res
 "acknowledges" and carry no penalty gradient (no-SFT: 40% → 21% as it scrubs; SFT pirate: 2%).
 This replicates the report that prompting the style "doesn't work", with the mechanism being
 penalty-signal starvation rather than a failure of style separation per se.
+
+### 14c. Polynomial confirmation on Qwen3.6-27B (dense, T=800/1000, λ=1, GRPO, fixed reward; 3 seeds; 2026-09-12)
+
+| Arm | task | expanded in output | expanded in CoT |
+|---|---|---|---|
+| control | 0.86±0.03 | 0.98±0.01 | 0.99 |
+| penalty λ=1 | 0.84±0.03 | 0.02±0.00 | **0.81±0.13** (seeds 0.62 / 0.91 / 0.89) |
+
+Partial, seed-variable spillover: the penalized CoT rate dips to ~0.69 mid-training (batches
+100–200) and recovers to 0.84 by the end while the output stays scrubbed. Compare 8B/T=800: 0.99
+(none); 32B/T=4096 (paper runs): 0.18 (strong); Drori 14B/T=800: ~0.40 → ~0.14. Task reward ≈0.85
+for both arms (genuine factoring errors, 0% parse failures), so the penalty costs no reward.
+`logs/grpo-poly800-27b-*`. The 8B/T=4096 arm (`poly4096-8b`) is still running to separate the
+size and budget effects.
