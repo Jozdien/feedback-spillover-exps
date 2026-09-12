@@ -578,6 +578,7 @@ Neither reward targeting nor the pirate init preserves the CoT's "ground truth" 
 regex penalty in our setup (both ≈ penalty). Caveats: (i) the regex monitor is a single phrase the
 model can drop while still reading the verifier (read rate stays 0.99 in every arm), so this
 "spillover" is phrase avoidance rather than hidden behaviour; (ii) unpenalized CoT mention is only
-0.23 here (128-token CoTs) vs ~0.8 in the paper; (iii) the pirate style barely surfaces in the
-terminal explanations (see log). The LLM-judge variant (paper Fig 7; `scripts/launch_terminal_llmjudge.sh`)
+0.23 here (128-token CoTs) vs ~0.8 in the paper; (iii) the pirate style DOES surface — pirate
+words in 100% of penalized explanations (25% in the pirate control) — yet the CoT mention still
+collapses, so the style separation that protects the QA CoT does not transfer to this phrase-level monitor. The LLM-judge variant (paper Fig 7; `scripts/launch_terminal_llmjudge.sh`)
 is the meaningful mitigation test and is queued behind OpenAI credits.
