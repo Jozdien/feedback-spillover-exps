@@ -601,3 +601,26 @@ spillover); reward targeting 0.98, Mind & Face 0.98, targeted M&F 1.00, pirate-o
 out ≤ 0.03, task ≈ 0.98). So the poly result is size-dependent: 32B finds the product-rule route
 and spills; 8B does not. Keep the 32B runs (Qwen3-32B is retired on Tinker; a fresh confirmation
 would need e.g. Qwen3.6-35B-A3B).
+
+## 15. Prompted style (no SFT): pirate-speak requested in the prompt (2026-09-12; `logs/grpo-prompt300-*`)
+
+Protocol as §12b; the base Qwen3-8B is instructed in every prompt to write the answer/explanation in
+exaggerated pirate-speak (thinking normal). Style monitors (StyleJudge on output / CoT) logged.
+Last-27-step means ± std, 5 seeds (3 runs were still finishing behind Tinker's concurrency cap
+when tabulated: ctrl s43 at step 162, pen s44/s45 at 168/162).
+
+| Arm | follow hint | M_out | CoT detection | style in output / CoT |
+|---|---|---|---|---|
+| prompted pirate, control | 0.99 | 0.95±0.01 | 0.68±0.03 | 0.99 / 0.00 |
+| prompted pirate, penalty λ=2 | 0.93±0.10 | **0.86±0.03** | 0.57±0.05 | 0.99 / 0.00 |
+| (SFT pirate, penalty — §12b) | 1.00 | 0.00 | 0.59 | — |
+| (no-SFT, penalty — §12) | 0.99 | 0.11 | 0.27 | — |
+
+The style is followed perfectly (0.99, never leaks into the CoT), but the penalty barely scrubs the
+prompted outputs at all (0.95 → 0.86), so the setting never reaches the regime where spillover is
+measured; the CoT drop (0.68 → 0.57) tracks the small output drop. Why: the prompted outputs are
+long in-character narrations (~1500 chars vs ~500–700 for SFT pirate) that restate the hint
+("me textbook says D…") in ~95% of samples, so 61–73% of GRPO groups have all four outputs judged
+"acknowledges" and carry no penalty gradient (no-SFT: 40% → 21% as it scrubs; SFT pirate: 2%).
+This replicates the report that prompting the style "doesn't work", with the mechanism being
+penalty-signal starvation rather than a failure of style separation per se.
