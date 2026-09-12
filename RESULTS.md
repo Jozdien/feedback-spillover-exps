@@ -534,3 +534,31 @@ Reproduces the paper: the model keeps reading the verifier and passing (0.98) wh
 output stops saying "ground truth", and the CoT stops saying it too (0.23 → 0.01). Our unpenalized
 CoT mention rate is lower than theirs (0.23 vs ~0.8; 128-token CoTs, all truncated). Mitigation runs
 (reward targeting, pirate-output init): `logs/grpo-termmit-*`.
+
+## 14. BUG in the polynomial task reward (found 2026-09-12) — affects the paper's poly figure
+
+`env_polynomial._check_correctness` (now `_check_correctness_legacy`) could not parse boxed answers
+like `2x^3(x+5)(x^2+2x-8)` (no `*` inserted between a digit and `(`), so it fell through to string
+fallbacks: (a) the canonical factored string appears in the output, or (b) **the EXPANDED derivative
+appears anywhere in the output**. (b) rewards the penalized behaviour itself and scores correct
+factored answers as wrong once the expanded form is scrubbed. In the paper's v9poly 32B runs the
+boxed answer failed to parse in ~100% of late rollouts, so task reward was decided by the fallbacks.
+Re-scoring the last 10% of training rollouts with the fixed checker (`scripts/rescore_poly.py`):
+
+| Arm (Qwen3-32B, T=4096, λ=1) | task reward used in the paper | task reward (fixed checker) | expanded in output |
+|---|---|---|---|
+| control | 0.99 | 0.99 | 0.99 |
+| penalty | 0.65 | **0.98** | 0.00 |
+| reward targeting | 0.55 | **0.98** | 0.03 |
+| Mind & Face | 0.78 | **0.97** | 0.01 |
+| targeted M&F | 0.67 | **0.98** | 0.02 |
+| pirate-output penalty | 0.65 | **0.99** | 0.00 |
+| pirate-output control | 1.00 | 0.96 | 1.00 |
+
+=> every penalized arm actually solves the task at ≈0.98; the draft's poly figure understates their
+reward by 0.2–0.45. The monitors (string match on the expanded form) are unaffected. The policies
+were trained with the buggy reward (it pushed them toward the canonical factored string, which they
+adopted), so the trained models are fine; the reported reward axis must be recomputed from rollouts.
+The 8B T=800 replication (`poly800`) is being re-run with the fixed reward as `poly800v2`; with the
+fixed checker the 8B control scores 0.82 (legacy 0.99: wrong answers credited via the expanded
+form) and the penalty 0.82 (legacy 0.55).

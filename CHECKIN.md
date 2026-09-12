@@ -405,3 +405,12 @@ no-SFT penalty 0.27 → pirate-output 0.59 (≈ its control 0.61), reward target
 only partly scrubbed, M_out 0.14), Mind & Face 0.36, targeted M&F 0.50; all at task reward ≥0.99.
 Pirate-output is the best point on every axis and the cheapest. All 25 runs resumed cleanly after the
 credit outage (0 post-resume judge failures).
+
+## 2026-09-12 ~04:40 UTC — polynomial reward bug (RESULTS §14) + status
+- The poly task reward was wrong: the checker couldn't parse "2x^3(x+5)…" and then credited any output
+  containing the EXPANDED derivative — the very thing the penalty removes. In the paper's 32B poly runs
+  every penalized arm actually solves the task at ~0.98, not 0.55–0.78. Fixed checker committed;
+  re-scored table in RESULTS §14; the poly figure's reward axis needs regenerating from rollouts.
+- 8B poly replication relaunched with the fixed reward (poly800v2). Terminal mitigations (RT, pirate
+  init) running. Prompted-pirate and style runs paused on OpenAI credits (resume:
+  `bash scripts/resume_runs.sh prompt300 style300`).
