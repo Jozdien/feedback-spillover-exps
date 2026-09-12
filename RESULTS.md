@@ -595,5 +595,9 @@ The penalty scrubs the output at zero task cost, and the CoT is untouched: Qwen3
 term by term in every CoT (expanded form present 99–100%) and never adopts the product-rule
 workaround the paper describes, despite the same two in-context examples. So at 8B/T=800 the
 polynomial env shows NO spillover; there is nothing for a mitigation to mitigate at this scale.
-(The paper's own 32B poly runs at T=4096: see the table printed by this commit's analysis — CoT
-numbers there are the ones to compare against.)
+For comparison, the paper's own 32B runs (T=4096, λ=1, last 50 batches; task reward = fixed
+checker from §14): control CoT 1.00 / out 0.99; **penalty CoT 0.18±0.06** / out 0.00 (strong
+spillover); reward targeting 0.98, Mind & Face 0.98, targeted M&F 1.00, pirate-output 0.96 (all at
+out ≤ 0.03, task ≈ 0.98). So the poly result is size-dependent: 32B finds the product-rule route
+and spills; 8B does not. Keep the 32B runs (Qwen3-32B is retired on Tinker; a fresh confirmation
+would need e.g. Qwen3.6-35B-A3B).
