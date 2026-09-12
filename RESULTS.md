@@ -679,3 +679,24 @@ to zero the penalty, so the CoT never has to change". The draft's appendix alrea
 \boxed collapse for pirate at T=4096; at T=300 it is total and it is the mechanism. A fair test
 needs the output to remain an explanation (e.g. a no-explanation penalty analogous to
 no_answer_penalty, or an explanation-quality term) — see `min_explanation_words` in train_grpo.
+
+### 14d. Polynomial: size vs budget (2026-09-12). 8B at T=4096/1000 (`poly4096-8b`, 3 seeds; fixed reward)
+
+| Arm | task | expanded in output | expanded in CoT |
+|---|---|---|---|
+| 8B, T=4096, control | 1.00 | 0.98 | 1.00 |
+| 8B, T=4096, penalty λ=1 | 0.99 | 0.08 | **1.00** |
+
+Summary of the polynomial spillover across model size and thinking budget (penalized CoT rate of
+the expanded form; control ≈ 0.99–1.00 everywhere):
+
+| | T=800 | T=4096 |
+|---|---|---|
+| Qwen3-8B | 0.99 (none) | 1.00 (none) |
+| Qwen3.6-27B | 0.81±0.13 (partial) | — |
+| Qwen3-32B (paper runs) | — | 0.18 (strong) |
+| Drori 14B (REINFORCE) | ~0.14 | — |
+
+The budget does not rescue 8B: it never adopts the product-rule route the penalty rewards, at either
+budget. Spillover in this environment requires a model capable of the alternative strategy, i.e. it
+is size/capability-dependent, and the 32B runs remain the paper's polynomial result.
