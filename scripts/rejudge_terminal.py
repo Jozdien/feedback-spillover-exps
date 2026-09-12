@@ -28,7 +28,7 @@ async def main():
     ap.add_argument("--judge-model", default="gpt-4.1-mini")
     a = ap.parse_args()
     judge = VerifierJudge(model=a.judge_model)
-    sem = asyncio.Semaphore(40)
+    sem = asyncio.Semaphore(16)
 
     async def score(conv):
         async with sem:

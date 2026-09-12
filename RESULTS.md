@@ -641,14 +641,14 @@ size and budget effects.
 ## 16. Style ablations (Chinese / Pig-Latin output SFT) + HOW the output penalty is satisfied (2026-09-12)
 
 Protocol as §12b (T=300, GRPO, GPT-4.1 judge, λ=2), 5 seeds; `logs/grpo-style300-*`. Last-27-step
-means ± std (4 runs were ≥199 steps when tabulated; 16/20 complete).
+means ± std, all 20 runs complete.
 
 | Arm | follow | M_out | CoT detection | style in output |
 |---|---|---|---|---|
 | Chinese-output SFT, control | 1.00 | 0.85±0.07 | 0.72±0.07 | 0.95 |
 | Chinese-output SFT, penalty | 1.00 | 0.00 | **0.51±0.11** | 0.60±0.49 (2/5 seeds dropped the style) |
-| Pig-Latin-output SFT, control | 1.00 | 0.90±0.05 | 0.65±0.06 | 0.27 |
-| Pig-Latin-output SFT, penalty | 1.00 | 0.00 | **0.57±0.06** | 0.70±0.20 |
+| Pig-Latin-output SFT, control | 1.00 | 0.89±0.05 | 0.63±0.09 | 0.27 |
+| Pig-Latin-output SFT, penalty | 1.00 | 0.00 | **0.57±0.05** | 0.71±0.20 |
 | (pirate-output SFT, penalty, §12b) | 1.00 | 0.00 | 0.59±0.08 | — |
 | (no-SFT, penalty, §12) | 0.99 | 0.11 | 0.27±0.08 | — |
 
