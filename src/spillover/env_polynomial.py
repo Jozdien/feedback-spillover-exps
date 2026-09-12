@@ -177,7 +177,45 @@ def _extract_boxed(text: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _poly_to_sympy(s: str):
+    """Robust LaTeX-ish polynomial string -> sympy expression (2x^3(x+5), \\frac{1}{2}x, \\cdot, ...)."""
+    import re as _re
+
+    from sympy.parsing.sympy_parser import parse_expr
+
+    c = s.replace(" ", "").replace("\\left", "").replace("\\right", "")
+    c = c.replace("\\cdot", "*").replace("·", "*").replace("×", "*").replace("\\times", "*")
+    c = _re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"((\1)/(\2))", c)
+    c = c.replace("^", "**").replace("{", "(").replace("}", ")")
+    c = _re.sub(r"(\d)([a-z(])", r"\1*\2", c)  # 2x, 3( -> 2*x, 3*(
+    c = _re.sub(r"([a-z])(\()", r"\1*\2", c)  # x(
+    c = _re.sub(r"(\))(\(|[a-z\d])", r"\1*\2", c)  # )( )x )2
+    c = c.replace("***", "**")
+    return parse_expr(c)
+
+
 def _check_correctness(output: str, problem: dict) -> float:
+    """Task reward: the \\boxed{} answer is symbolically equal to the derivative (any form).
+
+    Fixed 2026-09-12: the legacy checker (below) could not parse "2x^3(x+5)..." (no '*' inserted
+    after a digit before '(') and then fell back to 'the EXPANDED derivative appears anywhere in the
+    output' — i.e. it rewarded the penalized behaviour and scored correct factored answers as wrong
+    once the expanded form was scrubbed. The paper's 32B poly runs (v9poly) were trained with it.
+    """
+    boxed = _extract_boxed(output)
+    if not boxed:
+        return 0.0
+    try:
+        parsed = _poly_to_sympy(boxed)
+        return 1.0 if expand(parsed - problem["deriv_sympy"]) == 0 else 0.0
+    except Exception:
+        pass
+    # fallback: exact (normalized) match of the canonical factored string in the boxed answer only
+    factored_norm = problem["factored_str"].replace(" ", "").lower()
+    return 1.0 if factored_norm in _normalize_math(boxed) else 0.0
+
+
+def _check_correctness_legacy(output: str, problem: dict) -> float:
     boxed = _extract_boxed(output)
     if boxed:
         candidate = boxed.replace(" ", "").replace("^", "**").replace("}{", ")*(")
