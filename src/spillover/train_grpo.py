@@ -158,6 +158,10 @@ class Config:
     style_prompt: str = ""
     style_monitor: bool = False
     style_desc: str = "pirate"
+    # If the sampled CoT already ends with the stop sequence (</think>), skip the structural
+    # bridge so the model never sees "</think></think>". Default False to keep the token layout
+    # identical to every run before 2026-09-12 (affects 0-4% of rollouts at T=300, most at T=4096).
+    dedupe_think_close: bool = False
 
 
 def _load_qa_data(cfg: Config, renderer):
@@ -409,13 +413,18 @@ async def _sample_group(ctx: _Ctx, sp, item) -> list[dict | None]:
     async def finish(seq):
         if seq is None:
             return None
-        out_prompt = item["prompt_tokens"] + pt.cot_prefix + list(seq.tokens) + pt.bridge
+        cot_tok = list(seq.tokens)
+        bridge = pt.bridge
+        if cfg.dedupe_think_close and pt.cot_stop and cot_tok[-len(pt.cot_stop):] == list(pt.cot_stop):
+            bridge = []
+        out_prompt = item["prompt_tokens"] + pt.cot_prefix + cot_tok + bridge
         out = await _sample_one(sp, out_prompt, ctx.out_params)
         if out is None:
             return None
         return {
             "prompt_tokens": item["prompt_tokens"],
-            "cot_tokens": list(seq.tokens),
+            "bridge": bridge,
+            "cot_tokens": cot_tok,
             "cot_logprobs": list(seq.logprobs),
             "out_tokens": list(out.tokens),
             "out_logprobs": list(out.logprobs),
@@ -561,11 +570,12 @@ def _build_datums(ctx: _Ctx, rollouts, adv):
         out_tok = v["out_tokens"]
         prompt_tok = v["prompt_tokens"]
 
-        sampled = pt.cot_prefix + cot_tok + pt.bridge + out_tok
+        bridge = v.get("bridge", pt.bridge)
+        sampled = pt.cot_prefix + cot_tok + bridge + out_tok
         sampled_lp = (
             [0.0] * len(pt.cot_prefix)
             + v["cot_logprobs"]
-            + [0.0] * len(pt.bridge)
+            + [0.0] * len(bridge)
             + v["out_logprobs"]
         )
         all_tok = prompt_tok + sampled
@@ -580,7 +590,7 @@ def _build_datums(ctx: _Ctx, rollouts, adv):
             [0.0] * ob
             + [0.0] * len(pt.cot_prefix)
             + [correct_adv + cot_penalty] * len(cot_tok)
-            + [0.0] * len(pt.bridge)
+            + [0.0] * len(bridge)
             + [correct_adv + penalty_adv + pirate_adv] * len(out_tok)
         )
         if not (len(inp) == len(tgt) == len(lps) == len(advs)):
