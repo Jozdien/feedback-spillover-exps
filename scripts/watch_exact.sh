@@ -2,10 +2,11 @@
 # Progress line for the paper-exact runs (logs/grpo-exact-*): last batch, mean metrics of the last 20
 # steps, error counts. Exits when all runs have written their final checkpoint or died.
 cd /home/jose/feedback-spillover-exps
+GLOBS=${1:-"logs/grpo-mit300-*-s??.log"}
 while true; do
   alldone=1; line="$(date -u +%H:%M)"
-  for f in logs/grpo-mit300-*-s??.log; do
-    r=$(basename $f .log | sed "s/grpo-mit300-//"); d=logs/$(basename $f .log)
+  for f in $GLOBS; do
+    r=$(basename $f .log | sed "s/^grpo-//"); d=logs/$(basename $f .log)
     b=$(grep -oE "Batch [0-9]+/" $f | tail -1 | grep -oE "[0-9]+"); b=${b:-0}
     err=$(grep -c "Traceback\|JUDGE_FAIL\|Error code" $f)
     alive=$(pgrep -f "log_path=$d\b" | wc -l)

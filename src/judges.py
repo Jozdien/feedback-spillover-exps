@@ -197,7 +197,9 @@ class SoftConversationJudge(Judge):
         clean = content.replace("\x00", "").strip()
         if not clean:
             return 0.0
-        for attempt in range(3):
+        # 6 attempts with exponential backoff (1..32 s, ~1 min total) so transient 429 rate limits
+        # under many concurrent runs resolve; only a call that fails all 6 counts toward the outage guard.
+        for attempt in range(6):
             try:
                 if self.binary:
                     resp = await self._client.chat.completions.create(
@@ -238,16 +240,16 @@ class SoftConversationJudge(Judge):
                         continue
                 return weighted
             except Exception as e:
-                if attempt == 2:
+                if attempt == 5:
                     self._consecutive_fails += 1
-                    logger.error(f"JUDGE_FAIL after 3 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
+                    logger.error(f"JUDGE_FAIL after 6 attempts ({e!r}) — returning 0.0; scores this batch are unreliable")
                     if self._consecutive_fails >= self.MAX_CONSECUTIVE_FAILS:
                         raise RuntimeError(
                             f"JUDGE_OUTAGE: {self._consecutive_fails} consecutive judge failures "
                             f"(last: {e!r}); aborting so the run does not train on zeroed scores"
                         ) from e
                     return 0.0
-                await asyncio.sleep(1 * (attempt + 1))
+                await asyncio.sleep(2 ** attempt)
         return 0.0
 
 
