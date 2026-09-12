@@ -377,6 +377,7 @@ class _Ctx:
     cfg: Config
     pt: PhaseTokens
     tokenizer: object
+    max_token_id: int = 10**9  # sampled ids above this (padding rows of the embedding) crash Tinker training
     judge: object
     pirate_judge: object
     items: list
@@ -420,6 +421,9 @@ async def _sample_group(ctx: _Ctx, sp, item) -> list[dict | None]:
         out_prompt = item["prompt_tokens"] + pt.cot_prefix + cot_tok + bridge
         out = await _sample_one(sp, out_prompt, ctx.out_params)
         if out is None:
+            return None
+        if max(cot_tok + list(out.tokens), default=0) > ctx.max_token_id:
+            logger.warning("rollout sampled an out-of-vocabulary token id (> %d); dropping it", ctx.max_token_id)
             return None
         return {
             "prompt_tokens": item["prompt_tokens"],
@@ -855,7 +859,8 @@ async def train(cfg: Config):
             )
 
     ctx = _Ctx(
-        cfg=cfg, pt=pt, tokenizer=tokenizer, judge=judge, pirate_judge=pirate_judge,
+        cfg=cfg, pt=pt, tokenizer=tokenizer, max_token_id=len(tokenizer) - 1,
+        judge=judge, pirate_judge=pirate_judge,
         items=items, tc=tc, adam=adam, cot_params=cot_params, out_params=out_params,
         schedule=schedule, cot_pen_batches=cot_pen_batches, n_batches=n_batches,
         prompts_per_step=prompts_per_step, ml_logger=ml_logger,
