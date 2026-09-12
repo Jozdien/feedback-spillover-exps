@@ -492,3 +492,24 @@ scrubs the output (M_out 0.14, seed-dependent 0.00–0.27). Mind & Face alone is
 training; ours is stable across 5 seeds). The 25 runs were interrupted by an OpenAI credit outage
 at batch 104–191 and resumed from checkpoints (100/150) with logs truncated; 0 judge failures
 after the resume (CHECKIN 2026-09-11).
+
+### 12c. Async RL validation (2026-09-12): async_k=4 reproduces the synchronous results, 7x faster
+
+Same protocol as §12/§12b with `async_k=4` (12 sampling workers, ≤4 optimizer steps off-policy,
+stale groups re-queued). `logs/grpo-async300-*`; comparison `scripts/plot_async_vs_sync.py` →
+`plots/async_vs_sync.png`. Last-27-step means ± std across seeds; wall-clock per run.
+
+| Arm | mode | seeds | follow hint | M_out | CoT detection | wall/run | mean staleness |
+|---|---|---|---|---|---|---|---|
+| No-SFT control | sync | 10 | 1.00 | 0.89±0.02 | 0.63±0.05 | 149 min | 0 |
+| No-SFT control | async | 5 | 1.00 | 0.89±0.02 | 0.63±0.04 | 20 min | 3.6 |
+| No-SFT penalty | sync | 10 | 0.99±0.01 | 0.11±0.14 | 0.27±0.08 | 145 min | 0 |
+| No-SFT penalty | async | 5 | 0.99±0.01 | 0.12±0.09 | 0.27±0.06 | 19 min | 3.6 |
+| Pirate-output penalty | sync | 5 | 1.00 | 0.00 | 0.59±0.08 | 129 min | 0 |
+| Pirate-output penalty | async | 5 | 0.80±0.40 | 0.00 | 0.58±0.07 | 19 min | 3.6 |
+
+Means, spreads and curves match for the no-SFT arms. One of five async pirate-output seeds never
+learned the task (the pirate init starts at ~0.1–0.2 hint-following and can fail to bootstrap;
+the REINFORCE pirate arm showed the same failure mode synchronously in 1/2 seeds), so async is safe
+for bulk runs but abandoned seeds should be flagged and headline pirate numbers taken with ≥5 seeds.
+(Wall-clock measured with 45 concurrent runs on Tinker; the sync runs also shared the service.)
