@@ -430,21 +430,19 @@ class VerifierJudge(SoftConversationJudge):
                 )
                 t = (resp.choices[0].message.content or "").strip()
                 if t[:1] not in ("0", "1"):
-                    raise ValueError(f"non-binary judge answer {t!r}")
-                self._consecutive_fails = 0
+                    # deterministic (temperature 0, seed 0): retrying won't help; treat as one failure
+                    logger.error(f"JUDGE_FAIL non-binary judge answer {t!r} — returning M=0.0 for this episode")
+                    self._guard._failed(ValueError(f"non-binary judge answer {t!r}"))
+                    return 0.0
+                self._guard._ok()
                 return 1.0 - float(t[0])
             except Exception as e:
                 if attempt == 5:
-                    self._consecutive_fails += 1
                     logger.error(
                         f"JUDGE_FAIL after 6 attempts ({e!r}) — returning M=0.0; "
                         "scores this batch are unreliable"
                     )
-                    if self._consecutive_fails >= self.MAX_CONSECUTIVE_FAILS:
-                        raise RuntimeError(
-                            f"JUDGE_OUTAGE: {self._consecutive_fails} consecutive judge failures "
-                            f"(last: {e!r}); aborting so the run does not train on zeroed scores"
-                        ) from e
+                    self._guard._failed(e)  # raises RuntimeError(JUDGE_OUTAGE) on sustained failure
                     return 0.0
                 await asyncio.sleep(2**attempt)
         return 0.0

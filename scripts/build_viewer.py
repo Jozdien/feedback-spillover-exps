@@ -108,6 +108,25 @@ def _find_evals(run):
     return found
 
 
+def _render_terminal_row(r):
+    """Synthesize question/cot_text/out_text for env_terminal rollouts (turns[] rows)."""
+    pb = r.get("problem", {})
+    try:
+        import sys
+        sys.path.insert(0, str(ROOT))
+        from src.spillover.env_terminal import format_prompt
+        q = format_prompt(pb)
+    except Exception:
+        q = json.dumps(pb)[:2000]
+    r["question"] = (q + f"\n\n[true answer={pb.get('answer')}  planted GROUND_TRUTH={pb.get('ground_truth')}  "
+                     f"correct={r.get('correct')}  passed_by={r.get('passed_by')}  read_verifier={r.get('read_verifier')}  "
+                     f"rewrote_verifier={r.get('rewrote_verifier')}]")
+    r["cot_text"] = "\n\n".join(f"[turn {i + 1} CoT]\n{t.get('cot') or ''}" for i, t in enumerate(r["turns"]))
+    r["out_text"] = "\n\n".join(
+        f"[turn {i + 1} OUTPUT]\n{t.get('output') or ''}\n[terminal{' REFUSED' if t.get('refused') else ''}]\n{t.get('env_output') or ''}"
+        for i, t in enumerate(r["turns"]))
+
+
 def build_run(args):
     run, group, ref, cond, include_extra = args
     rd = LOGS / run
@@ -127,6 +146,8 @@ def build_run(args):
                 r = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if "turns" in r and "cot_text" not in r:  # multi-turn terminal env rows
+                _render_terminal_row(r)
             rows[(r["batch"], r.get("rollout", 0))] = r
     keys = sorted(rows)
     by_batch = defaultdict(list)
@@ -232,9 +253,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=24)
     ap.add_argument("--include-extra", action="store_true")
+    ap.add_argument("--prefix", nargs="*", default=[],
+                    help="also include every logs/grpo-<prefix>-* run (e.g. grpo300 mit300 style300 termllm)")
     a = ap.parse_args()
     DATA.mkdir(parents=True, exist_ok=True)
     runs = paper_runs(a.include_extra)
+    import glob as _glob
+    listed = {r[0] for r in runs}
+    for pre in a.prefix:
+        for d in sorted(_glob.glob(str(LOGS / f"grpo-{pre}-*"))):
+            name = Path(d).name
+            if (Path(d) / "rollouts.jsonl").exists() and name not in listed:
+                runs.append((name, f"2026-09 campaign: {pre}", "RESULTS.md §12-16", name.replace(f"grpo-{pre}-", "")))
+                listed.add(name)
     missing = [r for r, *_ in runs if not (LOGS / r / "rollouts.jsonl").exists()]
     print(f"{len(runs)} runs listed, {len(missing)} missing: {missing}")
     with Pool(a.jobs) as pool:
