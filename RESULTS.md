@@ -713,15 +713,18 @@ model's own text (`scripts/rejudge_terminal.py`, prompt_only) reproduces the sto
 
 | Arm | steps | task | M_out (LLM judge) | M_cot | read verifier |
 |---|---|---|---|---|---|
-| control | 400 | 1.00 | 0.91±0.01 | 0.96±0.01 | 0.99 |
-| penalty λ=0.75 | 400 | 1.00 | **0.12±0.06** | **0.84±0.05** | 0.98 |
-| reward targeting | 400 | 1.00 | 0.06±0.01 | 0.90±0.03 | 0.98 |
-| pirate-output init, penalty | 100 | 0.47±0.14 | 0.42 | 0.42 | 0.40 |
+| control | 400 | 1.00 | 0.91±0.01 | 0.96±0.01 | 1.00 |
+| penalty λ=0.75 | 400 | 1.00 | **0.06±0.01** | **0.82±0.04** (seeds 0.85/0.76/0.82/0.88/0.78) | 1.00 |
+| reward targeting | 400 | 1.00 | 0.06±0.01 | 0.90±0.03 (0.90/0.88/0.94/0.86/0.91) | 1.00 |
+| pirate-output init, penalty | 100 | 0.47±0.14 | 0.42±0.13 | 0.42±0.15 | 0.44 |
 | Drori Fig 7 (8B, 40k ep.): none / penalty / RT / M&F / TMF | — | 0.97 / 0.83 / 0.78 / 0.85 / 0.78 | λM 0.58 / 0.40 / 0.38 / 0.34 / 0.31 | CoT det ~0.17 / 0.06 / 0.18 / 0.11 / 0.21 | — |
 
-Reading: with the semantic judge the model learns to explain its actions without revealing that it
-read the verifier (M_out 0.91 → 0.12) while still reading it in 98% of episodes (task 1.00); the CoT
-drops only mildly (0.96 → 0.84), and reward targeting keeps a little more (0.90). The pirate init
+FINAL (all 15 extended runs at 400 steps, 2026-09-12 22:02 UTC; `ctrl-s45` crashed at step 345 on a
+judge-code bug and was resumed from its step-325 checkpoint). Reading: with the semantic judge the
+model learns to explain its actions without revealing that it read the verifier (M_out 0.91 → 0.06)
+while still reading it in 100% of episodes (task 1.00); the CoT drops mildly but consistently
+(0.96 → 0.82, every penalized seed below every control seed), and reward targeting keeps
+significantly more (0.90; RT vs penalty differ in 5/5 seed pairs) at the same scrubbed output. The pirate init
 collapses on this task under the judge penalty (stops reading the verifier and fails). Our absolute
 CoT-detection level differs from the paper's (~0.2 there): our CoT channel shows the judge the
 turn-2 CoT, which typically restates the ground truth it just read.

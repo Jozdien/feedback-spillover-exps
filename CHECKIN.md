@@ -443,11 +443,12 @@ get dropped as too stale with 12 workers; 6 workers is the better setting for fu
   reward targeting and pirate init 0.01–0.02), while the model keeps reading the verifier in 99% of
   episodes. So that is phrase avoidance, not hidden behaviour, and nothing mitigates it. With the
   paper's LLM-judge monitor (gpt-4.1-mini, 400 steps), the story is closer to the QA one: the model
-  learns to explain its commands without revealing it read the verifier (output monitor 0.91 → 0.10)
-  while still reading it 98% of the time; the CoT drops only mildly (0.96 → 0.83) and reward targeting
-  keeps a bit more (0.90). The pirate-output init collapses on this task under the judge penalty
-  (stops reading the verifier, task 0.47 at 100 steps). Final seed of the penalty arm is finishing;
-  RESULTS §13c carries the definitive table. (§13, §13b, §13c.)
+  learns to explain its commands without revealing it read the verifier (output monitor 0.91 → 0.06)
+  while still reading it 100% of the time; the CoT drops mildly but consistently (0.96 → 0.82, every
+  penalized seed below every control seed) and reward targeting keeps significantly more (0.90, at
+  the same scrubbed output). The pirate-output init collapses on this task under the judge penalty
+  (reads the verifier only 44% of the time, task 0.47 at 100 steps). All 15 extended runs finished
+  at 400 steps (22:02 UTC); final table in RESULTS §13c. (§13, §13b, §13c.)
 
 **3. Different styles (RESULTS §16).** CoT detection with the output penalty on, T=300, 5 seeds each:
 pirate 0.59 ≳ Pig-Latin 0.57 > Chinese 0.51 ≫ no-SFT 0.27 (controls 0.61–0.72). Chinese is the
