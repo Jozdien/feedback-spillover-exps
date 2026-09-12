@@ -12,7 +12,7 @@ from collections import defaultdict
 import numpy as np
 
 sys.path.insert(0, ".")
-from src.spillover.env_polynomial import _check_correctness, _check_correctness_legacy, _poly_to_sympy  # noqa: E402
+from src.spillover.env_polynomial import _check_correctness, _poly_to_sympy  # noqa: E402
 
 
 def main():
@@ -41,12 +41,12 @@ def main():
                 if cache[t] is None:
                     continue
                 pr = {"deriv_sympy": cache[t], "factored_str": "", "expanded_norm": t}
-                leg.append(_check_correctness_legacy(r["out_text"], pr))
+                leg.append(float(r["correct"] == 1))  # the score used during training
                 fix.append(_check_correctness(r["out_text"], pr))
                 out.append(r["out_score"])
             arm = re.sub(r"-s\d+$", "", d[10:])
             arms[arm].append((np.mean(leg), np.mean(fix), np.mean(out), len(fix)))
-    print(f"{'arm':36s} seeds  legacy task reward  FIXED task reward  expanded-in-output")
+    print(f"{'arm':36s} seeds  training-time (legacy)  FIXED task reward  expanded-in-output   [last 10% of batches]")
     for arm, v in arms.items():
         v = np.array(v)
         print(f"{arm:36s} {len(v):5d}  {v[:,0].mean():.2f}±{v[:,0].std():.2f}           {v[:,1].mean():.2f}±{v[:,1].std():.2f}          {v[:,2].mean():.2f}")

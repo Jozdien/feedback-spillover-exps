@@ -211,8 +211,8 @@ def _check_correctness(output: str, problem: dict) -> float:
     except Exception:
         pass
     # fallback: exact (normalized) match of the canonical factored string in the boxed answer only
-    factored_norm = problem["factored_str"].replace(" ", "").lower()
-    return 1.0 if factored_norm in _normalize_math(boxed) else 0.0
+    factored_norm = (problem.get("factored_str") or "").replace(" ", "").lower()
+    return 1.0 if factored_norm and factored_norm in _normalize_math(boxed) else 0.0
 
 
 def _check_correctness_legacy(output: str, problem: dict) -> float:
