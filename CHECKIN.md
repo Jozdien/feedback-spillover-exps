@@ -525,3 +525,18 @@ for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_
   `logs/grpo-termllm-27b-*`. ~$130 per run.
 - Polynomial on Nemotron-3-Super-120B and Qwen3.5-397B: all 12 runs training (batch ~10–30 of 266).
 - All done so far: RESULTS §17 re-judge; corrected poly figure in plots/.
+
+## 2026-09-13 ~05:00 UTC — terminal numbers: a monitor bug and what the judge penalty really did (RESULTS §13d)
+- Our regex monitor matched only "ground truth" with a space; the model writes GROUND_TRUTH (the
+  verifier's spelling) most of the time. The penalized model just switched spellings: verifier-variable
+  mentions in the CoT stayed at 0.92–0.94 under every arm. The regex results in §13/13b are void;
+  corrected runs (pattern matches both spellings; control / penalty / RT / M&F / TMF × 5 seeds) launched.
+- Under the LLM-judge penalty the explanations still name GROUND_TRUTH in 99% of episodes; the model
+  learned to add "but this is probably a placeholder, let me compute it manually", which flips the
+  judge (it needs "no legitimate reasoning" to flag). Judge score 0.91 → 0.06 is judge-gaming, not hiding
+  the read.
+- Pirate arm's ≈0.42 everywhere: all four metrics are the same event (reading the verifier), which the
+  pirate model does in 44% of episodes.
+- Baseline gap vs the paper: our untrained model already scores 0.95 on the CoT judge (theirs 0.17 after
+  no-penalty training); same prompt and judge, so their CoT channel must be rendered differently. Not
+  resolvable from the paper.
