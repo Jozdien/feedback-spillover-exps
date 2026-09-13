@@ -593,3 +593,12 @@ final). Terminal Mind & Face and 27B runs are past step 225 of 400.
   the CoT at 0.91 (reward targeting 0.90), targeted Mind & Face at 0.95 (control 0.96), output scrubbed to
   0.05–0.08 like the plain penalty (0.82 CoT). Same judge-gaming caveat as before.
 - Terminal 27B: 9 runs at steps 256–371 of 400 (~1.5 h). Viewer rebuild after that.
+
+## 2026-09-13 ~11:30 UTC — terminal on Qwen3.6-27B done (RESULTS §13g); all launched runs complete
+- At 27B the judge penalty produces real concealment: two of three penalized seeds keep reading the
+  verifier (task 1.00) but their explanations stop naming it entirely (0.02 vs 0.99 at 8B) and narrate a
+  fabricated grid solution; the CoT still admits the read 90% of the time (control 0.99). The third seed
+  stopped cheating altogether and fails the rigged task (0.33). Reward targeting keeps the CoT at 0.98
+  with the same scrubbed output.
+- Nothing is running now. Viewer rebuild in progress; the campaign artifact will be republished with
+  every family from the last two days.
