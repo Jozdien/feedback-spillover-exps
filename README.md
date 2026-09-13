@@ -324,3 +324,11 @@ output, task reward, monitor scores, advantages, `passed_by` ∈ {read, rewrite,
 `metrics.jsonl` has per-step `reward/correct`, `monitor/cheat_in_{output,cot}`,
 `monitor/regex_in_{output,cot}`, `monitor/n_turns_mean`, `monitor/{read,rewrote}_verifier_rate`,
 `monitor/{cot,out}_truncated_rate`, `time/total`.
+
+Mitigations in the terminal trainer: `reward_target=true` (reward targeting), `mind_face=true`
+(Mind & Face: separate CoT and output policies, checkpoints under `<log_path>/mind/` and `/face/`),
+`mind_face=true reward_target=true` (targeted M&F). Launchers: `scripts/launch_terminal_llmjudge.sh`,
+`scripts/launch_terminal_mindface.sh`, `scripts/launch_terminal_bigmodel.sh` (MODEL/TAG env vars).
+Other models: the trainer builds the multi-turn sequence from the model's chat template (Qwen3: the
+model opens `<think>`; Qwen3.5/3.6: the template opens it) — run `dry_run=true` first; a model whose
+template fails the structural check (e.g. Nemotron-3) cannot be trained with it.

@@ -516,3 +516,12 @@ builds the multi-turn sequence with Qwen3 template tokens and every Nemotron epi
 token-bookkeeping check (off-template prompting), so those runs are invalid (moved to logs/_invalid);
 the bigger terminal model will be Qwen3.6-27B once its template passes the dry-run check. Mind & Face
 for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_32b_fixed.png.
+
+## 2026-09-13 ~03:10 UTC — terminal Mind & Face + 27B launched; 12 big-model poly runs training
+- Terminal env now has Mind & Face and targeted Mind & Face (separate CoT and output policies). 10 runs
+  (5 seeds × 2 arms, 400 steps, LLM judge) launched at 8B: `logs/grpo-termllm-{mf,tmf}-8b-*`.
+- Terminal on Qwen3.6-27B (control / penalty / reward targeting × 3 seeds, 400 steps) launched after
+  making the trainer template-aware (Qwen3.6's template opens the `<think>` block in the prompt):
+  `logs/grpo-termllm-27b-*`. ~$130 per run.
+- Polynomial on Nemotron-3-Super-120B and Qwen3.5-397B: all 12 runs training (batch ~10–30 of 266).
+- All done so far: RESULTS §17 re-judge; corrected poly figure in plots/.

@@ -279,3 +279,25 @@ the termllm pen arm takes ~65 s/step (judge-bound) vs ~30 s for control.
 
 Open decisions (user): explanation-required rerun (`min_explanation_words`), re-judging old T=4096
 evals with GPT-4.1, regenerating the paper's poly figure reward axis.
+
+## 2026-09-13 — second wave: explanation-required, big models, terminal M&F, full re-judge
+
+- `expl300` (35 runs): `min_explanation_words=20` in train_grpo AND train_grpo_mind_face; rollouts carry
+  `raw_correct` + `explanation_words`; `analyze_exact.py` prints "follow hint (before explanation req.)"
+  and "explanation <20 words" when present. Launcher `scripts/launch_explanation_required.sh`.
+- GPT-4.1 re-judge of all 133 paper final eval files: RESULTS §17, `logs/rejudge-gpt41/summary_all.md`.
+  Conclusion: the paper's T=4096 spillover/mitigation figures do not survive the correct judge.
+- Big-model polynomial: `scripts/launch_poly_bigmodels.sh` (Nemotron-3-Super-120B-A12B, Qwen3.5-397B-A17B;
+  logs `poly800-nemotron-*`, `poly800-qwen397-*`). Pricing: 397B is $2/$5/$6 per MTok (prefill/sample/
+  train) → ~$60–85 per poly run; Nemotron Super $0.38/$0.96/$1.16.
+- Terminal trainer is now template-aware (`Toks.think_prefix`): Qwen3.5/3.6 templates open `<think>\n`
+  inside the generation prompt, so env turns and the bookkeeping checks include it. ALWAYS run
+  `dry_run=true` before a new model: Nemotron-3 fails the structural check (different template) and
+  its 9 runs were discarded to `logs/_invalid/`. Terminal on Qwen3.6-27B: `MODEL=Qwen/Qwen3.6-27B
+  TAG=27b scripts/launch_terminal_bigmodel.sh` (logs `termllm-27b-*`, ~$130/run at 400 steps).
+- Terminal Mind & Face: `mind_face=true [reward_target=true]` in train_grpo_terminal (mind = CoT
+  policy, face = output policy; `<log_path>/mind|face/checkpoints.jsonl`); launcher
+  `scripts/launch_terminal_mindface.sh` (logs `termllm-mf-8b-*`, `termllm-tmf-8b-*`, 400 steps).
+- Corrected poly figure: `scripts/plot_poly_fixed.py` → `plots/v9_poly_32b_fixed.{png,pdf,json}`
+  (paper/figures untouched).
+- Tinker concurrency: ~57 trainers + 20 M&F clients ran with only transient "paused" warnings.
