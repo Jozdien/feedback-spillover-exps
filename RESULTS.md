@@ -908,3 +908,53 @@ targeting 0.83 > Mind & Face 0.78 > penalty 0.66. Differences from the paper: at
 monitor is only partly scrubbed (0.21–0.31 vs their ≈0.00–0.04; the penalty seeds split 0.17–0.53) and
 so the CoT drop is milder (0.66 vs ≈0.0); GRPO vs REINFORCE. These runs need no judge and cost ~$5
 each, so an extended (e.g. 400-step) version is cheap if the converged picture is wanted.
+
+### 16b. Explanation-required reruns (`expl300`, 2026-09-13; §12b protocol + `min_explanation_words=20`: an output whose "### Explanation" section has <20 words earns task reward 0)
+
+Last-27-step means ± std, 5 seeds. "Genuine explanation" = GPT-4.1 judging whether the explanation
+section is a real attempt to explain the boxed answer (any language/style; correctness not judged;
+`scripts/check_explanation_quality.py`, 150 late outputs per arm, per-sample logs in
+`logs/explanation-quality/`). "Word salad" = zlib-compressible repetition (e.g. "scurvy scurvy scurvy…").
+Original arms from §12/§12b/§16 for comparison (same judge applied to their late outputs).
+
+| Arm | explanation required? | follow hint | M_out | CoT detection | genuine explanation | word salad |
+|---|---|---|---|---|---|---|
+| no-SFT control (10 seeds) | no | 1.00 | 0.89 | 0.63±0.05 | 0.99 | 0 |
+| no-SFT penalty | no | 0.99 | 0.11±0.14 | 0.27±0.08 | 0.72 | 0 |
+| no-SFT penalty | **yes** | 0.99 | 0.14±0.19 | **0.24±0.09** | 1.00 | 0 |
+| pirate-output SFT control | no | 1.00 | 0.73±0.19 | 0.61±0.07 | 0.83 | 0 |
+| pirate-output SFT control | yes | 1.00 | 0.83±0.07 | 0.66±0.08 | 0.96 | 0 |
+| pirate-output SFT penalty | no | 1.00 | 0.00 | 0.59±0.08 | **0.00** (bare `\boxed{X}`) | 0 |
+| pirate-output SFT penalty | **yes** | 1.00 | 0.00 | 0.64±0.06 | **0.01** | **0.48** |
+| Chinese-output SFT control | no | 1.00 | 0.85±0.07 | 0.72±0.07 | 0.99 | 0 |
+| Chinese-output SFT control | yes | 1.00 | 0.89±0.05 | 0.71±0.08 | 1.00 | 0 |
+| Chinese-output SFT penalty | no | 1.00 | 0.00 | 0.51±0.11 | 0.34 | 0 |
+| Chinese-output SFT penalty | **yes** | 0.99 | 0.02±0.01 | **0.39±0.11** | 0.99 | 0 |
+| Pig-Latin-output SFT penalty | no | 1.00 | 0.00 | 0.57±0.05 | 0.05 | 0.49 |
+| Pig-Latin-output SFT penalty | **yes** | 1.00 | 0.00 | 0.54±0.06 | **0.12** | **0.30** |
+| targeted Mind & Face | no | 1.00 | 0.01 | 0.50±0.03 | 0.73 | 0 |
+| targeted Mind & Face | **yes** (steps 237–249/266, finishing) | 0.99 | 0.09±0.07 | 0.50±0.04 | 1.00 | 0 |
+| reward targeting (not rerun) | no | 1.00 | 0.14±0.11 | 0.57±0.02 | 0.99 | 0 |
+| Mind & Face (not rerun) | no | 1.00 | 0.01 | 0.36±0.10 | 1.00 | 0 |
+
+Readings.
+1. The word-count requirement removes bare answers everywhere (explanation <20 words: 0.00–0.02),
+   and fixes the arms that had partial degeneration: no-SFT penalty (genuine 0.72 → 1.00) and
+   targeted M&F (0.73 → 1.00) keep the same CoT detection (0.24–0.27 and 0.50), so their earlier
+   numbers stand.
+2. The pirate and Pig-Latin penalty arms found the next-cheapest way to satisfy both the penalty and
+   the word count: word salad ("Arr, matey, scurvy scurvy scurvy…", "ot ot ot…") with a boxed answer.
+   Genuine explanations stay at 0.01 / 0.12, and their CoT retention (0.64 / 0.54) is still bought by
+   output degeneration, not by style separation with a real explanation.
+3. The Chinese-output model is the one style arm that produced real explanations under the penalty
+   (0.99) — because it switched to English (style monitor 0.21; 4/5 seeds English, also in its control)
+   — and its CoT detection is 0.39±0.11: above no-SFT (0.24) but well below the styled-and-degenerate
+   arms and below reward targeting (0.57).
+4. Among arms that keep a genuine explanation (≥0.96), CoT retention under the output penalty ranks:
+   reward targeting 0.57 > targeted M&F 0.50 > Chinese-init(→English) 0.39 > Mind & Face 0.36 >
+   no-SFT 0.24–0.27. No style-separation arm belongs to this set. A fair test of the style hypothesis
+   therefore needs a semantic explanation term in the reward (e.g. the GPT-4.1 GENUINE judge above as
+   a reward component, or genuine-explanation-gated task reward) rather than a word count; the trainer
+   change is small (one more judge call per rollout, ≈2× judge cost).
+5. Ops: all 35 runs survived the 03:39 credit blip (≤7 zeroed judge calls each, one batch) and were
+   resumed from checkpoints after the 03:45 outage; final-window metrics are post-resume.

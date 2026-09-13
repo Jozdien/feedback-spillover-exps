@@ -564,3 +564,15 @@ auto-resume armed.
 - **04:00 UTC: credits topped up; all 54 stopped runs resumed from their checkpoints** (35 explanation-
   required from batch 150/200, 10 terminal M&F from 100, 9 terminal 27B from 75). ETAs: explanation-
   required ~1.5 h, terminal M&F ~5 h, terminal 27B ~6 h, big-model poly: Nemotron ~40 min, Qwen-397B ~5 h.
+
+## 2026-09-13 ~07:10 UTC — explanation-required reruns: word count is gamed by word salad (RESULTS §16b)
+- Forcing ≥20 explanation words removed bare answers everywhere and fixed the partially degenerate arms
+  (no-SFT penalty and targeted M&F now give genuine explanations 100% of the time at the same CoT
+  numbers, 0.24 and 0.50).
+- The pirate and Pig-Latin penalty arms switched to word salad ("scurvy scurvy scurvy…") — genuine
+  explanations 1% and 12% — so their CoT retention (0.64, 0.54) is still output degeneration.
+- The Chinese arm is the only styled model that produced real explanations under the penalty, by
+  switching to English; its CoT detection is 0.39 (no-SFT 0.24, reward targeting 0.57, targeted M&F 0.50).
+- Consequence: no style-separation arm has yet preserved the CoT while producing a real explanation.
+  Testing the hypothesis fairly needs an explanation-quality term in the reward (GPT-4.1 "genuine
+  explanation" judge, ≈2× judge cost, ~10 runs). Your call.
