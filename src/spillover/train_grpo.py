@@ -443,6 +443,13 @@ async def _sample_group(ctx: _Ctx, sp, item) -> list[dict | None]:
     return list(await asyncio.gather(*[finish(s) for s in cot_seqs]))
 
 
+def _explanation_words(out_text: str) -> int:
+    """Word count of the '### Explanation' section (pirate / Chinese '解释' / Pig-Latin 'Xplanationeay'
+    headers included); 0 when the section is missing (e.g. a bare \\boxed{X})."""
+    m = re.search(r"### (?:Explanation|解释|Xplanationeay)\s*(.*)", out_text or "", re.S)
+    return len((m.group(1) if m else "").replace("<|im_end|>", "").split())
+
+
 async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[float]]:
     cfg = ctx.cfg
     cots = [r["cot_text"] if r else "" for r in rollouts]
@@ -458,13 +465,13 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
     else:
         corrects, out_scores, cot_scores = await _score_poly(flat_items, cots, outs)
     corrects = [float(c) for c in corrects]
+    raw_corrects = list(corrects)  # task correctness BEFORE the explanation requirement
+    expl_words = [_explanation_words(o) for o in outs]
 
     # Require an explanation of at least min_explanation_words (QA tasks)
     if cfg.min_explanation_words > 0 and cfg.task.startswith("qa"):
-        for i, o in enumerate(outs):
-            m = re.search(r"### (?:Explanation|解释|Xplanationeay)\s*(.*)", o, re.S)
-            words = len((m.group(1) if m else "").replace("<|im_end|>", "").split())
-            if words < cfg.min_explanation_words:
+        for i, w in enumerate(expl_words):
+            if w < cfg.min_explanation_words:
                 corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
     # Penalize outputs with no extractable answer (boxed letter/expression, or a
     # fenced code block for lcb/apps)
@@ -487,6 +494,8 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
         pirate_cot = [0.0] * len(outs)
     return {
         "correct": corrects,
+        "raw_correct": raw_corrects,
+        "expl_words": expl_words,
         "out": [float(s) for s in out_scores],
         "cot": [float(s) for s in cot_scores],
         "pirate": [float(p) for p in pirate_scores],
@@ -556,6 +565,8 @@ def _write_rollouts(ctx: _Ctx, batch_idx, flat_items, rollouts, scores, adv, ver
                 "out_text": r["out_text"] if r else "",
                 "valid": r is not None,
                 "correct": scores["correct"][i],
+                "raw_correct": scores.get("raw_correct", scores["correct"])[i],
+                "explanation_words": scores.get("expl_words", [None] * len(scores["correct"]))[i],
                 "out_score": scores["out"][i],
                 "cot_score": scores["cot"][i],
                 "penalty_val": adv["penalty_vals"][i],

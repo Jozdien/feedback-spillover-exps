@@ -93,6 +93,9 @@ class Config:
     penalty_weight: float = -2.0
     reward_target: bool = False
     no_answer_penalty: float = 0.0
+    # Require a real explanation: outputs whose "### Explanation" section has fewer than this many
+    # words get no_answer_penalty (or 0) as task reward (0 = off). Same semantics as train_grpo.
+    min_explanation_words: int = 0
     checkpoint: str | None = None
     save_every: int = 100
     seed: int = 42
@@ -151,6 +154,12 @@ async def _score_poly(items, cots, outputs):
     out_scores = list(await asyncio.gather(*[m.score(o) for m, o in zip(monitors, outputs)]))
     cot_scores = list(await asyncio.gather(*[m.score(c) for m, c in zip(monitors, cots)]))
     return corrects, out_scores, cot_scores
+
+
+def _explanation_words(out_text: str) -> int:
+    """Word count of the '### Explanation' section (0 when missing, e.g. a bare \\boxed{X})."""
+    m = re.search(r"### (?:Explanation|解释|Xplanationeay)\s*(.*)", out_text or "", re.S)
+    return len((m.group(1) if m else "").replace("<|im_end|>", "").split())
 
 
 def _group_normalize(values: list[float], group_size: int, eps: float = 1e-8) -> list[float]:
@@ -327,6 +336,14 @@ async def train(cfg: Config):
                 flat_items, cots_text, outs_text
             )
 
+        corrects = [float(c) for c in corrects]
+        raw_corrects = list(corrects)  # before the explanation requirement
+        expl_words = [_explanation_words(o) for o in outs_text]
+        if cfg.min_explanation_words > 0 and cfg.task == "qa":
+            for i, w in enumerate(expl_words):
+                if w < cfg.min_explanation_words:
+                    corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
+
         # Penalize outputs with no extractable \boxed{} answer
         if cfg.no_answer_penalty != 0.0:
             for i, o in enumerate(outs_text):
@@ -361,6 +378,8 @@ async def train(cfg: Config):
                     "target": target,
                     "cot_text": cots_text[i],
                     "out_text": outs_text[i],
+                    "raw_correct": raw_corrects[i],
+                    "explanation_words": expl_words[i],
                     "valid": v is not None,
                     "correct": correct_vals[i],
                     "out_score": float(out_scores[i]),

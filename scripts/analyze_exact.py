@@ -39,8 +39,19 @@ def main():
         ko = next((k for k in ("monitor/hint_in_output", "monitor/expanded_in_output", "monitor/cheat_in_output") if k in tail[0]), None)
         kc = ko.replace("output", "cot") if ko else None
         g = lambda k: np.mean([x.get(k, 0.0) for x in tail])  # noqa: E731
+        # explanation-required runs: rollouts carry raw_correct (before the requirement) and explanation_words
+        raw_follow = short = None
+        try:
+            rows = [json.loads(ln) for ln in open(f"{d}/rollouts.jsonl")]
+            rows = [r for r in rows if r["batch"] > steps[-1] - a.last and r.get("explanation_words") is not None]
+            if rows:
+                mw = 20
+                raw_follow = np.mean([r["raw_correct"] == 1.0 for r in rows])
+                short = np.mean([r["explanation_words"] < mw for r in rows])
+        except FileNotFoundError:
+            pass
         arms[arm].append({
-            "seed": seed, "n_steps": len(steps), "last_step": steps[-1],
+            "seed": seed, "n_steps": len(steps), "last_step": steps[-1], "raw_follow": raw_follow, "short": short,
             "task": g("reward/correct"), "out_pen": lam * g(ko), "out": g(ko), "cot": g(kc),
             "style_out": g("monitor/pirate_in_output") if "monitor/pirate_in_output" in tail[0] else None,
             "style_cot": g("monitor/style_in_cot") if "monitor/style_in_cot" in tail[0] else None,
@@ -50,6 +61,8 @@ def main():
         f = lambda k: f"{np.mean([r[k] for r in rs]):.2f}±{np.std([r[k] for r in rs]):.2f}"  # noqa: E731
         st = (f"{f('style_out')} / {f('style_cot')}" if rs[0]["style_out"] is not None else "-")
         print(f"{arm:30s} {len(rs):5d}  {min(r['last_step'] for r in rs)+1:5d} | {f('task'):>11s} | {f('out'):>20s} | {f('out_pen'):>9s} | {f('cot'):>13s} | {st}")
+        if rs[0]["raw_follow"] is not None:
+            print(f"{'':30s}   follow hint (before explanation req.) {f('raw_follow')}   explanation <20 words {f('short')}")
         if a.per_seed:
             for r in sorted(rs, key=lambda r: r["seed"]):
                 extra = f"  style {r['style_out']:.2f}/{r['style_cot']:.2f}" if r["style_out"] is not None else ""
