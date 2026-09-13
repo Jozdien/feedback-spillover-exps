@@ -130,6 +130,12 @@ uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 max_thinking
 # Prompted style (no SFT): instruction appended to every prompt + style monitors on output and CoT
 uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 style_monitor=true style_desc=pirate \
   "style_prompt=Write everything after your thinking (the ### Answer and ### Explanation sections) in exaggerated pirate-speak."
+
+# Explanation required (RESULTS §16 follow-up): a QA output whose "### Explanation" section has fewer
+# than N words gets task reward no_answer_penalty (or 0), so a bare \boxed{X} cannot collect the task
+# reward. Rollouts log raw_correct (before the requirement) and explanation_words. Works in
+# train_grpo and train_grpo_mind_face. Family launcher: bash scripts/launch_explanation_required.sh
+uv run python -m src.spillover.train_grpo task=qa penalty_weight=-2 min_explanation_words=20 ...
 ```
 
 ### Evaluation
@@ -147,6 +153,15 @@ uv run scripts/eval_all_penalty_checkpoints.py --max-concurrent 4
 ```
 
 Eval results are saved as JSONL in `logs/eval-{penalty,penalty-v2,penalty-v3,control}/`.
+
+Re-judge final-checkpoint eval files with the original paper's judge (GPT-4.1, binary, identical prompt) on both channels; the gpt-4o-mini soft judge used during the paper runs under-detects hint acknowledgment (RESULTS §12):
+
+```bash
+set -a && source .env && set +a
+uv run scripts/rejudge_evals_gpt41.py                # 14 key runs (seed 42)
+uv run scripts/rejudge_evals_gpt41.py --all-paper    # every final eval file of the paper runs (viewer index); resumable
+# -> logs/rejudge-gpt41/<run>__<family>_<ckpt>.jsonl + summary_all.md
+```
 
 ### Plotting
 

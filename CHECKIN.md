@@ -485,3 +485,18 @@ checkpoint). The paper-runs viewer now also contains every run from this campaig
 **Waiting on you.** (a) explanation-required rerun (above); (b) whether to re-judge the paper's old
 T=4096 eval files with GPT-4.1 (the old gpt-4o-mini judge under-detects); (c) regenerating the
 paper's polynomial figure reward axis from rollouts with the fixed checker (script exists).
+
+## 2026-09-13 ~00:15 UTC — explanation-required reruns launched; GPT-4.1 re-judge of all paper evals running
+- **Which arms keep real explanations under the output penalty (late rollouts, last 67 steps):** no-SFT
+  penalty 88% (12% bare), reward targeting 99%, Mind & Face 99%, targeted M&F 75% (25% bare), pirate
+  SFT penalty 0% (100% bare), Chinese SFT penalty 3%, Pig-Latin SFT penalty 23% (rest junk/short).
+  Controls: no-SFT 99%, pirate 88%, Chinese 62%, Pig-Latin 100%. So RT and plain M&F are clean; the
+  problem is concentrated in every style-SFT penalty arm, targeted M&F, and (mildly) no-SFT penalty.
+- **Launched `expl300` (35 runs, 5 seeds each, same T=300 protocol + `min_explanation_words=20`: an
+  output whose "### Explanation" section has <20 words gets task reward 0):** no-SFT penalty,
+  pirate penalty + control, targeted M&F, Chinese penalty + control, Pig-Latin penalty. RT / M&F /
+  no-SFT control / Pig-Latin control are not rerun (≥99% real explanations; their reward is unchanged
+  in ≥99% of rollouts). Rollouts now also record `raw_correct` (hint-following before the requirement)
+  and `explanation_words`. ETA ~3 h; judge cost ≈ $350–450.
+- **GPT-4.1 re-judge of every final eval file of the paper runs** (133 files, 50,274 samples, both
+  channels) is running: `logs/rejudge-gpt41/<run>__<family>_<ckpt>.jsonl` + `summary_all.md`.
