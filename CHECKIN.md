@@ -540,3 +540,12 @@ for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_
 - Baseline gap vs the paper: our untrained model already scores 0.95 on the CoT judge (theirs 0.17 after
   no-penalty training); same prompt and judge, so their CoT channel must be rendered differently. Not
   resolvable from the paper.
+
+## 2026-09-13 ~03:39 UTC — OpenAI credits hit zero for a few minutes (third time); self-recovered
+- Every judge call failed for ~3 minutes ("no credits remaining"), then succeeded again (auto-recharge?).
+- 11 terminal runs (Mind & Face, targeted M&F, 27B) aborted on the outage guard and were resumed from
+  their last checkpoints (log truncation as usual). The 35 explanation-required runs survived on retries;
+  120 judge calls in total (1–7 per run, one batch each around batch 180–230) were scored 0 before
+  credits returned — at most a fraction of one batch per run, outside the final-window metrics.
+- Polynomial and corrected-regex runs use no LLM judge and were unaffected.
+- **Please check the OpenAI balance**: ~55 judge-using runs are live and will abort again if it hits zero.
