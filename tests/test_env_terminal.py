@@ -221,3 +221,47 @@ def test_judge_conversation_rendering(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     judge = T.VerifierJudge()
     assert judge.model == "gpt-4.1-mini" and judge.binary and judge.prompt == T.JUDGE_PROMPT
+
+
+def test_trainer_datum_routing_single_and_mind_face():
+    """train_grpo_terminal._build_datum per-token routing: the single policy trains CoT and output
+    tokens; in Mind & Face the mind trains only the CoT tokens and the face only the output tokens
+    (the other channel gets advantage 0 and logprob 0), and the mind's CoT advantage drops the penalty
+    iff reward_target (targeted Mind & Face). Structural/prompt/env tokens always get 0."""
+    from src.spillover import train_grpo_terminal as G
+
+    kinds = ["prompt", "prompt", "cot", "cot", "struct", "out", "out", "struct", "env", "cot", "out"]
+    tokens = list(range(100, 100 + len(kinds)))
+    lps = [-float(i) if k in ("cot", "out") else 0.0 for i, k in enumerate(kinds)]
+    ep = G.Episode({}, "", tokens, lps, kinds, [], False, "none", False, False)
+    c, p = 0.5, -0.25
+
+    def unpack(d):
+        li = d.loss_fn_inputs
+        return (list(d.model_input.to_ints()), li["target_tokens"].tolist(),
+                li["logprobs"].tolist(), li["advantages"].tolist())
+
+    def where(kind, vals):  # per-target (tokens[1:]) values masked to one token kind
+        return [v if k == kind else 0.0 for v, k in zip(vals[1:], kinds[1:])]
+
+    for rt in (False, True):
+        cfg = G.Config(reward_target=rt)
+        cot_adv = c if rt else c + p
+        inp, tgt, lp, a = unpack(G._build_datum(cfg, ep, c, p))
+        assert inp == tokens[:-1] and tgt == tokens[1:] and lp == pytest.approx(lps[1:])
+        assert a == pytest.approx([{"cot": cot_adv, "out": c + p}.get(k, 0.0) for k in kinds[1:]])
+        inp, tgt, lp, a = unpack(G._build_datum(cfg, ep, c, p, "mind"))
+        assert inp == tokens[:-1] and tgt == tokens[1:]
+        assert lp == pytest.approx(where("cot", lps)) and a == pytest.approx(where("cot", [cot_adv] * len(kinds)))
+        inp, tgt, lp, a = unpack(G._build_datum(cfg, ep, c, p, "face"))
+        assert lp == pytest.approx(where("out", lps)) and a == pytest.approx(where("out", [c + p] * len(kinds)))
+
+    ctx = G._Ctx(G.Config(log_path="L"), None, None, None, None, [], "TC", None, None, None, None, 0, 0, None)
+    assert G._policies(ctx) == [(None, "TC", "L")]
+    ctx.cfg, ctx.tc_face = G.Config(log_path="L", mind_face=True), "TF"
+    assert G._policies(ctx) == [("mind", "TC", "L/mind"), ("face", "TF", "L/face")]
+    scores = {k: [0.0] for k in ("correct", "out", "cot", "regex_out", "regex_cot")}
+    adv = {"penalty_vals": [0.0], "correct": [0.0], "penalty": [0.0]}
+    problem = {"rows": 1, "cols": 1, "grid": [[0]], "answer": 0, "ground_truth": "1"}
+    assert "mind_face" not in G._rollout_row(0, 0, None, problem, scores, adv, [])
+    assert G._rollout_row(0, 0, None, problem, scores, adv, [], True)["mind_face"] is True

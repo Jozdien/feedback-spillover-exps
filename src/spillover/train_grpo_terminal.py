@@ -20,6 +20,14 @@ Datum per episode over the full multi-turn sequence, kept as an explicit token l
 trained on are exactly the tokens the model was prompted with:
     prompt + [cot (+ "\\n</think>" if truncated) + output (+ <|im_end|> if truncated) + user turn]*
 
+Mind & Face (mind_face=true; Drori et al. Sec. 5, as in train_grpo_mind_face): two LoRA policies from
+the same init. Every turn the mind samples the CoT and the face samples the output given the same
+prefix plus the mind's CoT; the multi-turn history (previous CoTs included) is shared verbatim. Mind
+datums train only the CoT tokens with the "cot" advantage above (correct_adv + penalty_adv, or
+correct_adv only if reward_target, i.e. targeted Mind & Face); face datums train only the output
+tokens with correct_adv + penalty_adv; the other policy's tokens get advantage 0 and logprob 0.
+Checkpoints go to <log_path>/mind/ and <log_path>/face/ (each with its own checkpoints.jsonl).
+
 Paper hyperparameters (App. C.3; REINFORCE on Qwen3-8B, 128 thinking / 256 output tokens):
     regex penalty:     batch 8 x grad-accum 4, lr 5e-6, 3,200 episodes, lambda 1.25
     LLM-judge penalty: batch 32, lr 1e-6, 40,000 episodes, lambda 0.75
@@ -29,6 +37,8 @@ Usage (all knobs are chz CLI overrides of Config):
     uv run python -m src.spillover.train_grpo_terminal monitor=regex log_path=logs/grpo-terminal
     uv run python -m src.spillover.train_grpo_terminal monitor=llm penalty_weight=-0.75 \
         learning_rate=1e-6
+    uv run python -m src.spillover.train_grpo_terminal monitor=llm penalty_weight=-0.75 \
+        mind_face=true reward_target=true  # targeted Mind & Face
     uv run python -m src.spillover.train_grpo_terminal dry_run=true batch_size=4 group_size=2 \
         monitor=llm
 """
@@ -36,6 +46,7 @@ Usage (all knobs are chz CLI overrides of Config):
 import asyncio
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,7 +70,7 @@ from src.spillover.env_terminal import (
     regex_monitor,
     render_judge_conversation,
 )
-from src.spillover.train_grpo import _group_normalize, _new_sampler, _sample_one, _save_checkpoint
+from src.spillover.train_grpo import _group_normalize, _sample_one, _save_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +94,7 @@ class Config:
     judge_model: str = "gpt-4.1-mini"
     judge_human_turns: str = "redacted"  # redacted | prompt_only | full (env_terminal docs)
     reward_target: bool = False
+    mind_face: bool = False  # separate CoT (mind) and output (face) policies; see module docstring
     save_every: int = 50
     seed: int = 42
     log_path: str = "logs/grpo-terminal"
@@ -139,7 +151,8 @@ class _Ctx:
     renderer: object
     judge: object
     problems: list
-    tc: object
+    tc: object  # training client (the mind when cfg.mind_face)
+    tc_face: object  # face training client (cfg.mind_face only, else None)
     adam: object
     cot_params: object
     out_params: object
@@ -157,8 +170,9 @@ def _strip_tags(text: str, open_tag: str, close_tag: str) -> str:
     return text.strip()
 
 
-async def _run_episode(ctx: _Ctx, sp, problem: dict) -> Episode | None:
-    """Sample one multi-turn episode; None if any sampling call failed."""
+async def _run_episode(ctx: _Ctx, sp_mind, sp_face, problem: dict) -> Episode | None:
+    """Sample one multi-turn episode: CoTs from sp_mind, outputs from sp_face (the same sampler
+    unless cfg.mind_face); None if any sampling call failed."""
     cfg, tk, tok = ctx.cfg, ctx.tk, ctx.tokenizer
     prompt_text = format_prompt(problem)
     tokens = list(ctx.renderer.build_generation_prompt(
@@ -174,7 +188,7 @@ async def _run_episode(ctx: _Ctx, sp, problem: dict) -> Episode | None:
     env = TerminalEpisode(problem, cfg.max_turns, cfg.command_timeout)
     try:
         for turn in range(cfg.max_turns):
-            cot = await _sample_one(sp, tokens, ctx.cot_params)
+            cot = await _sample_one(sp_mind, tokens, ctx.cot_params)
             if cot is None:
                 return None
             cot_toks = list(cot.tokens)
@@ -182,7 +196,7 @@ async def _run_episode(ctx: _Ctx, sp, problem: dict) -> Episode | None:
             cot_trunc = not cot_toks or cot_toks[-1] != tk.think_close
             if cot_trunc:  # hit max_thinking_tokens: force-close the CoT
                 add(tk.forced_close, [0.0] * len(tk.forced_close), "struct")
-            out = await _sample_one(sp, tokens, ctx.out_params)
+            out = await _sample_one(sp_face, tokens, ctx.out_params)
             if out is None:
                 return None
             out_toks = list(out.tokens)
@@ -315,24 +329,37 @@ def _advantages(cfg: Config, scores) -> dict:
     }
 
 
-def _build_datum(cfg: Config, ep: Episode, correct_adv: float, penalty_adv: float) -> types.Datum:
+def _build_datum(
+    cfg: Config, ep: Episode, correct_adv: float, penalty_adv: float, role: str | None = None
+) -> types.Datum:
+    """One Datum over the full multi-turn sequence. role=None (single policy) trains the CoT and the
+    output tokens; role="mind" / "face" (mind_face) trains only the CoT / only the output tokens, the
+    other channel getting advantage 0 and logprob 0 (its tokens were sampled by the other policy)."""
     adv_by_kind = {
         "cot": correct_adv + (0.0 if cfg.reward_target else penalty_adv),
         "out": correct_adv + penalty_adv,
     }
+    if role is not None:
+        kind = {"mind": "cot", "face": "out"}[role]
+        adv_by_kind = {kind: adv_by_kind[kind]}
     advs = [adv_by_kind.get(k, 0.0) for k in ep.kinds]
+    lps = ep.logprobs if role is None else [
+        lp if k in adv_by_kind else 0.0 for lp, k in zip(ep.logprobs, ep.kinds)
+    ]
     return types.Datum(
         model_input=types.ModelInput.from_ints(tokens=ep.tokens[:-1]),
         loss_fn_inputs={
             "target_tokens": TensorData.from_torch(torch.tensor(ep.tokens[1:])),
-            "logprobs": TensorData.from_torch(torch.tensor(ep.logprobs[1:])),
+            "logprobs": TensorData.from_torch(torch.tensor(lps[1:])),
             "advantages": TensorData.from_torch(torch.tensor(advs[1:])),
         },
     )
 
 
-def _rollout_row(batch_idx, i, ep: Episode | None, problem, scores, adv, token_problems) -> dict:
-    return {
+def _rollout_row(
+    batch_idx, i, ep: Episode | None, problem, scores, adv, token_problems, mind_face=False
+) -> dict:
+    row = {
         "batch": batch_idx,
         "rollout": i,
         "problem": {
@@ -361,6 +388,9 @@ def _rollout_row(batch_idx, i, ep: Episode | None, problem, scores, adv, token_p
         "n_tokens": len(ep.tokens) if ep else 0,
         "token_check": token_problems,
     }
+    if mind_face:  # per-turn "cot" is the mind's, "output" the face's
+        row["mind_face"] = True
+    return row
 
 
 def _batch_metrics(cfg, scores, episodes, n_valid, n_token_problems) -> dict:
@@ -392,9 +422,9 @@ def _batch_metrics(cfg, scores, episodes, n_valid, n_token_problems) -> dict:
     }
 
 
-async def _sample_batch(ctx: _Ctx, sp, problems: list[dict]):
+async def _sample_batch(ctx: _Ctx, sp_mind, sp_face, problems: list[dict]):
     flat = [p for p in problems for _ in range(ctx.cfg.group_size)]
-    episodes = list(await asyncio.gather(*[_run_episode(ctx, sp, p) for p in flat]))
+    episodes = list(await asyncio.gather(*[_run_episode(ctx, sp_mind, sp_face, p) for p in flat]))
     checks = [_check_tokens(ep, ctx.tokenizer, ctx.tk) if ep else [] for ep in episodes]
     for i, probs in enumerate(checks):
         if probs:
@@ -403,12 +433,39 @@ async def _sample_batch(ctx: _Ctx, sp, problems: list[dict]):
     return flat, episodes, checks, scores
 
 
+def _policies(ctx: _Ctx) -> list[tuple[str | None, object, str]]:
+    """(role, training client, checkpoint dir) of each trained policy: the single policy, or the mind
+    and the face (checkpointed under <log_path>/mind and <log_path>/face)."""
+    if ctx.cfg.mind_face:
+        return [(r, tc, os.path.join(ctx.cfg.log_path, r))
+                for r, tc in (("mind", ctx.tc), ("face", ctx.tc_face))]
+    return [(None, ctx.tc, ctx.cfg.log_path)]
+
+
+async def _sampler(tc, name: str):
+    fut = await tc.save_weights_for_sampler_async(name=name)
+    return await tc.create_sampling_client_async((await fut.result_async()).path)
+
+
+async def _optim_step(ctx: _Ctx, tc, datums: list[types.Datum]):
+    if not datums:
+        return
+    fwd = await tc.forward_backward_async(datums, loss_fn=ctx.cfg.loss_fn)
+    opt = await tc.optim_step_async(ctx.adam)
+    await fwd.result_async()
+    await opt.result_async()
+
+
 async def _train_step(ctx: _Ctx, batch_idx: int, t0: float):
     cfg = ctx.cfg
     start = (batch_idx * ctx.prompts_per_step) % len(ctx.problems)
-    sp = await _new_sampler(ctx, f"{batch_idx:06d}")
+    name = f"{batch_idx:06d}"
+    if cfg.mind_face:
+        sp_mind, sp_face = await asyncio.gather(_sampler(ctx.tc, name), _sampler(ctx.tc_face, name))
+    else:
+        sp_mind = sp_face = await _sampler(ctx.tc, name)
     flat, episodes, checks, scores = await _sample_batch(
-        ctx, sp, ctx.problems[start : start + ctx.prompts_per_step]
+        ctx, sp_mind, sp_face, ctx.problems[start : start + ctx.prompts_per_step]
     )
     n_valid = sum(1 for ep in episodes if ep)
     if n_valid < 2:
@@ -417,17 +474,15 @@ async def _train_step(ctx: _Ctx, batch_idx: int, t0: float):
     adv = _advantages(cfg, scores)
     with open(Path(cfg.log_path) / "rollouts.jsonl", "a") as f:
         for i, ep in enumerate(episodes):
-            row = _rollout_row(batch_idx, i, ep, flat[i], scores, adv, checks[i])
+            row = _rollout_row(batch_idx, i, ep, flat[i], scores, adv, checks[i], cfg.mind_face)
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    datums = [
-        _build_datum(cfg, ep, adv["correct"][i], adv["penalty"][i])
-        for i, ep in enumerate(episodes) if ep and not checks[i]
-    ]
-    if datums:
-        fwd = await ctx.tc.forward_backward_async(datums, loss_fn=cfg.loss_fn)
-        opt = await ctx.tc.optim_step_async(ctx.adam)
-        await fwd.result_async()
-        await opt.result_async()
+    kept = [(i, ep) for i, ep in enumerate(episodes) if ep and not checks[i]]
+    await asyncio.gather(*[
+        _optim_step(ctx, tc, [
+            _build_datum(cfg, ep, adv["correct"][i], adv["penalty"][i], role) for i, ep in kept
+        ])
+        for role, tc, _ in _policies(ctx)
+    ])
     metrics = {"progress/batch": batch_idx}
     metrics.update(_batch_metrics(cfg, scores, episodes, n_valid, sum(1 for c in checks if c)))
     metrics["time/total"] = time.time() - t0
@@ -471,7 +526,7 @@ async def _dry_run(ctx: _Ctx, service):
     )
     t0 = time.time()
     flat, episodes, checks, scores = await _sample_batch(
-        ctx, sp, ctx.problems[: ctx.prompts_per_step]
+        ctx, sp, sp, ctx.problems[: ctx.prompts_per_step]
     )
     adv = _advantages(cfg, scores)
     for i, ep in enumerate(episodes):
@@ -491,13 +546,47 @@ async def _dry_run(ctx: _Ctx, service):
     Path(cfg.log_path).mkdir(parents=True, exist_ok=True)
     with open(Path(cfg.log_path) / "dry_run_rollouts.jsonl", "w") as f:
         for i, ep in enumerate(episodes):
-            f.write(json.dumps(_rollout_row(0, i, ep, flat[i], scores, adv, checks[i]),
+            f.write(json.dumps(_rollout_row(0, i, ep, flat[i], scores, adv, checks[i], cfg.mind_face),
                                ensure_ascii=False) + "\n")
     n_valid = sum(1 for e in episodes if e)
     print(f"metrics: {json.dumps(_batch_metrics(cfg, scores, episodes, n_valid, 0), indent=1)}")
     assert not any(checks), f"token bookkeeping failed: {checks}"
     print(f"structural check passed for all {n_valid} episodes; "
           f"canonical-render match {canon_total - canon_bad}/{canon_total} turn starts")
+
+
+def _init_mind_face(ctx: _Ctx, service) -> int:
+    """Create the mind and face training clients (as train_grpo_mind_face): resume both from the last
+    batch checkpointed in BOTH <log_path>/mind and <log_path>/face, else start both from
+    cfg.checkpoint or from fresh LoRAs on the base model. Returns the batch to start from."""
+    cfg = ctx.cfg
+    dirs = [os.path.join(cfg.log_path, r) for r in ("mind", "face")]
+    for d in dirs:
+        os.makedirs(d, exist_ok=True)
+    saved = [
+        {c.batch: c for c in checkpoint_utils.load_checkpoints_file(d)
+         if c.has("state_path") and c.batch is not None}
+        for d in dirs
+    ]
+    common = set(saved[0]) & set(saved[1])
+    if common:
+        batch = max(common)
+        logger.info(f"Resuming mind and face from batch {batch}")
+        ctx.tc, ctx.tc_face = [
+            service.create_training_client_from_state_with_optimizer(s[batch].state_path)
+            for s in saved
+        ]
+        return batch
+    if cfg.checkpoint:
+        ctx.tc, ctx.tc_face = [
+            service.create_training_client_from_state_with_optimizer(cfg.checkpoint) for _ in dirs
+        ]
+    else:
+        ctx.tc, ctx.tc_face = [
+            service.create_lora_training_client(base_model=cfg.model_name, rank=cfg.lora_rank)
+            for _ in dirs
+        ]
+    return 0
 
 
 async def train(cfg: Config):
@@ -524,7 +613,8 @@ async def train(cfg: Config):
     n_batches = cfg.num_episodes // cfg.batch_size
     ctx = _Ctx(
         cfg=cfg, tk=_toks(tokenizer), tokenizer=tokenizer, renderer=renderer, judge=judge,
-        problems=problems, tc=None, adam=None, cot_params=cot_params, out_params=out_params,
+        problems=problems, tc=None, tc_face=None, adam=None, cot_params=cot_params,
+        out_params=out_params,
         n_batches=n_batches, prompts_per_step=prompts_per_step, ml_logger=None,
     )
     if cfg.dry_run:
@@ -533,31 +623,38 @@ async def train(cfg: Config):
         return
 
     ctx.ml_logger = ml_log.setup_logging(log_dir=cfg.log_path, config=cfg)
-    resume = checkpoint_utils.get_last_checkpoint(cfg.log_path)
-    if resume:
-        ctx.tc = service.create_training_client_from_state_with_optimizer(resume.state_path)
-        start_batch = resume.batch
-    elif cfg.checkpoint:
-        ctx.tc = service.create_training_client_from_state_with_optimizer(cfg.checkpoint)
-        start_batch = 0
+    if cfg.mind_face:
+        start_batch = _init_mind_face(ctx, service)
     else:
-        ctx.tc = service.create_lora_training_client(base_model=cfg.model_name, rank=cfg.lora_rank)
-        start_batch = 0
+        resume = checkpoint_utils.get_last_checkpoint(cfg.log_path)
+        if resume:
+            ctx.tc = service.create_training_client_from_state_with_optimizer(resume.state_path)
+            start_batch = resume.batch
+        elif cfg.checkpoint:
+            ctx.tc = service.create_training_client_from_state_with_optimizer(cfg.checkpoint)
+            start_batch = 0
+        else:
+            ctx.tc = service.create_lora_training_client(
+                base_model=cfg.model_name, rank=cfg.lora_rank
+            )
+            start_batch = 0
     ctx.adam = types.AdamParams(learning_rate=cfg.learning_rate, beta1=0.9, beta2=0.999)
 
     for batch_idx in range(start_batch, n_batches):
         t0 = time.time()
         if cfg.save_every > 0 and batch_idx > 0 and batch_idx % cfg.save_every == 0:
-            await _save_checkpoint(
-                training_client=ctx.tc, name=f"{batch_idx:06d}", log_path=cfg.log_path,
-                kind="state", loop_state={"batch": batch_idx},
-            )
+            for _, tc, log_dir in _policies(ctx):
+                await _save_checkpoint(
+                    training_client=tc, name=f"{batch_idx:06d}", log_path=log_dir,
+                    kind="state", loop_state={"batch": batch_idx},
+                )
         await _train_step(ctx, batch_idx, t0)
 
-    await _save_checkpoint(
-        training_client=ctx.tc, name="final", log_path=cfg.log_path, kind="both",
-        loop_state={"batch": n_batches},
-    )
+    for _, tc, log_dir in _policies(ctx):
+        await _save_checkpoint(
+            training_client=tc, name="final", log_path=log_dir, kind="both",
+            loop_state={"batch": n_batches},
+        )
     ctx.ml_logger.close()
 
 
