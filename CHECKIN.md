@@ -549,3 +549,7 @@ for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_
   credits returned — at most a fraction of one batch per run, outside the final-window metrics.
 - Polynomial and corrected-regex runs use no LLM judge and were unaffected.
 - **Please check the OpenAI balance**: ~55 judge-using runs are live and will abort again if it hits zero.
+- **03:45 UTC update: credits are out again.** All judge-using runs stopped on the guard (35
+  explanation-required + 10 terminal M&F + 9 terminal 27B). An auto-resume loop is armed: as soon as
+  two consecutive API checks succeed it runs `scripts/resume_runs.sh expl300 termllm-mf termllm-tmf
+  termllm-27b` (every run resumes from its last checkpoint). Nothing to do beyond topping up.
