@@ -301,3 +301,25 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
 - Corrected poly figure: `scripts/plot_poly_fixed.py` → `plots/v9_poly_32b_fixed.{png,pdf,json}`
   (paper/figures untouched).
 - Tinker concurrency: ~57 trainers + 20 M&F clients ran with only transient "paused" warnings.
+
+## 2026-09-13 (later) — what changed in the terminal story, and where everything is
+
+- Terminal regex monitor was too narrow (space-only "ground truth"; the model writes GROUND_TRUTH). §13/13b
+  are void; the corrected family is `term-regex2` (`ground[ _]*truth`, indicator) — RESULTS §13d/§13e.
+  Any regex monitor on this env must match both spellings.
+- LLM-judge terminal results (8B) are judge-gaming (explanations still name GROUND_TRUTH, add "probably a
+  placeholder, let me compute manually"); at 27B they are genuine concealment (§13g). The judge's
+  CoT-detection level depends on which CoTs it is shown (0.00 first-turn-only … 0.95 full transcript);
+  never compare absolute levels with the paper (§13d).
+- Terminal M&F/TMF exist (`mind_face=true [reward_target=true]`), results §13f.
+- Explanation-required family `expl300` (§16b) and the semantic explanation-quality checker
+  `scripts/check_explanation_quality.py` (GPT-4.1, GENUINE/NOT_GENUINE; gpt-4.1-mini with digit
+  labels was unreliable — do not reuse that variant). Word-count requirements get gamed by word salad;
+  a fair style test needs a semantic explanation term in the reward (not implemented; user's call).
+- Big-model poly: §14e (Nemotron none; 397B three routes by seed). Poly spillover = which route the
+  optimizer finds first (product rule / bare output / starvation), not size.
+- All run families of 2026-09-12/13 are in the viewer (`build_viewer.py --prefix …` list in
+  scripts/viewer_build3.log invocation) and the campaign artifact.
+- Ops: three OpenAI credit outages in two days; `resume_runs.sh` + the JUDGE_OUTAGE guard make them
+  cheap, but every judge-using family needs a top-up watch. Monitors: use `tail -c 300000` for
+  multi-turn rollouts (rows exceed 4 KB) and globs that match `-8b-s4?` names exactly.
