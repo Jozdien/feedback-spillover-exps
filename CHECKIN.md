@@ -583,3 +583,13 @@ output (0.82 → 0.01) and the CoT keeps the expanded form (0.98 → 0.96). Spil
 parameter count: the dense Qwen3 27B/32B models spill, the 8B and the 120B MoE (12B active) do not.
 Qwen3.5-397B (17B active) lands in ~2 h. All 35 explanation-required runs are complete (RESULTS §16b
 final). Terminal Mind & Face and 27B runs are past step 225 of 400.
+
+## 2026-09-13 ~08:50 UTC — Qwen-397B polynomial and terminal Mind & Face done (RESULTS §14e, §13f)
+- **Qwen3.5-397B, polynomial:** the three penalized seeds found three different solutions: one never got
+  any penalty signal (every group of four outputs was flagged, so the group-normalized reward carried no
+  gradient), one learned the product-rule shortcut and spilled (CoT 0.86), one dropped the explanation
+  and kept the CoT (0.99). Whether spillover appears depends on which route the optimizer finds first.
+- **Terminal, LLM-judge penalty, Mind & Face:** both mitigations work here and stack — Mind & Face keeps
+  the CoT at 0.91 (reward targeting 0.90), targeted Mind & Face at 0.95 (control 0.96), output scrubbed to
+  0.05–0.08 like the plain penalty (0.82 CoT). Same judge-gaming caveat as before.
+- Terminal 27B: 9 runs at steps 256–371 of 400 (~1.5 h). Viewer rebuild after that.

@@ -959,7 +959,7 @@ Readings.
 5. Ops: all 35 runs survived the 03:39 credit blip (≤7 zeroed judge calls each, one batch) and were
    resumed from checkpoints after the 03:45 outage; final-window metrics are post-resume.
 
-### 14e. Polynomial on larger models (2026-09-13): Nemotron-3-Super-120B-A12B shows NO spillover; Qwen3.5-397B-A17B pending
+### 14e. Polynomial on larger models (2026-09-13): Nemotron-3-Super-120B-A12B shows NO spillover; Qwen3.5-397B-A17B splits three ways by seed
 
 Paper budgets (T=800/1000), λ=1, GRPO 4×3, 3200 episodes, fixed reward, 3 seeds, last 27 steps.
 `logs/grpo-poly800-nemotron-*`.
@@ -968,6 +968,16 @@ Paper budgets (T=800/1000), λ=1, GRPO 4×3, 3200 episodes, fixed reward, 3 seed
 |---|---|---|---|---|
 | Nemotron-3-Super-120B-A12B | control | 0.89±0.04 | 0.82±0.19 (one seed 0.55) | 0.98±0.01 |
 | Nemotron-3-Super-120B-A12B | penalty λ=1 | 0.84±0.03 | 0.01±0.01 | **0.96±0.00** (0.95/0.96/0.96) |
+| Qwen3.5-397B-A17B | control | 0.89±0.02 | 0.99±0.01 | 1.00 |
+| Qwen3.5-397B-A17B | penalty λ=1 | 0.85±0.04 | 0.38±0.44 (seeds 1.00 / 0.15 / 0.00) | 0.95±0.06 (seeds 1.00 / **0.86** / 0.99) |
+
+Qwen3.5-397B per seed (`logs/grpo-poly800-qwen397-pen-*`): seed 42 never engaged the penalty — every
+GRPO group had all four outputs flagged (100% of late groups have zero penalty variance), so the
+group-normalized advantage carried no signal and M_out stayed 1.00 (the same starvation mechanism
+as prompted style, §15); seed 43 learned the product-rule route ("rewritten as x^3(…), by the product
+rule…"), M_out 0.15 with CoT 0.86 — the paper's spillover mechanism; seed 44 dropped the explanation
+altogether (100% bare `\boxed{…}`, 46 chars), M_out 0.00 with the CoT untouched (0.99) — the
+degeneration route of §16. Three seeds, three different solutions to the same penalty.
 
 Updated size/budget map of the penalized-CoT rate (control ≈ 0.98–1.00 everywhere):
 
@@ -977,8 +987,35 @@ Updated size/budget map of the penalized-CoT rate (control ≈ 0.98–1.00 every
 | Qwen3.6-27B (dense) | 0.81±0.13 (partial) | — |
 | Qwen3-32B (paper runs) | — | 0.18 (strong) |
 | Nemotron-3-Super-120B-A12B (MoE, 12B active) | 0.96 (none) | — |
+| Qwen3.5-397B-A17B (MoE, 17B active) | 1.00 / 0.86 / 0.99 by seed (starved / product rule / bare output) | — |
 | Drori 14B (REINFORCE) | ~0.14 | — |
 
 So the polynomial spillover is not a monotone function of parameter count: the 120B MoE (12B active)
 behaves like Qwen3-8B, i.e. it never adopts the product-rule route the penalty rewards, whereas
-the dense Qwen3 27B/32B models do. Qwen3.5-397B-A17B (17B active) is running (batch ~190/266).
+the dense Qwen3 27B/32B models do, and the 397B MoE can take either the product-rule route (spillover)
+or the bare-output route (no spillover) depending on the seed — or fail to get any penalty signal at
+all. Whether spillover appears in this environment depends on which of several ways to satisfy the
+penalty the optimizer finds first, not on size alone.
+
+
+### 13f. Terminal env, LLM-judge penalty: Mind & Face and targeted Mind & Face (2026-09-13; `logs/grpo-termllm-{mf,tmf}-8b-*`, 400 steps, 5 seeds, last 40 steps)
+
+Same protocol as §13c (gpt-4.1-mini judge, λ=0.75, GRPO 4×8, lr 5e-6, T=128/256). Mind = CoT policy,
+face = output policy (separate LoRAs), `mind_face=true`; targeted = mind receives the task reward only.
+
+| Arm | task | M_out | M_cot | read verifier |
+|---|---|---|---|---|
+| control (§13c) | 1.00 | 0.91±0.01 | 0.96±0.01 | 1.00 |
+| penalty (§13c) | 1.00 | 0.06±0.01 | 0.82±0.04 | 1.00 |
+| reward targeting (§13c) | 1.00 | 0.06±0.01 | 0.90±0.03 | 1.00 |
+| Mind & Face | 1.00 | 0.05±0.01 | **0.91±0.03** (0.92/0.85/0.93/0.92/0.94) | — |
+| targeted Mind & Face | 1.00 | 0.08±0.03 | **0.95±0.01** (0.94/0.97/0.95/0.94/0.95) | — |
+| Drori Fig 7 (judge CoT detection): none / penalty / M&F / RT / TMF | — | — | 0.17 / 0.06 / 0.11 / 0.20 / 0.20 | — |
+
+With the semantic judge, both mitigations work in our setup and stack: Mind & Face keeps the CoT at
+0.91 (≈ reward targeting 0.90), and targeted Mind & Face at 0.95 (≈ the unpenalized control 0.96)
+while the output is scrubbed as hard as the plain penalty (0.05–0.08). This matches the paper's
+qualitative claim that both mitigations together fully prevent spillover here, and differs from its
+finding that reward targeting alone is ineffective. Same caveats as §13d: the judge-on-CoT level
+depends on the CoT rendering, and the "scrubbed" explanations still name GROUND_TRUTH in ~99% of
+episodes (judge-gaming), so the CoT differences are about wording the judge accepts.
