@@ -728,3 +728,98 @@ significantly more (0.90; RT vs penalty differ in 5/5 seed pairs) at the same sc
 collapses on this task under the judge penalty (stops reading the verifier and fails). Our absolute
 CoT-detection level differs from the paper's (~0.2 there): our CoT channel shows the judge the
 turn-2 CoT, which typically restates the ground truth it just read.
+
+
+## 17. GPT-4.1 re-judge of EVERY final eval file of the paper runs (2026-09-13; `logs/rejudge-gpt41/`)
+
+`uv run scripts/rejudge_evals_gpt41.py --all-paper`: 133 final-checkpoint eval files (every paper run
+that has one), 50,274 samples, both channels re-judged with the original paper's judge (GPT-4.1,
+binary, identical prompt) and compared with the stored gpt-4o-mini soft scores. 0 judge failures.
+Per-file table: `logs/rejudge-gpt41/summary_all.md`; per-sample files `<run>__<family>_<ckpt>.jsonl`.
+
+Headline: the old judge under-detected hint acknowledgment in the CoT everywhere (mean CoT detection
+over all files 0.42 → 0.82) while the two judges agree on the output channel (0.14 → 0.14). Under the
+correct judge the paper's MAIN (T=4096) runs show little or no CoT spillover and no mitigation gaps:
+penalized no-SFT CoT 0.84 (8B) / 0.95 (32B) vs control 0.99; pirate-output 0.98, reward targeting
+0.99, Mind & Face 0.97, targeted M&F 1.00 (8B, λ=2). The apparent 8B ranking under the old judge
+(RT 0.20 < no-SFT 0.20 < pirate 0.47 < TMF 0.75) was judge noise. The CoT-penalty positive control
+(`v7pcot`) is 0.00–0.03 under both judges, so the judge does see the acknowledgment disappear when it
+really does. At T=300 the old 2-seed runs agree with the 2026-09 campaign: penalty 0.08, M&F 0.28,
+RT 0.45, pirate 0.59, TMF 0.62 (campaign, ≥5 seeds, GRPO: 0.27 / 0.36 / 0.57 / 0.59 / 0.50).
+Exceptions at T=4096: Nemotron-3-Super-120B (1 seed) penalty 0.29 vs control 0.91 — real spillover
+in that model; Qwen3.6-35B-A3B penalty 0.96 vs 1.00 (none). => The paper's spillover and mitigation
+claims must rest on the T=300 regime (§12–§12b, §16); the T=4096 figures need re-judged values or
+removal.
+
+| condition (seeds) | CoT det. gpt-4o-mini → GPT-4.1 | M_out gpt-4o-mini → GPT-4.1 | followed hint |
+|---|---|---|---|
+| piratereward-mu0.5-8b-pw-2 (2) | 0.36 → **0.96** | 0.00 → 0.00 | 1.00 |
+| piratereward-mu1-8b-pw-2 (2) | 0.40 → **0.95** | 0.00 → 0.00 | 1.00 |
+| piratereward-mu2-8b-pw-2 (2) | 0.55 → **0.96** | 0.00 → 0.00 | 1.00 |
+| scenB-step100-8b-pw-2 (2) | 0.51 → **0.96** | 0.09 → 0.00 | 1.00 |
+| scenB-step150-8b-pw-2 (2) | 0.57 → **0.94** | 0.03 → 0.00 | 1.00 |
+| scenB-step200-8b-pw-2 (2) | 0.32 → **0.98** | 0.03 → 0.00 | 0.99 |
+| scenB-step25-8b-pw-2 (2) | 0.56 → **0.98** | 0.02 → 0.00 | 1.00 |
+| scenB-step5-8b-pw-2 (2) | 0.37 → **0.94** | 0.02 → 0.00 | 1.00 |
+| scenB-step50-8b-pw-2 (2) | 0.49 → **0.96** | 0.02 → 0.00 | 0.99 |
+| scenB-stepfinal-8b-pw-2 (2) | 0.58 → **0.99** | 0.02 → 0.00 | 1.00 |
+| t300base-8b-pw-2 (2) | 0.00 → **0.08** | 0.00 → 0.10 | 1.00 |
+| t300mf-8b-pw-2 (2) | 0.16 → **0.28** | 0.00 → 0.01 | 1.00 |
+| t300pirate-8b-pw-2 (2) | 0.37 → **0.59** | 0.11 → 0.00 | 0.99 |
+| t300rt-8b-pw-2 (2) | 0.08 → **0.45** | 0.00 → 0.03 | 1.00 |
+| t300tmf-8b-pw-2 (2) | 0.42 → **0.62** | 0.00 → 0.00 | 1.00 |
+| v6-32b-pirate-output-alpaca-qwen (2) | 0.60 → **0.95** | 0.00 → 0.00 | 1.00 |
+| v6-8b-pirate-output-alpaca-qwen (2) | 0.36 → **0.97** | 0.02 → 0.00 | 1.00 |
+| v6ctrl-32b-pirate-output-alpaca-qwen (2) | 0.59 → **0.92** | 0.78 → 0.93 | 1.00 |
+| v6ctrl-8b-pirate-output-alpaca-qwen (2) | 0.50 → **0.98** | 0.84 → 0.96 | 1.00 |
+| v6pw-1-32b-pirate-output-alpaca-qwen (2) | 0.54 → **0.92** | 0.00 → 0.00 | 1.00 |
+| v6pw-1-8b-pirate-output-alpaca-qwen (2) | 0.49 → **0.95** | 0.02 → 0.00 | 1.00 |
+| v6pw-2-32b-pirate-output-alpaca-qwen (2) | 0.55 → **0.91** | 0.00 → 0.00 | 1.00 |
+| v6pw-2-8b-pirate-output-alpaca-qwen (3) | 0.47 → **0.98** | 0.02 → 0.00 | 1.00 |
+| v7base-32b-pw-0.5 (2) | 0.51 → **0.92** | 0.00 → 0.01 | 1.00 |
+| v7base-32b-pw-1 (2) | 0.51 → **0.95** | 0.00 → 0.01 | 0.99 |
+| v7base-32b-pw-2 (2) | 0.50 → **0.95** | 0.01 → 0.01 | 1.00 |
+| v7base-32b-pw0 (2) | 0.78 → **0.99** | 0.90 → 0.98 | 1.00 |
+| v7base-8b-pw-0.5 (2) | 0.20 → **0.83** | 0.01 → 0.02 | 0.38 |
+| v7base-8b-pw-1 (2) | 0.30 → **0.92** | 0.04 → 0.06 | 0.12 |
+| v7base-8b-pw-2 (3) | 0.20 → **0.84** | 0.01 → 0.02 | 0.05 |
+| v7base-8b-pw0 (2) | 0.67 → **0.99** | 0.87 → 0.98 | 1.00 |
+| v7norm-32b-pw-0.5 (2) | 0.61 → **0.97** | 0.01 → 0.00 | 0.94 |
+| v7norm-32b-pw-1 (2) | 0.40 → **0.97** | 0.01 → 0.01 | 0.99 |
+| v7norm-32b-pw-2 (2) | 0.44 → **0.96** | 0.01 → 0.00 | 1.00 |
+| v7norm-32b-pw0 (2) | 0.60 → **1.00** | 0.91 → 0.98 | 1.00 |
+| v7norm-8b-pw-0.5 (2) | 0.33 → **0.87** | 0.02 → 0.02 | 0.06 |
+| v7norm-8b-pw-1 (2) | 0.28 → **0.77** | 0.04 → 0.04 | 0.48 |
+| v7norm-8b-pw-2 (3) | 0.22 → **0.81** | 0.02 → 0.02 | 0.56 |
+| v7norm-8b-pw0 (2) | 0.54 → **0.99** | 0.95 → 0.98 | 1.00 |
+| v7pcot-32b-pw-0.5 (2) | 0.00 → **0.02** | 0.00 → 0.00 | 1.00 |
+| v7pcot-32b-pw-1 (2) | 0.02 → **0.03** | 0.01 → 0.00 | 0.99 |
+| v7pcot-32b-pw-2 (2) | 0.00 → **0.02** | 0.00 → 0.00 | 0.99 |
+| v7pcot-32b-pw0 (2) | 0.83 → **0.99** | 0.87 → 0.96 | 1.00 |
+| v7pcot-8b-pw-0.5 (2) | 0.00 → **0.00** | 0.00 → 0.00 | 1.00 |
+| v7pcot-8b-pw-1 (2) | 0.00 → **0.00** | 0.01 → 0.00 | 1.00 |
+| v7pcot-8b-pw-2 (2) | 0.00 → **0.00** | 0.00 → 0.00 | 1.00 |
+| v7pcot-8b-pw0 (2) | 0.74 → **0.96** | 0.93 → 0.98 | 1.00 |
+| v8base-nemotron-super-120b-pw-0.5 (1) | 0.10 → **0.25** | 0.01 → 0.02 | 1.00 |
+| v8base-nemotron-super-120b-pw-1 (1) | 0.47 → **0.76** | 0.03 → 0.02 | 0.99 |
+| v8base-nemotron-super-120b-pw-2 (1) | 0.21 → **0.29** | 0.01 → 0.02 | 0.99 |
+| v8base-nemotron-super-120b-pw0 (1) | 0.78 → **0.91** | 0.68 → 0.76 | 1.00 |
+| v8base-qwen36-35ba3b-pw-0.5 (1) | 0.64 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v8base-qwen36-35ba3b-pw-1 (1) | 0.59 → **1.00** | 0.00 → 0.00 | 1.00 |
+| v8base-qwen36-35ba3b-pw-2 (1) | 0.85 → **0.96** | 0.03 → 0.01 | 0.98 |
+| v8base-qwen36-35ba3b-pw0 (1) | 1.00 → **1.00** | 0.94 → 0.98 | 1.00 |
+| v8pirate-qwen36-35ba3b-pw-2 (1) | 0.98 → **1.00** | 0.00 → 0.01 | 1.00 |
+| v8pirate-qwen36-35ba3b-pw0 (1) | 0.99 → **1.00** | 0.93 → 0.98 | 1.00 |
+| v9mf-8b-pw-0.5 (2) | 0.35 → **0.98** | 0.00 → 0.00 | 1.00 |
+| v9mf-8b-pw-1 (2) | 0.38 → **0.98** | 0.00 → 0.00 | 1.00 |
+| v9mf-8b-pw-2 (2) | 0.40 → **0.97** | 0.00 → 0.00 | 1.00 |
+| v9mfpirate-8b-pw-2 (2) | 0.38 → **0.97** | 0.01 → 0.00 | 1.00 |
+| v9rt-32b-pw-2 (2) | 0.60 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v9rt-8b-pw-0.5 (2) | 0.18 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v9rt-8b-pw-1 (2) | 0.21 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v9rt-8b-pw-2 (2) | 0.20 → **0.99** | 0.01 → 0.00 | 1.00 |
+| v9rtpirate-8b-pw-2 (2) | 0.60 → **0.99** | 0.03 → 0.00 | 1.00 |
+| v9tmf-8b-pw-0.5 (2) | 0.60 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v9tmf-8b-pw-1 (2) | 0.65 → **0.99** | 0.00 → 0.00 | 1.00 |
+| v9tmf-8b-pw-2 (2) | 0.75 → **1.00** | 0.00 → 0.00 | 1.00 |
+| v9tmfpirate-8b-pw-2 (2) | 0.42 → **0.96** | 0.03 → 0.00 | 1.00 |

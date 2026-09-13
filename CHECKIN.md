@@ -500,3 +500,16 @@ paper's polynomial figure reward axis from rollouts with the fixed checker (scri
   and `explanation_words`. ETA ~3 h; judge cost ≈ $350–450.
 - **GPT-4.1 re-judge of every final eval file of the paper runs** (133 files, 50,274 samples, both
   channels) is running: `logs/rejudge-gpt41/<run>__<family>_<ckpt>.jsonl` + `summary_all.md`.
+
+## 2026-09-13 ~01:40 UTC — GPT-4.1 re-judge of all 133 paper eval files done (RESULTS §17)
+The old gpt-4o-mini judge missed most hint acknowledgments in the CoT (mean CoT detection 0.42 → 0.82
+under GPT-4.1; outputs agree, 0.14 → 0.14). Under the correct judge the paper's 4096-token runs show
+little or no spillover (penalized CoT 0.84 at 8B / 0.95 at 32B vs control 0.99) and every mitigation
+sits at 0.97–1.00, so the 4096-token figures no longer show an effect to mitigate. The 300-token runs
+keep the story (penalty 0.08, M&F 0.28, RT 0.45, pirate 0.59, TMF 0.62 on the old 2-seed runs;
+campaign numbers agree). The CoT-penalty control drops to 0.00–0.03 under both judges, so the judge
+does see real removal. Nemotron-120B (4096 tokens, 1 seed) is the one model with genuine spillover at
+the long budget: 0.29 vs 0.91.
+Also launched: polynomial on Nemotron-3-Super-120B-A12B and Qwen3.5-397B-A17B (3 seeds × control/
+penalty each); terminal LLM-judge on Nemotron-120B (control/penalty/RT × 3 seeds, 400 steps). Mind &
+Face for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_32b_fixed.png.
