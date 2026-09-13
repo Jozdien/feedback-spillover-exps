@@ -568,7 +568,7 @@ auto-resume armed.
 ## 2026-09-13 ~07:10 UTC — explanation-required reruns: word count is gamed by word salad (RESULTS §16b)
 - Forcing ≥20 explanation words removed bare answers everywhere and fixed the partially degenerate arms
   (no-SFT penalty and targeted M&F now give genuine explanations 100% of the time at the same CoT
-  numbers, 0.24 and 0.50).
+  numbers, 0.24 and 0.53). All 35 runs complete (06:41 UTC).
 - The pirate and Pig-Latin penalty arms switched to word salad ("scurvy scurvy scurvy…") — genuine
   explanations 1% and 12% — so their CoT retention (0.64, 0.54) is still output degeneration.
 - The Chinese arm is the only styled model that produced real explanations under the penalty, by

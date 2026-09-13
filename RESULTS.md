@@ -933,14 +933,14 @@ Original arms from §12/§12b/§16 for comparison (same judge applied to their l
 | Pig-Latin-output SFT penalty | no | 1.00 | 0.00 | 0.57±0.05 | 0.05 | 0.49 |
 | Pig-Latin-output SFT penalty | **yes** | 1.00 | 0.00 | 0.54±0.06 | **0.12** | **0.30** |
 | targeted Mind & Face | no | 1.00 | 0.01 | 0.50±0.03 | 0.73 | 0 |
-| targeted Mind & Face | **yes** (steps 237–249/266, finishing) | 0.99 | 0.09±0.07 | 0.50±0.04 | 1.00 | 0 |
+| targeted Mind & Face | **yes** | 1.00 | 0.01±0.01 | 0.53±0.03 | 1.00 | 0 |
 | reward targeting (not rerun) | no | 1.00 | 0.14±0.11 | 0.57±0.02 | 0.99 | 0 |
 | Mind & Face (not rerun) | no | 1.00 | 0.01 | 0.36±0.10 | 1.00 | 0 |
 
 Readings.
 1. The word-count requirement removes bare answers everywhere (explanation <20 words: 0.00–0.02),
    and fixes the arms that had partial degeneration: no-SFT penalty (genuine 0.72 → 1.00) and
-   targeted M&F (0.73 → 1.00) keep the same CoT detection (0.24–0.27 and 0.50), so their earlier
+   targeted M&F (0.73 → 1.00) keep the same CoT detection (0.24–0.27 and 0.50–0.53), so their earlier
    numbers stand.
 2. The pirate and Pig-Latin penalty arms found the next-cheapest way to satisfy both the penalty and
    the word count: word salad ("Arr, matey, scurvy scurvy scurvy…", "ot ot ot…") with a boxed answer.
@@ -951,7 +951,7 @@ Readings.
    — and its CoT detection is 0.39±0.11: above no-SFT (0.24) but well below the styled-and-degenerate
    arms and below reward targeting (0.57).
 4. Among arms that keep a genuine explanation (≥0.96), CoT retention under the output penalty ranks:
-   reward targeting 0.57 > targeted M&F 0.50 > Chinese-init(→English) 0.39 > Mind & Face 0.36 >
+   reward targeting 0.57 > targeted M&F 0.53 > Chinese-init(→English) 0.39 > Mind & Face 0.36 >
    no-SFT 0.24–0.27. No style-separation arm belongs to this set. A fair test of the style hypothesis
    therefore needs a semantic explanation term in the reward (e.g. the GPT-4.1 GENUINE judge above as
    a reward component, or genuine-explanation-gated task reward) rather than a word count; the trainer
