@@ -553,3 +553,11 @@ for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_
   explanation-required + 10 terminal M&F + 9 terminal 27B). An auto-resume loop is armed: as soon as
   two consecutive API checks succeed it runs `scripts/resume_runs.sh expl300 termllm-mf termllm-tmf
   termllm-27b` (every run resumes from its last checkpoint). Nothing to do beyond topping up.
+
+## 2026-09-13 ~04:20 UTC — corrected-regex terminal replication done (RESULTS §13e); judge runs paused on credits
+With the monitor matching both spellings, the paper's regex result reproduces at 100 steps: penalty
+drops CoT mentions 0.91 → 0.66 while the verifier is still read 99% of the time; mitigations keep the
+CoT in the paper's order (targeted M&F 0.89 ≈ control, reward targeting 0.83, Mind & Face 0.78). The
+output monitor is only half-scrubbed at 100 steps (0.2–0.3 vs the paper's ≈0), so the effect is milder
+than theirs; a longer run is cheap (no judge). All judge-using runs remain paused on OpenAI credits with
+auto-resume armed.
