@@ -561,3 +561,6 @@ CoT in the paper's order (targeted M&F 0.89 ≈ control, reward targeting 0.83, 
 output monitor is only half-scrubbed at 100 steps (0.2–0.3 vs the paper's ≈0), so the effect is milder
 than theirs; a longer run is cheap (no judge). All judge-using runs remain paused on OpenAI credits with
 auto-resume armed.
+- **04:00 UTC: credits topped up; all 54 stopped runs resumed from their checkpoints** (35 explanation-
+  required from batch 150/200, 10 terminal M&F from 100, 9 terminal 27B from 75). ETAs: explanation-
+  required ~1.5 h, terminal M&F ~5 h, terminal 27B ~6 h, big-model poly: Nemotron ~40 min, Qwen-397B ~5 h.
