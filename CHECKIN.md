@@ -511,5 +511,8 @@ campaign numbers agree). The CoT-penalty control drops to 0.00–0.03 under both
 does see real removal. Nemotron-120B (4096 tokens, 1 seed) is the one model with genuine spillover at
 the long budget: 0.29 vs 0.91.
 Also launched: polynomial on Nemotron-3-Super-120B-A12B and Qwen3.5-397B-A17B (3 seeds × control/
-penalty each); terminal LLM-judge on Nemotron-120B (control/penalty/RT × 3 seeds, 400 steps). Mind &
-Face for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_32b_fixed.png.
+penalty each). Terminal on Nemotron-120B was launched and KILLED after one step: the terminal trainer
+builds the multi-turn sequence with Qwen3 template tokens and every Nemotron episode failed the
+token-bookkeeping check (off-template prompting), so those runs are invalid (moved to logs/_invalid);
+the bigger terminal model will be Qwen3.6-27B once its template passes the dry-run check. Mind & Face
+for the terminal env is being implemented. Corrected poly figure: plots/v9_poly_32b_fixed.png.
