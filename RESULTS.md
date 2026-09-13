@@ -876,3 +876,12 @@ all the same event: in this environment task success requires reading the verifi
 read: task 0.90, M_out 0.90, M_cot 0.92; given no read: 0.14 / 0.06 / 0.03. The pirate model reads
 in only 44% of episodes at 100 steps, so every metric ≈ 0.44. The stored `out_score` and `cot_score`
 are distinct fields (they disagree in 8% of pirate episodes, 78% of penalty episodes).
+
+**CoT-channel sensitivity (100 late control episodes, gpt-4.1-mini, same prompt).** The judge's CoT
+detection depends almost entirely on WHICH CoTs it is shown: all turns' CoTs with the (redacted)
+terminal replies = 0.95 (stored protocol); all turns' CoTs without the replies = 0.81; per-turn
+judging averaged over turns = 0.31; last turn's CoT only = 0.60; first turn's CoT only = 0.00 (the
+turn-1 CoT reasons about the grid before the model decides to cat the verifier). The paper's 0.17
+no-penalty level is therefore consistent with a per-turn or first-turn rendering; the paper does not
+say which, so absolute CoT-detection levels are not comparable across the two implementations, only
+within-arm changes are.
