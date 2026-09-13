@@ -109,23 +109,34 @@ class Config:
 
 @dataclass
 class Toks:
-    """Qwen3 structural tokens for the multi-turn sequence."""
+    """Qwen-family structural tokens for the multi-turn sequence. `think_prefix` is whatever the
+    model's chat template puts after "<|im_start|>assistant\n" in a generation prompt: "" for Qwen3
+    (the model emits "<think>\n" itself), "<think>\n" for Qwen3.5/3.6 (the template opens the
+    thinking block). Environment turns are rendered with the same suffix so every turn is on-template."""
 
     think_close: int
     im_end: int
     forced_close: list[int]  # "\n</think>" appended when the CoT hit max_thinking_tokens
     user_header: list[int]  # "\n<|im_start|>user\n"   (renderer's user header, idx > 0)
-    asst_header: list[int]  # "\n<|im_start|>assistant\n" (renderer's generation suffix)
+    asst_header: list[int]  # "\n<|im_start|>assistant\n" + think_prefix (renderer's generation suffix)
+    think_prefix: str = ""
 
 
-def _toks(tokenizer) -> Toks:
+def _toks(tokenizer, renderer=None) -> Toks:
     def enc(s):
         return tokenizer.encode(s, add_special_tokens=False)
 
     (think_close,), (im_end,) = enc("</think>"), enc("<|im_end|>")
+    think_prefix = ""
+    if renderer is not None:
+        gen = tokenizer.decode(renderer.build_generation_prompt([{"role": "user", "content": "x"}]).to_ints())
+        head = "<|im_start|>assistant\n"
+        assert head in gen, f"unsupported chat template (no assistant header): {gen!r}"
+        think_prefix = gen.split(head, 1)[1]
+        assert think_prefix in ("", "<think>\n"), f"unsupported generation suffix {think_prefix!r}"
     return Toks(
         think_close, im_end, enc("\n</think>"), enc("\n<|im_start|>user\n"),
-        enc("\n<|im_start|>assistant\n"),
+        enc("\n<|im_start|>assistant\n" + think_prefix), think_prefix,
     )
 
 
@@ -241,14 +252,14 @@ def _check_tokens(ep: Episode, tok, tk: Toks) -> list[str]:
     runs = _runs(ep)
     n = len(ep.turns)
     problems = []
-    prompt = f"<|im_start|>user\n{ep.prompt_text}<|im_end|>\n<|im_start|>assistant\n"
+    prompt = f"<|im_start|>user\n{ep.prompt_text}<|im_end|>\n<|im_start|>assistant\n{tk.think_prefix}"
     if runs[0][0] != "prompt" or tok.decode(runs[0][1]) != prompt:
         problems.append("prompt")
     env_runs = [r for k, r in runs if k == "env"]
     if len(env_runs) != n - 1:
         problems.append(f"env_runs={len(env_runs)} != {n - 1}")
     for i, r in enumerate(env_runs):
-        exp = f"\n<|im_start|>user\n{ep.turns[i]['env_reply']}<|im_end|>\n<|im_start|>assistant\n"
+        exp = f"\n<|im_start|>user\n{ep.turns[i]['env_reply']}<|im_end|>\n<|im_start|>assistant\n{tk.think_prefix}"
         if tok.decode(r) != exp:
             problems.append(f"env{i}")
     closes = sum(
@@ -264,13 +275,14 @@ def _check_tokens(ep: Episode, tok, tk: Toks) -> list[str]:
     return problems
 
 
-def _canonical_mismatches(ep: Episode, tokenizer) -> list[tuple[int, str]]:
+def _canonical_mismatches(ep: Episode, tokenizer, renderer=None) -> list[tuple[int, str]]:
     """Turns t>=1 whose prompt (the token sequence at the start of the turn) does not decode to the
     cookbook's canonical multi-turn rendering (Qwen3Renderer, strip_thinking_from_history=False)
     of the structured conversation so far. Mismatches here are benign framing differences (e.g. a
     truncated CoT ending in a newline that the template would strip), not bookkeeping errors."""
     tok = tokenizer
-    canon = Qwen3Renderer(tokenizer, strip_thinking_from_history=False)
+    canon = type(renderer)(tokenizer, strip_thinking_from_history=False) if renderer is not None \
+        else Qwen3Renderer(tokenizer, strip_thinking_from_history=False)
     msgs = [{"role": "user", "content": ep.prompt_text}]
     end = 0
     bad = []
@@ -536,7 +548,7 @@ async def _dry_run(ctx: _Ctx, service):
     for i, ep in enumerate(episodes):
         if ep is None:
             continue
-        bad = _canonical_mismatches(ep, ctx.tokenizer)
+        bad = _canonical_mismatches(ep, ctx.tokenizer, ctx.renderer)
         canon_bad += len(bad)
         canon_total += len(ep.turns) - 1
         print(f"episode {i}: structural check={'OK' if not checks[i] else checks[i]}, "
@@ -592,7 +604,7 @@ def _init_mind_face(ctx: _Ctx, service) -> int:
 async def train(cfg: Config):
     assert cfg.batch_size % cfg.group_size == 0, "batch_size must be divisible by group_size"
     assert cfg.monitor in ("regex", "llm"), cfg.monitor
-    assert "gpt-oss" not in cfg.model_name, "terminal trainer assumes Qwen3 <think> formatting"
+    assert "gpt-oss" not in cfg.model_name, "terminal trainer assumes Qwen-family <|im_start|>/<think> formatting"
     prompts_per_step = cfg.batch_size // cfg.group_size
 
     tokenizer = get_tokenizer(cfg.model_name)
@@ -603,7 +615,7 @@ async def train(cfg: Config):
     judge = VerifierJudge(cfg.judge_model) if cfg.monitor == "llm" else None
     cot_params = types.SamplingParams(
         max_tokens=cfg.max_thinking_tokens, temperature=cfg.temperature,
-        stop=[_toks(tokenizer).think_close],
+        stop=[_toks(tokenizer, renderer).think_close],
     )
     out_params = types.SamplingParams(
         max_tokens=cfg.max_output_tokens, temperature=cfg.temperature,
@@ -612,7 +624,7 @@ async def train(cfg: Config):
     service = tinker.ServiceClient()
     n_batches = cfg.num_episodes // cfg.batch_size
     ctx = _Ctx(
-        cfg=cfg, tk=_toks(tokenizer), tokenizer=tokenizer, renderer=renderer, judge=judge,
+        cfg=cfg, tk=_toks(tokenizer, renderer), tokenizer=tokenizer, renderer=renderer, judge=judge,
         problems=problems, tc=None, tc_face=None, adam=None, cot_params=cot_params,
         out_params=out_params,
         n_batches=n_batches, prompts_per_step=prompts_per_step, ml_logger=None,
