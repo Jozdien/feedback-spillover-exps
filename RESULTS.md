@@ -958,3 +958,27 @@ Readings.
    change is small (one more judge call per rollout, ≈2× judge cost).
 5. Ops: all 35 runs survived the 03:39 credit blip (≤7 zeroed judge calls each, one batch) and were
    resumed from checkpoints after the 03:45 outage; final-window metrics are post-resume.
+
+### 14e. Polynomial on larger models (2026-09-13): Nemotron-3-Super-120B-A12B shows NO spillover; Qwen3.5-397B-A17B pending
+
+Paper budgets (T=800/1000), λ=1, GRPO 4×3, 3200 episodes, fixed reward, 3 seeds, last 27 steps.
+`logs/grpo-poly800-nemotron-*`.
+
+| Model | arm | task | expanded in output | expanded in CoT |
+|---|---|---|---|---|
+| Nemotron-3-Super-120B-A12B | control | 0.89±0.04 | 0.82±0.19 (one seed 0.55) | 0.98±0.01 |
+| Nemotron-3-Super-120B-A12B | penalty λ=1 | 0.84±0.03 | 0.01±0.01 | **0.96±0.00** (0.95/0.96/0.96) |
+
+Updated size/budget map of the penalized-CoT rate (control ≈ 0.98–1.00 everywhere):
+
+| Model | T=800 | T=4096 |
+|---|---|---|
+| Qwen3-8B | 0.99 (none) | 1.00 (none) |
+| Qwen3.6-27B (dense) | 0.81±0.13 (partial) | — |
+| Qwen3-32B (paper runs) | — | 0.18 (strong) |
+| Nemotron-3-Super-120B-A12B (MoE, 12B active) | 0.96 (none) | — |
+| Drori 14B (REINFORCE) | ~0.14 | — |
+
+So the polynomial spillover is not a monotone function of parameter count: the 120B MoE (12B active)
+behaves like Qwen3-8B, i.e. it never adopts the product-rule route the penalty rewards, whereas
+the dense Qwen3 27B/32B models do. Qwen3.5-397B-A17B (17B active) is running (batch ~190/266).

@@ -576,3 +576,10 @@ auto-resume armed.
 - Consequence: no style-separation arm has yet preserved the CoT while producing a real explanation.
   Testing the hypothesis fairly needs an explanation-quality term in the reward (GPT-4.1 "genuine
   explanation" judge, ≈2× judge cost, ~10 runs). Your call.
+
+## 2026-09-13 ~06:50 UTC — polynomial on Nemotron-120B: no spillover (RESULTS §14e)
+Nemotron-3-Super-120B-A12B behaves like the 8B model in the polynomial task: the penalty scrubs the
+output (0.82 → 0.01) and the CoT keeps the expanded form (0.98 → 0.96). Spillover there is not about
+parameter count: the dense Qwen3 27B/32B models spill, the 8B and the 120B MoE (12B active) do not.
+Qwen3.5-397B (17B active) lands in ~2 h. All 35 explanation-required runs are complete (RESULTS §16b
+final). Terminal Mind & Face and 27B runs are past step 225 of 400.
