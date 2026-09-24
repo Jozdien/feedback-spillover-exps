@@ -33,6 +33,12 @@ for s in ${SEEDS:-42 43 44 45 46}; do
       piratev2-ctrl) launch explj300-piratev2-ctrl-8b-s$s penalty_weight=0  seed=$s checkpoint=$PIRATEV2 style_monitor=true style_desc=pirate ;;
       normalalpaca-pen)  launch explj300-normalalpaca-pen-8b-s$s  penalty_weight=-2 seed=$s checkpoint=$NORMALALPACA ;;
       normalalpaca-ctrl) launch explj300-normalalpaca-ctrl-8b-s$s penalty_weight=0  seed=$s checkpoint=$NORMALALPACA ;;
+      # style-REWARDED arms (2026-09-25): + pirate_reward_weight=1 (StyleJudge on the output, group-normalized like the other
+      # reward terms, so only the sign matters under GRPO) to keep the style from drifting away during RL
+      piratev2sr-pen)  launch explj300-piratev2sr-pen-8b-s$s  penalty_weight=-2 seed=$s checkpoint=$PIRATEV2 style_monitor=true style_desc=pirate pirate_reward_weight=1 ;;
+      piratev2sr-ctrl) launch explj300-piratev2sr-ctrl-8b-s$s penalty_weight=0  seed=$s checkpoint=$PIRATEV2 style_monitor=true style_desc=pirate pirate_reward_weight=1 ;;
+      piglatinsr-pen)  launch explj300-piglatinsr-pen-8b-s$s  penalty_weight=-2 seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 ;;
+      piglatinsr-ctrl) launch explj300-piglatinsr-ctrl-8b-s$s penalty_weight=0  seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 ;;
     esac
   done
 done
