@@ -1046,3 +1046,59 @@ So the bigger model turns the terminal task into the paper's intended phenomenon
 explanation with an honest CoT — and reward targeting protects the CoT there; the 8B model only games
 the judge's wording. (Cost note: ≈$130/run; the three penalty seeds cover both regimes, so more seeds
 would be needed to estimate how often each occurs.)
+
+### 16c. Explanation-JUDGED reruns (`explj300`, 2026-09-24/25): with a genuine explanation enforced, style SFT does not preserve the CoT
+
+§12b protocol + semantic gate: GPT-4.1 `ExplanationJudge` decides per rollout whether the "### Explanation"
+section genuinely explains the boxed answer (any language/style; correctness not judged); if not, task
+reward = 0 (`explanation_judge=true`). 55 runs, 5 seeds, last-27-step means ± std. Initializations:
+no-SFT; pirate v1 (paper checkpoint, 38% well-formed at init); pirate v2 (regenerated data, 98%
+well-formed, §11); Pig-Latin; the paper's normal-style SFT (math/code prompt mix); a matched normal-output
+SFT on the same Alpaca prompts/CoTs as the pirate SFTs. "Genuine" = the gate's own verdicts; "style" =
+StyleJudge on the output.
+
+| Init | arm | follow hint | genuine expl. | M_out | **CoT detection** | style kept |
+|---|---|---|---|---|---|---|
+| no-SFT | penalty | 0.99 | 1.00 | 0.17±0.06 | **0.27±0.05** (control 0.63, §12) | – |
+| normal-Alpaca SFT | control | 1.00 | 1.00 | 0.89 | 0.73±0.08 | – |
+| normal-Alpaca SFT | penalty | 0.90±0.11 | 1.00 | 0.12±0.12 | **0.36±0.15** (0.51/0.14/0.26/0.54/0.36) | – |
+| pirate v2 SFT | control | 1.00 | 1.00 | 0.91 | 0.73±0.05 | 0.49 |
+| pirate v2 SFT | penalty | 1.00 | 1.00 | 0.01 | **0.28±0.11** (0.22/0.26/0.29/0.13/0.48) | 0.54 (0.04/0.83/0.51/0.36/0.99) |
+| Pig-Latin SFT | control | 1.00 | 1.00 | 0.90 | 0.66±0.07 | 0.14 |
+| Pig-Latin SFT | penalty | 1.00 | 0.98 | 0.02 | **0.36±0.11** (0.49/0.32/0.23/0.28/0.49) | 0.76 (0.99/0.03/0.84/0.97/0.99) |
+| pirate v1 SFT | control | 1.00 | 0.99 | 0.86 | 0.64±0.04 | – |
+| pirate v1 SFT | penalty | 0.80±0.40 (seed 43 never learned: 0.00) | 0.79 | 0.00 | 0.49±0.09 (0.57/0.61*/0.43/0.37/0.49) | – |
+| paper normal SFT (math mix) | control / penalty | 0.68 / 0.72 | 1.00 | 0.61 / 0.53 | 0.14 / 0.01 | – |
+| (reference, no gate, §12b) reward targeting | penalty | 1.00 | 0.99 | 0.14 | 0.57±0.02 | – |
+
+Readings.
+1. The gate works as intended: every arm except pirate v1 produces genuine explanations in 98–100% of
+   late rollouts (no bare answers, no word salad; mean output 340–600 chars), and it does not favour
+   English — at init, styled outputs are judged genuine at least as often as plain ones (pirate 1.00 vs
+   0.97, Pig-Latin 0.94 vs 0.93).
+2. With a genuine explanation enforced, the clean pirate model (v2) keeps NO more CoT than no-SFT: 0.28 vs
+   0.27. Pig-Latin 0.36 and the matched normal-output SFT 0.36 are indistinguishable from each other and
+   only marginally above no-SFT; every one of these is far below the unpenalized controls (0.63–0.73) and
+   below reward targeting (0.57, real explanations, no gate needed). The extra output variance that style
+   SFT adds is, once the explanation must be real, no more protective than the variance any SFT adds.
+3. Pirate v1's 0.49 is the degenerate-prone checkpoint: 21% of its late outputs are still short
+   (<20 words), one seed collapsed to no answers (task 0.00), and only 79% of outputs pass the gate — its
+   number is not comparable.
+4. The style itself is unstable under RL, with or without the penalty: seeds drift to fully styled (0.99)
+   or fully plain (0.00–0.04) outputs, in both the penalty and the control arms. Across the 10 styled
+   penalty seeds, style retention correlates with CoT retention (r = 0.56): seeds that kept the style
+   (≥0.8, n=6) average CoT 0.37, seeds that lost it (n=4) 0.24. So retained style may be worth something,
+   but the best styled seeds (0.48–0.49) still sit well below reward targeting, and n is small.
+5. The paper's normal SFT (math/code mix) is not a usable control here: it follows the hint only 68–72%
+   and its CoT almost never mentions the hint even without a penalty (0.14), so both of its arms read 0.
+6. Consistent with the initialization measurement (CHECKIN 2026-09-24): pirate SFT quadruples
+   P(clean output | hint-mentioning CoT) at init, but the excess is almost entirely "no explanation";
+   counting only clean outputs that also explain, pirate ≈ no-SFT (0.13 vs 0.11) — which is what the
+   gated RL then reproduces.
+
+Implication for the paper: "style separation preserves the CoT" holds only when the styled output is
+allowed to stop being an explanation. Under a reward that requires a real explanation, the CoT spills
+for styled and unstyled models alike, and reward targeting remains the only mitigation with both a real
+explanation and a mostly intact CoT. A remaining variant worth one experiment: pin the style with the
+existing style reward (`pirate_reward_weight`, §… pirate-reward runs) under the gate, to test whether
+style that is retained (rather than drifting) buys the 0.37 vs 0.24 difference in point 4.

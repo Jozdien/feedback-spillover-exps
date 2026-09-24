@@ -613,3 +613,12 @@ has moved much): P(output clean | CoT mentions the hint) is 0.41 for the pirate-
 no-SFT (0.20 Chinese, 0.13 Pig-Latin, 0.03 prompted pirate); output–CoT agreement (phi) 0.31 vs 0.53.
 But two thirds of those pirate "clean" outputs are short/bare (<20 words); counting only clean outputs
 with a real explanation, the rates are ~0.13 (pirate) vs ~0.11 (no-SFT). See the reply of 2026-09-24.
+
+## 2026-09-25 ~06:00 UTC — explanation-judged reruns done (RESULTS §16c): under a real-explanation requirement, style SFT does not protect the CoT
+All 55 runs complete; every arm but pirate v1 gives genuine explanations 98–100% of the time. CoT detection
+with the output scrubbed: no-SFT 0.27, pirate v2 (clean data) 0.28, Pig-Latin 0.36, matched normal-output
+SFT 0.36; controls 0.63–0.73; reward targeting (no gate needed) 0.57. Pirate v1's 0.49 comes with 21% short
+outputs and one dead seed. Style drifts to all-or-nothing per seed under RL; seeds that kept it average
+0.37 vs 0.24 for those that lost it (10 seeds, r=0.56) — suggestive, not decisive. The gate does not favour
+English (styled outputs judged genuine ≥ plain ones at init). Suggested last test: pin the style with the
+style reward under the gate. Your call on that and on how to frame the paper.
