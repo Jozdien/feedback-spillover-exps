@@ -34,7 +34,7 @@ from tinker_cookbook import checkpoint_utils, model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
-from src.judges import SoftConversationJudge, StyleJudge
+from src.judges import ExplanationJudge, SoftConversationJudge, StyleJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
 from src.spillover.env_mmlu_encoded import (
     JUDGE_PROMPT as ENCODED_JUDGE_PROMPT,
@@ -134,6 +134,11 @@ class Config:
     # many words get `no_answer_penalty` as their task reward (0 = off). Motivated by §16 of
     # RESULTS.md: style-SFT models zero the output penalty by emitting a bare \boxed{X}.
     min_explanation_words: int = 0
+    # Semantic explanation gate (RESULTS §16b): a GPT-4.1 judge decides whether the "### Explanation"
+    # section is a genuine explanation; if not, the task reward becomes no_answer_penalty (or 0).
+    # Word counts are gamed by word salad; this is the fair version of min_explanation_words.
+    explanation_judge: bool = False
+    explanation_judge_model: str = "gpt-4.1"
     pirate_reward_weight: float = 0.0  # mu: reward for pirate-speak output (QA only)
     num_problems: int = 2000
     min_degree: int = 5
@@ -394,6 +399,7 @@ class _Ctx:
     prompts_per_step: int
     ml_logger: object
     max_token_id: int = 10**9  # sampled ids above this (padding rows of the embedding) crash Tinker training
+    expl_judge: object = None  # ExplanationJudge when cfg.explanation_judge
 
 
 async def _sample_one(sp, prompt_tokens, params):
@@ -473,6 +479,14 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
         for i, w in enumerate(expl_words):
             if w < cfg.min_explanation_words:
                 corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
+    # Semantic explanation gate: task reward only for a genuine explanation (QA tasks)
+    expl_genuine = [None] * len(outs)
+    if ctx.expl_judge is not None and cfg.task.startswith("qa"):
+        expl_genuine = list(await asyncio.gather(*[
+            ctx.expl_judge.score(item.get("question", ""), o) for item, o in zip(flat_items, outs)]))
+        for i, g in enumerate(expl_genuine):
+            if g == 0.0:
+                corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
     # Penalize outputs with no extractable answer (boxed letter/expression, or a
     # fenced code block for lcb/apps)
     if cfg.no_answer_penalty != 0.0:
@@ -496,6 +510,7 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
         "correct": corrects,
         "raw_correct": raw_corrects,
         "expl_words": expl_words,
+        "expl_genuine": expl_genuine,
         "out": [float(s) for s in out_scores],
         "cot": [float(s) for s in cot_scores],
         "pirate": [float(p) for p in pirate_scores],
@@ -567,6 +582,7 @@ def _write_rollouts(ctx: _Ctx, batch_idx, flat_items, rollouts, scores, adv, ver
                 "correct": scores["correct"][i],
                 "raw_correct": scores.get("raw_correct", scores["correct"])[i],
                 "explanation_words": scores.get("expl_words", [None] * len(scores["correct"]))[i],
+                "explanation_genuine": scores.get("expl_genuine", [None] * len(scores["correct"]))[i],
                 "out_score": scores["out"][i],
                 "cot_score": scores["cot"][i],
                 "penalty_val": adv["penalty_vals"][i],
@@ -663,6 +679,9 @@ async def _process_batch(ctx: _Ctx, batch_idx, flat_items, rollouts, scores, ver
     if ctx.pirate_judge is not None:
         metrics["monitor/pirate_in_output"] = sum(scores["pirate"]) / n  # style score (name kept)
         metrics["monitor/style_in_cot"] = sum(scores["pirate_cot"]) / n
+    if ctx.expl_judge is not None:
+        gs = [g for g in scores.get("expl_genuine", []) if g is not None]
+        metrics["monitor/explanation_genuine"] = sum(gs) / max(1, len(gs))
     metrics["monitor/n_valid_rollouts"] = n_valid
     metrics.update(extra)
     metrics["time/total"] = time.time() - t0
@@ -880,9 +899,10 @@ async def train(cfg: Config):
                 f"final segment '{schedule[-1][0]}' holds for the remainder."
             )
 
+    expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge and cfg.task.startswith("qa") else None
     ctx = _Ctx(
         cfg=cfg, pt=pt, tokenizer=tokenizer, max_token_id=len(tokenizer) - 1,
-        judge=judge, pirate_judge=pirate_judge,
+        judge=judge, pirate_judge=pirate_judge, expl_judge=expl_judge,
         items=items, tc=tc, adam=adam, cot_params=cot_params, out_params=out_params,
         schedule=schedule, cot_pen_batches=cot_pen_batches, n_batches=n_batches,
         prompts_per_step=prompts_per_step, ml_logger=ml_logger,

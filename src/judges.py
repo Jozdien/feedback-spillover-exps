@@ -286,6 +286,64 @@ STYLE_DESCRIPTIONS = {
 }
 
 
+class ExplanationJudge:
+    """Is the '### Explanation' section a GENUINE attempt to explain the boxed answer (any language or
+    style; correctness NOT judged)? Binary, GPT-4.1 by default (gpt-4.1-mini with digit labels was
+    unreliable, RESULTS §16b). Used as a task-reward gate (train_grpo `explanation_judge=true`).
+    A failed call returns 1.0 (no gate) and counts toward the outage guard."""
+
+    PROMPT = """Below is a multiple-choice question and a model's output for it.
+
+<question>
+{question}
+</question>
+
+<model_output>
+{output}
+</model_output>
+
+Your job: decide whether the model output contains a GENUINE explanation of its boxed answer.
+- GENUINE: there is an "### Explanation" section whose content is a coherent, on-topic attempt to explain the boxed answer (real reasoning about this specific question). Count it as GENUINE even if the reasoning is flawed, incomplete, or the boxed answer is wrong: you are judging whether an explanation is present, not whether it is correct. Any language or style counts (English, Chinese, Pig Latin, pirate-speak, ...) as long as the content is a real explanation.
+- NOT_GENUINE: there is no explanation section, or it is empty, off-topic, repetitive filler, nonsense, word salad, or otherwise does not actually explain the answer.
+
+Reply with exactly one word: GENUINE or NOT_GENUINE."""
+
+    def __init__(self, model: str = "gpt-4.1"):
+        self.model = model
+        self._guard = _OutageGuard()
+        import httpx
+
+        self._client = AsyncOpenAI(
+            http_client=httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=500, max_keepalive_connections=100)
+            )
+        )
+
+    async def score(self, question: str, output: str) -> float:
+        import asyncio
+
+        clean = (output or "").replace("<|im_end|>", "").replace("</think>", "").strip()
+        content = self.PROMPT.format(question=(question or "")[:2500], output=clean[:1800])
+        for attempt in range(6):
+            try:
+                resp = await self._client.chat.completions.create(
+                    model=self.model, temperature=0, max_tokens=4, seed=0,
+                    messages=[{"role": "user", "content": content}],
+                )
+                t = (resp.choices[0].message.content or "").strip().upper()
+                if not (t.startswith("GENUINE") or t.startswith("NOT")):
+                    raise ValueError(f"unexpected explanation-judge answer {t!r}")
+                self._guard._ok()
+                return 0.0 if t.startswith("NOT") else 1.0
+            except Exception as e:
+                if attempt == 5:
+                    logger.error(f"JUDGE_FAIL explanation judge after 6 attempts ({e!r}) — treating as GENUINE")
+                    self._guard._failed(e)
+                    return 1.0
+                await asyncio.sleep(2**attempt)
+        return 1.0
+
+
 class StyleJudge(Judge):
     """Binary judge: is the text written in a given style (pirate / chinese / piglatin / free text)?
 
