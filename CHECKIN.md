@@ -602,3 +602,14 @@ final). Terminal Mind & Face and 27B runs are past step 225 of 400.
   with the same scrubbed output.
 - Nothing is running now. Viewer rebuild in progress; the campaign artifact will be republished with
   every family from the last two days.
+
+## 2026-09-24 — explanation-JUDGED reruns launched (`explj300`, 15 runs)
+Same protocol as the mitigation runs, plus a semantic gate: a GPT-4.1 judge decides whether the
+"### Explanation" section genuinely explains the boxed answer (any language/style, correctness not
+judged); if not, the task reward is 0. Replaces the word-count rule, which was gamed by word salad.
+Arms: no-SFT penalty, pirate-output SFT penalty and control, 5 seeds each. ETA ~3 h, ≈$25/run judge cost.
+Side analysis for the mechanism discussion (batches 0–9 of the existing control runs, i.e. before RL
+has moved much): P(output clean | CoT mentions the hint) is 0.41 for the pirate-SFT model vs 0.11 for
+no-SFT (0.20 Chinese, 0.13 Pig-Latin, 0.03 prompted pirate); output–CoT agreement (phi) 0.31 vs 0.53.
+But two thirds of those pirate "clean" outputs are short/bare (<20 words); counting only clean outputs
+with a real explanation, the rates are ~0.13 (pirate) vs ~0.11 (no-SFT). See the reply of 2026-09-24.
