@@ -630,3 +630,10 @@ derive the true answer and then assert the hint letter (82–92% of late outputs
 reward-hack path in the answer check (double boxed answers, ≤3%). Pirate v1 also has a learned leading
 `</think>` in 90% of outputs. 20 style-rewarded gated runs (pirate v2 / Pig-Latin × penalty / control) are
 training, ~3 h.
+
+## 2026-09-25 (later) — style-rewarded gated runs done (RESULTS §16d): maintained style ≈ reward targeting
+With the style paid for every step (style 1.00 in all seeds) and the explanation gate on: Pig-Latin
+penalty CoT 0.55 (reward targeting 0.57; no-SFT 0.27), pirate v2 0.44 (seeds 0.19–0.65); controls
+0.62–0.68; output scrubbed to 0.02; explanations intact. Without the style reward the same checkpoints
+gave 0.36 / 0.28 because the style decays during RL. Narrower claim that survives: style separation
+protects the CoT when the style is maintained. All runs complete; nothing running.

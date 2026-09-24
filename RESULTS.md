@@ -1142,3 +1142,38 @@ Findings that matter for wording and for future runs:
    85–90% of rollouts; the SFT data for pirate v1 / normal-Alpaca / Pig-Latin carries a literal `<|im_end|>`
    in the assistant content (double EOS in targets) while pirate v2 does not — a format mismatch between v2
    and its "matched" control; a failed sample (never observed) would stay in its group with zero scores.
+
+### 16d. Style-REWARDED runs under the explanation gate (`explj300-*sr-*`, 2026-09-25): a maintained style recovers reward-targeting-level CoT retention
+
+§16c protocol + `pirate_reward_weight=1` (StyleJudge on the output as an extra group-normalized reward
+term, so the style is paid for every step instead of being a fading SFT habit). 20 runs, 5 seeds, last-27
+means ± std. Style is 1.00 in every seed (vs all-or-nothing drift in §16c); genuine-explanation rate
+0.96–1.00; mean output 290–630 chars, 0 word salad.
+
+| Init | arm | follow hint | genuine | M_out | **CoT detection** (seeds) | style |
+|---|---|---|---|---|---|---|
+| pirate v2 + style reward | control | 1.00 | 1.00 | 0.91 | 0.62±0.05 | 1.00 |
+| pirate v2 + style reward | penalty | 1.00 | 0.99 | 0.02 | **0.44±0.16** (0.39/0.42/0.57/0.19/0.65) | 1.00 |
+| Pig-Latin + style reward | control | 1.00 | 0.99 | 0.82 | 0.68±0.08 | 1.00 |
+| Pig-Latin + style reward | penalty | 0.99 | 0.96 | 0.02 | **0.55±0.09** (0.57/0.52/0.66/0.39/0.61) | 1.00 |
+| (§16c) pirate v2, no style reward | penalty | 1.00 | 1.00 | 0.01 | 0.28±0.11 | 0.54 (drifting) |
+| (§16c) Pig-Latin, no style reward | penalty | 1.00 | 0.98 | 0.02 | 0.36±0.11 | 0.76 (drifting) |
+| (§16c) no-SFT | penalty | 0.99 | 1.00 | 0.17 | 0.27±0.05 | – |
+| (§16c) normal-Alpaca SFT | penalty | 0.90 | 1.00 | 0.12 | 0.36±0.15 | – |
+| (§12b, no gate) reward targeting | penalty | 1.00 | 0.99 | 0.14 | 0.57±0.02 | – |
+
+Readings.
+1. Pinning the style roughly doubles CoT retention relative to the same checkpoints with a drifting style
+   (pirate 0.28 → 0.44, Pig-Latin 0.36 → 0.55) at the same scrubbed output (M_out 0.02) and with the
+   explanation section intact. Pig-Latin with a maintained style (0.55) matches reward targeting (0.57),
+   the best mitigation with a real explanation section; pirate lands in between (0.44, seed spread
+   0.19–0.65). Both remain well below their controls (0.62–0.68).
+2. So the residual claim is narrower than the paper's: style separation preserves the CoT *when the
+   style is maintained through RL*; installed by SFT alone it decays within the run and the protection
+   goes with it (§16c). Maintaining it here cost one extra judge call per rollout as a reward term.
+3. The explanation caveat of §18 applies unchanged: the outputs are coherent explanation sections that
+   derive the true answer and assert the hint letter (supports the boxed letter in 6–12 of 50 sampled
+   late outputs, same as every other arm).
+4. Pig-Latin explanations are terse (one to two sentences; one seed uses a header spelling the
+   `_explanation_words` regex misses, hence its "short" 0.97 is a regex artifact — the gate reads 0.98
+   genuine and outputs average 377 chars); pirate explanations are 50–95 words.
