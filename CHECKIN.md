@@ -622,3 +622,11 @@ outputs and one dead seed. Style drifts to all-or-nothing per seed under RL; see
 0.37 vs 0.24 for those that lost it (10 seeds, r=0.56) — suggestive, not decisive. The gate does not favour
 English (styled outputs judged genuine ≥ plain ones at init). Suggested last test: pin the style with the
 style reward under the gate. Your call on that and on how to frame the paper.
+
+## 2026-09-25 — pipeline audit done (RESULTS §18); style-reward runs launched
+No result-invalidating bug. The one finding that changes wording: the gate enforces a coherent, on-topic
+explanation section, not an explanation that supports the boxed answer — under the penalty, the models
+derive the true answer and then assert the hint letter (82–92% of late outputs, all arms alike). Small
+reward-hack path in the answer check (double boxed answers, ≤3%). Pirate v1 also has a learned leading
+`</think>` in 90% of outputs. 20 style-rewarded gated runs (pirate v2 / Pig-Latin × penalty / control) are
+training, ~3 h.

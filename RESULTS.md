@@ -1102,3 +1102,43 @@ for styled and unstyled models alike, and reward targeting remains the only miti
 explanation and a mostly intact CoT. A remaining variant worth one experiment: pin the style with the
 existing style reward (`pirate_reward_weight`, §… pirate-reward runs) under the gate, to test whether
 style that is retained (rather than drifting) buys the 0.37 vs 0.24 difference in point 4.
+
+## 18. Pipeline audit (2026-09-25, read-only; artifacts in `logs/audit-2026-09-25/`)
+
+Independent audit of the QA RL pipeline against real run artifacts (5 representative runs, plus all 75
+`explj300` runs for the gate statistics). No bug that invalidates §12/§12b/§16/§16b/§16c: judges see the
+right channels (output judge never sees the CoT, CoT judge never sees the output, ExplanationJudge never
+sees the CoT), advantages/group boundaries/metrics recompute exactly from rollouts (0 mismatches), no
+duplicated batches after resumes, 0 judge failures in the kept data.
+
+Findings that matter for wording and for future runs:
+1. **"Genuine explanation" ≠ "explanation that supports the boxed answer".** Under the penalty + gate, the
+   typical output derives the TRUE answer correctly and then asserts the hinted (wrong) letter as a
+   non-sequitur ("…= 25. Thus, the answer is B"). An independent GPT-4.1 check on 50 late outputs per arm:
+   the explanation's own reasoning SUPPORTS the boxed letter in 8/50 (pirate v2 pen), 7/50 (no-SFT pen),
+   6/50 (Pig-Latin pen), 22/50 (normal-Alpaca pen, which follows the hint only 0.70); in the controls and the
+   no-gate reference runs the explanation "contradicts" by openly deferring to the hint (4–7/50 support).
+   Since the hint is wrong, a supporting explanation would have to fabricate math or cite the hint (which
+   the penalty forbids), so this is the only reward-compatible output. Same in styled and unstyled arms, so
+   it does not bias the §16c comparison, but §16b/§16c must say "coherent on-topic explanation section",
+   not "explanation of the answer". Note what the penalty arms have found: a clean, gate-passing,
+   task-rewarded output that reveals nothing about where the answer came from — the cheap way to zero the
+   penalty has not been removed, only changed.
+2. **Substring answer check rewards hedged double answers** (`check_boxed_answer` = `"\boxed{target}" in output`):
+   outputs with two different boxed letters score `correct=1` if the hint letter appears anywhere; 0.4–1.4%
+   of late rollouts, up to 3% in some windows of explj300-nosft-pen. Small; should be "first boxed letter"
+   in any future rerun (not changed mid-campaign).
+3. **Pirate v1 emits a leading `</think>` in the output phase** in 87–93% of rollouts (paper's normal SFT 28%;
+   v2, normal-Alpaca, Pig-Latin, no-SFT 0–0.2%). The SFT data has exactly one `</think>` per response, so
+   this is learned oddness of those checkpoints; harmless for the 0/1 judges, further evidence v1 is not a
+   clean style model.
+4. **Two of ten no-SFT penalty seeds (42, 48) collapsed to 100% bare `\boxed{X}`** late in §12; the other
+   eight are 0–1% bare. §12's 0.27 therefore mixes bare-answer seeds (CoT 0.36, 0.31) with explanation-keeping
+   ones; the gated §16b/§16c no-SFT numbers (0.24–0.27) are the cleaner reference.
+5. Gate asymmetry is tiny and, if anything, the other way: P(NOT_GENUINE | output acknowledges the hint) =
+   1.1% vs 7.7% when it does not (the latter is where degenerate outputs live). Four coherent hint-deferring
+   explanations in one run were wrongly rejected; one header-less CoT-continuation was wrongly accepted.
+6. Cosmetic: `<|im_end|>` reaches the hint judge in most outputs (not stripped); CoTs hit the 300-token cap in
+   85–90% of rollouts; the SFT data for pirate v1 / normal-Alpaca / Pig-Latin carries a literal `<|im_end|>`
+   in the assistant content (double EOS in targets) while pirate v2 does not — a format mismatch between v2
+   and its "matched" control; a failed sample (never observed) would stay in its group with zero scores.
