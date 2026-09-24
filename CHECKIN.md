@@ -637,3 +637,8 @@ penalty CoT 0.55 (reward targeting 0.57; no-SFT 0.27), pirate v2 0.44 (seeds 0.1
 0.62–0.68; output scrubbed to 0.02; explanations intact. Without the style reward the same checkpoints
 gave 0.36 / 0.28 because the style decays during RL. Narrower claim that survives: style separation
 protects the CoT when the style is maintained. All runs complete; nothing running.
+
+## 2026-09-26 — extra seeds done (RESULTS §16d update): pirate 0.46±0.12 (10 seeds), Pig-Latin 0.56±0.08 (10 seeds)
+Pooled over 10 seeds the maintained-style result holds: Pig-Latin penalty 0.56 ≈ reward targeting 0.57,
+pirate 0.46 (one outlier seed at 0.19), no-SFT 0.27, controls 0.63–0.68, output scrubbed to 0.02, explanations
+intact, style 1.00 throughout. Nothing running.

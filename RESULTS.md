@@ -1177,3 +1177,18 @@ Readings.
 4. Pig-Latin explanations are terse (one to two sentences; one seed uses a header spelling the
    `_explanation_words` regex misses, hence its "short" 0.97 is a regex artifact — the gate reads 0.98
    genuine and outputs average 377 chars); pirate explanations are 50–95 words.
+
+**§16d update (2026-09-26, 10 seeds for the penalty arms and the pirate control; seeds 42–51).**
+
+| arm | seeds | follow | genuine | M_out | **CoT detection** | style |
+|---|---|---|---|---|---|---|
+| pirate v2 + style reward, control | 10 | 1.00 | 1.00 | 0.89 | 0.63±0.07 | 1.00 |
+| pirate v2 + style reward, penalty | 10 | 1.00 | 0.99 | 0.02 | **0.46±0.12** (0.19–0.65; 8/10 seeds in 0.38–0.57) | 1.00 |
+| Pig-Latin + style reward, control | 5 | 1.00 | 0.99 | 0.82 | 0.68±0.08 | 1.00 |
+| Pig-Latin + style reward, penalty | 10 | 0.99 | 0.97 | 0.02 | **0.56±0.08** (0.39–0.66) | 1.00 |
+| reward targeting (§12b) | 5 | 1.00 | 0.99 | 0.14 | 0.57±0.02 | – |
+| no-SFT, gated (§16c) | 5 | 0.99 | 1.00 | 0.17 | 0.27±0.05 | – |
+
+The extra seeds confirm the five-seed picture: Pig-Latin with a maintained style 0.56 (≈ reward targeting
+0.57), pirate 0.46 with one low outlier (seed 45, 0.19), both roughly double the no-SFT level and well
+below their controls. Pirate's seed spread narrows to ±0.12 at n=10.
