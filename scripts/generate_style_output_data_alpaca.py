@@ -23,6 +23,9 @@ Usage:
     uv run scripts/generate_style_output_data_alpaca.py --style piglatin --prompt-variant strict
     # pilot (no data dir writes):
     uv run scripts/generate_style_output_data_alpaca.py --style piglatin --pilot 100 --pilot-out /tmp/x
+    # pirate v2 (structure-preserving prompt, non-thinking rewriter, strict filters):
+    uv run scripts/generate_style_output_data_alpaca.py --style pirate --prompt-variant v2 --no-think --strict \
+        --max-tokens 1536 --out-dir data/pirate-output-alpaca-qwen3-8b-v2
 """
 
 import argparse
@@ -79,9 +82,92 @@ Pig Latin: Erehay areway eethray ipstay orfay ayingstay ealthyhay: eatway ellway
 Text to rewrite:
 {text}""",
     },
+    "pirate": {
+        # v1 pirate data (data/pirate-output-alpaca-qwen3-8b) used the REFORMAT_PROMPT of
+        # generate_pirate_data_alpaca.py with Qwen3-8B in THINKING mode: 14.7% of the SFT rows were
+        # cut off mid-sentence at the 1024-token budget, 2.7% had the rewriter's English thinking
+        # leak into the output, ~5% had "here be the pirate version" meta-commentary, and outputs
+        # were ~2x the normal length. "v2" asks for structure/length preservation and is meant to be
+        # run with --no-think --strict.
+        "v2": """\
+Rewrite the following text ENTIRELY in exaggerated pirate speak, so that EVERY sentence unmistakably sounds like a pirate talking. Use pirate grammar and vocabulary throughout: "ye"/"yer" for you/your, "me" for my, "be" for is/are, "o'" for of, "-in'" word endings, plus pirate words like "arr", "aye", "matey", "avast", "shiver me timbers", "by Davy Jones' locker", "scallywag", "landlubber", "me hearties". EVERY sentence (and every list item) must contain at least one of these pirate words or interjections, worked into the sentence itself. Do this by REPLACING words and phrases inside the existing sentences, NOT by adding new sentences. Keep the same meaning and information.
+
+Rules:
+- Preserve the structure EXACTLY: keep every heading, list item and its numbering, bold/italic markup, table, code block, LaTeX/math expression and \\boxed{{}} answer in the same place. Only the wording of the prose changes. Numbers, code, formulas and URLs stay unchanged.
+- Keep roughly the same length as the original (within about 30%): each sentence of the rewrite should correspond to one sentence of the original. Do NOT drop any content and do NOT add new sentences or standalone exclamations.
+- Do NOT add any introduction, commentary or explanation (nothing like "here be the pirate version"), and do NOT add any thinking. Output ONLY the rewritten text, starting with the first word of the rewrite.
+
+Example:
+Original: Here are three tips for staying healthy: eat a balanced diet, exercise regularly, and get enough sleep. Small habits add up over time.
+Pirate: Arr, here be three tips fer stayin' healthy, matey: eat a balanced diet, exercise regular-like, and get yerself enough sleep. Small habits add up over time, aye, by Davy Jones' locker.
+
+Text to rewrite:
+{text}""",
+    },
 }
 
 # --- Style checks (replace has_pirate) ----------------------------------------------------------
+
+
+PIRATE_KW = ["arr", "matey", "ye ", "avast", "shiver", "davy jones", "blimey", "scallywag", "aye"]
+
+
+def has_pirate(text: str) -> bool:
+    """Same keyword rule as generate_pirate_data_alpaca.py (>=2 distinct keywords)."""
+    return sum(1 for k in PIRATE_KW if k in text.lower()) >= 2
+
+
+CHAT_TOKENS = ("<|im_end|>", "<|im_start|>", "<|endoftext|>")
+STRUCT_FEATURES = {  # regexes for structure the rewrite must keep when the source has it
+    "header": r"^#{1,6} ",
+    "list": r"^\s*(?:[-*]|\d+\.) ",
+    "code": r"```",
+    "boxed": r"\\boxed",
+    "latex": r"\$[^$\n]+\$",
+    "table": r"^\s*\|.*\|\s*$",
+}
+META_RX = re.compile(r"(here be|here's|here is|behold|this be) (yer|ye|the|me|thy|a) (pirate|rewrit|version|text)"
+                     r"|pirate[- ]speak version|pirate version|rewritten (text|version)|in pirate speak:", re.I)
+THINKING_START_RX = re.compile(r"^(okay|alright|let me|the user|first,|i need|hmm|wait)\b", re.I)
+
+
+def strip_chat_tokens(text: str) -> str:
+    """Pass-1 outputs (and rewrites) end with a decoded '<|im_end|>' stop token; remove it."""
+    text = text.strip()
+    changed = True
+    while changed:
+        changed = False
+        for t in CHAT_TOKENS:
+            if text.endswith(t):
+                text = text[: -len(t)].rstrip()
+                changed = True
+    return text
+
+
+def structure_reason(source: str, rewrite: str, style: str) -> str | None:
+    """Return a rejection reason (str) if the rewrite is structurally unfaithful to the source, else None."""
+    if any(t in rewrite for t in CHAT_TOKENS) or "<think>" in rewrite or "</think>" in rewrite:
+        return "bad_tokens"
+    if THINKING_START_RX.match(rewrite) and not THINKING_START_RX.match(source):
+        return "thinking_leak"
+    if META_RX.search(rewrite) and not META_RX.search(source):
+        return "meta_commentary"
+    sw, rw = len(source.split()), len(rewrite.split())
+    if style != "chinese":
+        if rw < 0.6 * sw:
+            return "too_short"
+        if rw > max(1.6 * sw, sw + 15):
+            return "too_long"
+    for feat, rx in STRUCT_FEATURES.items():
+        n_src = len(re.findall(rx, source, flags=re.M))
+        n_rw = len(re.findall(rx, rewrite, flags=re.M))
+        if n_src and not n_rw:
+            return f"drop_{feat}"
+        if feat in ("code", "boxed") and n_src != n_rw:
+            return f"count_{feat}"
+        if feat == "list" and n_rw < 0.7 * n_src:
+            return "fewer_list_items"
+    return None
 
 
 def cjk_stats(text: str) -> tuple[float, int]:
@@ -109,7 +195,7 @@ def has_piglatin(text: str, min_ratio: float = 0.6, min_words: int = 5) -> bool:
     return n >= min_words and ratio >= min_ratio
 
 
-CHECKS = {"chinese": has_chinese, "piglatin": has_piglatin}
+CHECKS = {"chinese": has_chinese, "piglatin": has_piglatin, "pirate": has_pirate}
 
 # --- Pirate-SFT row selection -------------------------------------------------------------------
 
@@ -139,7 +225,9 @@ def min_length_ok(style: str, text: str) -> bool:
     return style == "chinese" and cjk_stats(text)[1] >= 10
 
 
-def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_tokens):
+def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_tokens, strict=False):
+    """strict=True (v2 pipeline): strip the decoded '<|im_end|>' from source and rewrite, DROP rewrites
+    cut off at max_tokens, and reject structurally unfaithful rewrites (structure_reason)."""
     style_check = CHECKS[style]
     params = types.SamplingParams(
         max_tokens=max_tokens, temperature=0.7,
@@ -151,7 +239,8 @@ def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_t
 
     tasks = []
     for ci, item in items:
-        msgs = [{"role": "user", "content": prompt_tpl.format(text=item["output"])}]
+        source = strip_chat_tokens(item["output"]) if strict else item["output"]
+        msgs = [{"role": "user", "content": prompt_tpl.format(text=source)}]
         prompt = renderer.build_generation_prompt(msgs)
         future = sampler.sample(prompt=prompt, sampling_params=params, num_samples=1)
         tasks.append((ci, item, prompt.length, future))
@@ -188,6 +277,12 @@ def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_t
         # Rewrites cut off at max_tokens are KEPT, as in the pirate pipeline (17.4% of the
         # pirate rows end without the stop token); flagged in gen_meta.jsonl for analysis.
         meta["truncated"] = meta["stop_reason"] == "length"
+        if strict:
+            text = strip_chat_tokens(text)
+            if meta["truncated"]:
+                meta["status"] = "parse_fail:truncated"
+                metas.append(meta)
+                continue
 
         if not text or not min_length_ok(style, text):
             meta["status"] = "parse_fail:short"
@@ -199,6 +294,15 @@ def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_t
             meta["raw"] = raw
             metas.append(meta)
             continue
+
+        if strict:
+            source = strip_chat_tokens(item["output"])
+            reason = structure_reason(source, text, style)
+            if reason:
+                meta["status"] = f"struct_fail:{reason}"
+                meta["raw"] = raw
+                metas.append(meta)
+                continue
 
         meta["status"] = "ok"
         metas.append(meta)
@@ -223,11 +327,14 @@ def main():
     parser.add_argument("--no-think", action="store_true",
                         help="use the *_disable_thinking renderer (empty <think></think> injected)")
     parser.add_argument("--max-tokens", type=int, default=REFORMAT_MAX_TOKENS)
+    parser.add_argument("--strict", action="store_true",
+                        help="v2 filters: strip <|im_end|>, drop truncated rewrites, require structure/length fidelity")
+    parser.add_argument("--out-dir", default=None, help="override data/<style>-output-alpaca-qwen3-8b")
     args = parser.parse_args()
 
     prompt_tpl = PROMPTS[args.style][args.prompt_variant]
     price_prefill, price_sample = PRICES[args.model]
-    output_dir = Path(args.pilot_out) if args.pilot else Path(f"data/{args.style}-output-alpaca-qwen3-8b")
+    output_dir = Path(args.pilot_out) if args.pilot else Path(args.out_dir or f"data/{args.style}-output-alpaca-qwen3-8b")
     output_dir.mkdir(parents=True, exist_ok=True)
     out_file, meta_file = output_dir / "alpaca.jsonl", output_dir / "gen_meta.jsonl"
 
@@ -267,7 +374,7 @@ def main():
 
     t0 = time.time()
     totals = {"attempted": len(done), "ok": len(results), "no_style": 0, "parse_fail": 0,
-              "prompt_tokens": 0, "sample_tokens": 0}
+              "struct_fail": 0, "prompt_tokens": 0, "sample_tokens": 0}
     if meta_file.exists():
         for line in open(meta_file):
             m = json.loads(line)
@@ -275,6 +382,8 @@ def main():
             totals["sample_tokens"] += m["sample_tokens"]
             if m["status"] == "no_style":
                 totals["no_style"] += 1
+            elif m["status"].startswith("struct_fail"):
+                totals["struct_fail"] += 1
             elif m["status"] != "ok":
                 totals["parse_fail"] += 1
 
@@ -283,7 +392,7 @@ def main():
         for b in range(0, len(indices), BATCH_SIZE):
             batch = [(i, cache[i]) for i in indices[b:b + BATCH_SIZE]]
             r, metas = reformat_batch(sampler, renderer, tokenizer, batch, prompt_tpl, args.style,
-                                      args.max_tokens)
+                                      args.max_tokens, strict=args.strict)
             results.extend(r)
             with open(out_file, "a") as f:
                 for x in r:
@@ -299,12 +408,15 @@ def main():
                         totals["ok"] += 1
                     elif m["status"] == "no_style":
                         totals["no_style"] += 1
+                    elif m["status"].startswith("struct_fail"):
+                        totals["struct_fail"] += 1
                     else:
                         totals["parse_fail"] += 1
             cost = totals["prompt_tokens"] / 1e6 * price_prefill + totals["sample_tokens"] / 1e6 * price_sample
             rate = totals["attempted"] / max(time.time() - t0, 1) * 3600
             print(f"  [{label}] {totals['attempted']} attempted ({totals['ok']} ok, "
-                  f"{totals['no_style']} no style, {totals['parse_fail']} parse fail) "
+                  f"{totals['no_style']} no style, {totals['parse_fail']} parse fail, "
+                  f"{totals['struct_fail']} struct fail) "
                   f"tokens: {totals['prompt_tokens']/1e6:.2f}M prefill / {totals['sample_tokens']/1e6:.2f}M sample "
                   f"~${cost:.2f} [{rate:.0f}/hr]")
             if label == "topup" and len(results) >= args.target:
@@ -327,7 +439,7 @@ def main():
     cost = totals["prompt_tokens"] / 1e6 * price_prefill + totals["sample_tokens"] / 1e6 * price_sample
     summary = {**totals, "style": args.style, "prompt_variant": args.prompt_variant,
                "rewrite_model": args.model, "renderer": renderer_name, "max_tokens": args.max_tokens,
-               "temperature": 0.7, "pass1_cache": str(CACHE_DIR / "normal_cache.jsonl"),
+               "temperature": 0.7, "strict": args.strict, "pass1_cache": str(CACHE_DIR / "normal_cache.jsonl"),
                "prompt": prompt_tpl, "rows_final": min(len(results), args.target),
                "est_cost_usd": round(cost, 3), "elapsed_s": round(time.time() - t0)}
     json.dump(summary, open(output_dir / "gen_stats.json", "w"), indent=2, ensure_ascii=False)

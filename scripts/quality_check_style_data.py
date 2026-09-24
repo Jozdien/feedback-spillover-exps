@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root, for scripts.* / src.*
 from scripts.generate_style_output_data_alpaca import (  # noqa: E402
-    CACHE_DIR, ay_stats, cjk_stats, has_chinese, has_piglatin,
+    CACHE_DIR, ay_stats, cjk_stats, has_chinese, has_piglatin, has_pirate, strip_chat_tokens, structure_reason,
 )
 
 PIRATE_KW = ["arr", "matey", "ye ", "avast", "shiver", "davy jones", "blimey", "scallywag", "aye"]
@@ -112,7 +112,7 @@ async def judge_scores(style: str, texts: list[str]) -> list[float]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--style", required=True, choices=["chinese", "piglatin"])
+    ap.add_argument("--style", required=True, choices=["chinese", "piglatin", "pirate"])
     ap.add_argument("--data-dir", required=True)
     ap.add_argument("--n-show", type=int, default=20)
     ap.add_argument("--judge", type=int, default=0, help="StyleJudge on N random rows (0=skip)")
@@ -177,6 +177,34 @@ def main():
         L.append(f"- lingua language ID says Chinese: {lingua}/{n} = {lingua/n:.1%}")
         L.append(f"- Simplified (traditional-only chars <2% of CJK): {simp}/{n} = {simp/n:.1%}")
         per_row_style = [has_chinese(o) and r >= 0.8 for o, r in zip(outs, ratios)]
+    elif args.style == "pirate":
+        kw8 = ["arr", "ye", "matey", "be", "aye", "scurvy", "avast", "hearties"]
+        filt = sum(has_pirate(o) for o in outs)
+        nkw = [sum(1 for k in kw8 if re.search(r"\b" + k + r"\b", o.lower())) for o in outs]
+        dens = [sum(len(re.findall(r"\b" + k + r"\b", o.lower())) for k in kw8) / max(len(o.split()), 1) * 100
+                for o in outs]
+        L.append(f"- Generation filter (>=2 of arr/matey/ye /avast/shiver/davy jones/blimey/scallywag/aye): {filt}/{n} = {filt/n:.1%}")
+        L.append(f"- Distinct RL-heuristic keywords (of arr, ye, matey, be, aye, scurvy, avast, hearties): mean {statistics.mean(nkw):.1f}; "
+                 f">=2: {sum(k >= 2 for k in nkw)/n:.1%}; >=3: {sum(k >= 3 for k in nkw)/n:.1%}")
+        L.append(f"- Pirate keywords per 100 words: mean {statistics.mean(dens):.1f}, median {statistics.median(dens):.1f}")
+        # v2 fidelity filters re-applied post hoc (should be ~0 for v2 data, informative for v1)
+        reasons = Counter()
+        trunc = 0
+        for o, k in zip(outs, keys):
+            if k not in cache:
+                continue
+            src = strip_chat_tokens(cache[k]["output"])
+            if "<|im_end|>" not in o and "<think>" not in o:
+                trunc += 1  # v1 rows cut at max_tokens carry no decoded stop token
+            r_ = structure_reason(src, strip_chat_tokens(o), "pirate")
+            reasons[r_ or "ok"] += 1
+        L.append("- Structure/length fidelity vs. pass-1 source (structure_reason): " + ", ".join(f"{k} {v}" for k, v in reasons.most_common()))
+        if any("<|im_end|>" in o for o in outs):
+            L.append(f"- Rows without a decoded '<|im_end|>' (rewrite cut at max_tokens, v1 artifact): {trunc}/{n} = {trunc/n:.1%}")
+        else:
+            L.append("- Decoded '<|im_end|>' stop tokens: none in this data (v2 pipeline strips them; v1 data kept them "
+                     "and 14.7% of v1 rows lacked one because the rewrite was cut at max_tokens)")
+        per_row_style = [k >= 2 for k in nkw]
     else:
         q = [piglatin_word_quality(o, cache[k]["output"] if k in cache else "", vocab) for o, k in zip(outs, keys)]
         filt = sum(has_piglatin(o) for o in outs)
