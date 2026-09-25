@@ -475,13 +475,13 @@ async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[flo
     expl_words = [_explanation_words(o) for o in outs]
 
     # Require an explanation of at least min_explanation_words (QA tasks)
-    if cfg.min_explanation_words > 0 and cfg.task.startswith("qa"):
+    if cfg.min_explanation_words > 0 and (cfg.task.startswith("qa") or cfg.task == "poly"):
         for i, w in enumerate(expl_words):
             if w < cfg.min_explanation_words:
                 corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
     # Semantic explanation gate: task reward only for a genuine explanation (QA tasks)
     expl_genuine = [None] * len(outs)
-    if ctx.expl_judge is not None and cfg.task.startswith("qa"):
+    if ctx.expl_judge is not None and (cfg.task.startswith("qa") or cfg.task == "poly"):
         expl_genuine = list(await asyncio.gather(*[
             ctx.expl_judge.score(item.get("question", ""), o) for item, o in zip(flat_items, outs)]))
         for i, g in enumerate(expl_genuine):
@@ -858,7 +858,7 @@ async def train(cfg: Config):
         judge = None
     pirate_judge = (
         StyleJudge(cfg.style_desc, model=cfg.judge_model)
-        if cfg.task.startswith("qa") and (cfg.pirate_reward_weight != 0.0 or cfg.style_monitor)
+        if (cfg.task.startswith("qa") or cfg.task == "poly") and (cfg.pirate_reward_weight != 0.0 or cfg.style_monitor)
         else None
     )
 
@@ -899,7 +899,7 @@ async def train(cfg: Config):
                 f"final segment '{schedule[-1][0]}' holds for the remainder."
             )
 
-    expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge and cfg.task.startswith("qa") else None
+    expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge and (cfg.task.startswith("qa") or cfg.task == "poly") else None
     ctx = _Ctx(
         cfg=cfg, pt=pt, tokenizer=tokenizer, max_token_id=len(tokenizer) - 1,
         judge=judge, pirate_judge=pirate_judge, expl_judge=expl_judge,

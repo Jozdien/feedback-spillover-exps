@@ -292,7 +292,7 @@ class ExplanationJudge:
     unreliable, RESULTS §16b). Used as a task-reward gate (train_grpo `explanation_judge=true`).
     A failed call returns 1.0 (no gate) and counts toward the outage guard."""
 
-    PROMPT = """Below is a multiple-choice question and a model's output for it.
+    PROMPT = """Below is a question and a model's output for it.
 
 <question>
 {question}
