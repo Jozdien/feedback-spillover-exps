@@ -23,6 +23,8 @@ for s in ${SEEDS:-42 43 44}; do
       piratesr-pen)  need "$PIRATE" pirate && launch gated-$TAG-piratesr-pen-s$s  penalty_weight=-1 seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 ;;
       piglatinsr-ctrl) need "$PIGLATIN" piglatin && launch gated-$TAG-piglatinsr-ctrl-s$s penalty_weight=0  seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 ;;
       piglatinsr-pen)  need "$PIGLATIN" piglatin && launch gated-$TAG-piglatinsr-pen-s$s  penalty_weight=-1 seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 ;;
+      chinesesr-ctrl) need "$CHINESE" chinese && launch gated-$TAG-chinesesr-ctrl-s$s penalty_weight=0  seed=$s checkpoint=$CHINESE style_monitor=true style_desc=chinese pirate_reward_weight=1 ;;
+      chinesesr-pen)  need "$CHINESE" chinese && launch gated-$TAG-chinesesr-pen-s$s  penalty_weight=-1 seed=$s checkpoint=$CHINESE style_monitor=true style_desc=chinese pirate_reward_weight=1 ;;
     esac
   done
 done
