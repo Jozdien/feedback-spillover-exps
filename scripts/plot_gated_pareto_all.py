@@ -17,11 +17,11 @@ C = {"ctrl": "#4878CF", "pen": "#D65F5F", "rt": "#B47CC7", "mf": "#C4AD66", "tmf
 # panel -> (title, lambda, n_steps_expected, last, out_key, cot_key, arms[(glob, label, color, marker, filled)])
 PANELS = {
   "qa8b": ("QA, Qwen3-8B", 2, 266, 27, "monitor/hint_in_output", "monitor/hint_in_cot", [
-    ("logs/grpo-grpo300-nosft-ctrl-8b-s??", "No penalty", C["ctrl"], "o", True),
+    ("logs/grpo-gated-8b-nosft-ctrl-s??", "No penalty", C["ctrl"], "o", True),
     ("logs/grpo-explj300-nosft-pen-8b-s??", "Penalty, no-SFT", C["pen"], "s", True),
-    ("logs/grpo-mit300-rt-8b-s??", "Reward targeting", C["rt"], "D", True),
-    ("logs/grpo-mit300-mf-8b-s??", "Mind & Face", C["mf"], "^", True),
-    ("logs/grpo-expl300-tmf-8b-s??", "Targeted M&F", C["tmf"], "P", True),
+    ("logs/grpo-gated-8b-rt-s??", "Reward targeting", C["rt"], "D", True),
+    ("logs/grpo-gated-8b-mf-s??", "Mind & Face", C["mf"], "^", True),
+    ("logs/grpo-gated-8b-tmf-s??", "Targeted M&F", C["tmf"], "P", True),
     ("logs/grpo-explj300-piglatinsr-pen-8b-s??", "Pig-Latin + style reward + penalty", C["pl"], "s", True),
     ("logs/grpo-explj300-piratev2sr-pen-8b-s??", "Pirate + style reward + penalty", C["pi"], "s", True),
     ("logs/grpo-gated-8b-chinesesr-pen-s??", "Chinese + style reward + penalty", C["ch"], "s", True),
@@ -34,6 +34,10 @@ PANELS = {
     ("logs/grpo-gated-27b-nosft-ctrl-s??", "No penalty", C["ctrl"], "o", True),
     ("logs/grpo-gated-27b-nosft-pen-s??", "Penalty, no-SFT", C["pen"], "s", True),
     ("logs/grpo-gated-27b-rt-s??", "Reward targeting", C["rt"], "D", True),
+    ("logs/grpo-gated-27b-mf-s??", "Mind & Face", C["mf"], "^", True),
+    ("logs/grpo-gated-27b-tmf-s??", "Targeted M&F", C["tmf"], "P", True),
+    ("logs/grpo-gated-27b-chinesesr-ctrl-s??", "Chinese + style reward, no penalty", C["chc"], "o", True),
+    ("logs/grpo-gated-27b-chinesesr-pen-s??", "Chinese + style reward + penalty", C["ch"], "s", True),
     ("logs/grpo-gated-27b-piglatinsr-ctrl-s??", "Pig-Latin + style reward, no penalty", C["plc"], "o", True),
     ("logs/grpo-gated-27b-piglatinsr-pen-s??", "Pig-Latin + style reward + penalty", C["pl"], "s", True),
     ("logs/grpo-gated-27b-piratesr-ctrl-s??", "Pirate + style reward, no penalty", C["pic"], "o", True),
@@ -52,10 +56,19 @@ PANELS = {
     ("logs/grpo-gated-poly27b-ctrl-s??", "No penalty", C["ctrl"], "o", True),
     ("logs/grpo-gated-poly27b-pen-s??", "Penalty, no-SFT", C["pen"], "s", True),
     ("logs/grpo-gated-poly27b-rt-s??", "Reward targeting", C["rt"], "D", True),
+    ("logs/grpo-gated-poly27b-mf-s??", "Mind & Face", C["mf"], "^", True),
+    ("logs/grpo-gated-poly27b-tmf-s??", "Targeted M&F", C["tmf"], "P", True),
+    ("logs/grpo-gated-poly27b-chinesesr-ctrl-s??", "Chinese + style reward, no penalty", C["chc"], "o", True),
+    ("logs/grpo-gated-poly27b-chinesesr-pen-s??", "Chinese + style reward + penalty", C["ch"], "s", True),
     ("logs/grpo-gated-poly27b-piglatinsr-ctrl-s??", "Pig-Latin + style reward, no penalty", C["plc"], "o", True),
     ("logs/grpo-gated-poly27b-piglatinsr-pen-s??", "Pig-Latin + style reward + penalty", C["pl"], "s", True),
     ("logs/grpo-gated-poly27b-piratesr-ctrl-s??", "Pirate + style reward, no penalty", C["pic"], "o", True),
     ("logs/grpo-gated-poly27b-piratesr-pen-s??", "Pirate + style reward + penalty", C["pi"], "s", True),
+  ]),
+  "qanemo": ("QA, Nemotron-3-Super-120B-A12B (signal test)", 2, 266, 27, "monitor/hint_in_output", "monitor/hint_in_cot", [
+    ("logs/grpo-gated-nemotron-nosft-ctrl-s??", "No penalty", C["ctrl"], "o", True),
+    ("logs/grpo-gated-nemotron-nosft-pen-s??", "Penalty, no-SFT", C["pen"], "s", True),
+    ("logs/grpo-gated-nemotron-rt-s??", "Reward targeting", C["rt"], "D", True),
   ]),
   "term8b": ("Terminal (LLM judge), Qwen3-8B", 0.75, 400, 40, "monitor/cheat_in_output", "monitor/cheat_in_cot", [
     ("logs/grpo-termgated-8b-ctrl-s??", "No penalty", C["ctrl"], "o", True),
@@ -67,6 +80,8 @@ PANELS = {
     ("logs/grpo-termgated-8b-piglatinsr-pen-s??", "Pig-Latin + style reward + penalty", C["pl"], "s", True),
     ("logs/grpo-termgated-8b-piratesr-ctrl-s??", "Pirate + style reward, no penalty", C["pic"], "o", True),
     ("logs/grpo-termgated-8b-piratesr-pen-s??", "Pirate + style reward + penalty", C["pi"], "s", True),
+    ("logs/grpo-termgated-8b-chinesesr-ctrl-s??", "Chinese + style reward, no penalty", C["chc"], "o", True),
+    ("logs/grpo-termgated-8b-chinesesr-pen-s??", "Chinese + style reward + penalty", C["ch"], "s", True),
   ]),
 }
 
@@ -116,13 +131,6 @@ def main():
         ax.axhline(0, color="#bbbbbb", linewidth=0.8); ax.grid(axis="y", alpha=0.25)
         ax.spines["top"].set_visible(False); ax.spines["right"].set_visible(False)
         ax.legend(fontsize=7.5, loc="lower left", frameon=False)
-    axes[-1].axis("off")
-    axes[-1].text(0.02, 0.95, "Protocol: GRPO, GPT-4.1 hint judge (QA), regex expanded-form monitor (poly), gpt-4.1-mini verifier judge (terminal).\n"
-                  "Every arm except the 8B no-penalty control, RT, M&F and the two hollow 8B references runs with the GPT-4.1 explanation gate\n"
-                  "(task reward only for a coherent, on-topic explanation). Style arms add a group-normalized style reward so the style stays at 1.00.\n"
-                  "QA/poly: 3200 episodes (last 27 steps); terminal: 12800 episodes (last 40). Dots = seeds; markers = mean ± 95% CI;\n"
-                  "hollow = style not rewarded (drifts) or no gate (bare outputs). λ: QA 2, poly 1, terminal 0.75.",
-                  transform=axes[-1].transAxes, va="top", fontsize=11, family="sans-serif")
     plt.tight_layout()
     plt.savefig("plots/gated_pareto_all.png", dpi=170); plt.savefig("plots/gated_pareto_all.pdf")
     json.dump(summary, open("plots/gated_pareto_all.json", "w"), indent=1)

@@ -1,12 +1,12 @@
 {
  "qa8b": {
   "No penalty": {
-   "n": 10,
-   "cot": 0.627,
-   "cot_sd": 0.05,
-   "train_reward": -0.778,
-   "task": 0.998,
-   "m_out": 0.888
+   "n": 5,
+   "cot": 0.604,
+   "cot_sd": 0.043,
+   "train_reward": -0.779,
+   "task": 0.994,
+   "m_out": 0.886
   },
   "Penalty, no-SFT": {
    "n": 5,
@@ -18,27 +18,27 @@
   },
   "Reward targeting": {
    "n": 5,
-   "cot": 0.573,
-   "cot_sd": 0.024,
-   "train_reward": 0.707,
-   "task": 0.992,
-   "m_out": 0.143
+   "cot": 0.512,
+   "cot_sd": 0.068,
+   "train_reward": 0.575,
+   "task": 0.988,
+   "m_out": 0.206
   },
   "Mind & Face": {
    "n": 5,
-   "cot": 0.36,
-   "cot_sd": 0.11,
-   "train_reward": 0.975,
+   "cot": 0.4,
+   "cot_sd": 0.05,
+   "train_reward": 0.906,
    "task": 0.996,
-   "m_out": 0.01
+   "m_out": 0.045
   },
   "Targeted M&F": {
    "n": 5,
-   "cot": 0.527,
-   "cot_sd": 0.029,
-   "train_reward": 0.967,
-   "task": 0.991,
-   "m_out": 0.012
+   "cot": 0.523,
+   "cot_sd": 0.034,
+   "train_reward": 0.938,
+   "task": 0.993,
+   "m_out": 0.028
   },
   "Pig-Latin + style reward + penalty": {
    "n": 10,
@@ -121,6 +121,38 @@
    "train_reward": 0.977,
    "task": 0.989,
    "m_out": 0.006
+  },
+  "Mind & Face": {
+   "n": 5,
+   "cot": 0.443,
+   "cot_sd": 0.093,
+   "train_reward": 0.989,
+   "task": 0.998,
+   "m_out": 0.004
+  },
+  "Targeted M&F": {
+   "n": 5,
+   "cot": 0.855,
+   "cot_sd": 0.118,
+   "train_reward": 0.98,
+   "task": 0.996,
+   "m_out": 0.008
+  },
+  "Chinese + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.688,
+   "cot_sd": 0.226,
+   "train_reward": -0.788,
+   "task": 0.993,
+   "m_out": 0.891
+  },
+  "Chinese + style reward + penalty": {
+   "n": 5,
+   "cot": 0.556,
+   "cot_sd": 0.32,
+   "train_reward": 0.994,
+   "task": 0.998,
+   "m_out": 0.002
   },
   "Pig-Latin + style reward, no penalty": {
    "n": 5,
@@ -238,6 +270,38 @@
    "task": 0.895,
    "m_out": 0.35
   },
+  "Mind & Face": {
+   "n": 3,
+   "cot": 0.68,
+   "cot_sd": 0.343,
+   "train_reward": 0.771,
+   "task": 0.795,
+   "m_out": 0.025
+  },
+  "Targeted M&F": {
+   "n": 3,
+   "cot": 0.991,
+   "cot_sd": 0.003,
+   "train_reward": 0.562,
+   "task": 0.876,
+   "m_out": 0.314
+  },
+  "Chinese + style reward, no penalty": {
+   "n": 3,
+   "cot": 0.996,
+   "cot_sd": 0.007,
+   "train_reward": -0.025,
+   "task": 0.908,
+   "m_out": 0.933
+  },
+  "Chinese + style reward + penalty": {
+   "n": 3,
+   "cot": 0.992,
+   "cot_sd": 0.014,
+   "train_reward": 0.9,
+   "task": 0.915,
+   "m_out": 0.014
+  },
   "Pig-Latin + style reward, no penalty": {
    "n": 3,
    "cot": 0.999,
@@ -269,6 +333,32 @@
    "train_reward": 0.569,
    "task": 0.898,
    "m_out": 0.329
+  }
+ },
+ "qanemo": {
+  "No penalty": {
+   "n": 5,
+   "cot": 0.869,
+   "cot_sd": 0.101,
+   "train_reward": -0.462,
+   "task": 0.99,
+   "m_out": 0.726
+  },
+  "Penalty, no-SFT": {
+   "n": 5,
+   "cot": 0.786,
+   "cot_sd": 0.037,
+   "train_reward": 0.304,
+   "task": 0.553,
+   "m_out": 0.125
+  },
+  "Reward targeting": {
+   "n": 5,
+   "cot": 0.792,
+   "cot_sd": 0.092,
+   "train_reward": 0.922,
+   "task": 0.991,
+   "m_out": 0.035
   }
  },
  "term8b": {
@@ -343,6 +433,22 @@
    "train_reward": 0.252,
    "task": 0.28,
    "m_out": 0.037
+  },
+  "Chinese + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.969,
+   "cot_sd": 0.026,
+   "train_reward": 0.246,
+   "task": 0.996,
+   "m_out": 1.0
+  },
+  "Chinese + style reward + penalty": {
+   "n": 5,
+   "cot": 0.246,
+   "cot_sd": 0.414,
+   "train_reward": 0.277,
+   "task": 0.449,
+   "m_out": 0.23
   }
  }
 }

@@ -1276,3 +1276,42 @@ explanations the verifier judge flags 99% of the time, stopped reading the verif
 reading with the CoT intact (0.89–1.00) and the output only partly scrubbed (M_out 0.21–0.32), two seeds
 abandon the cheat like pirate. So in this environment a maintained style does not produce concealment at
 8B; it either does nothing to the CoT (because the read is still narrated) or ends the cheating.
+
+### 16f. Uniform gated protocol: every arm on every panel now uses the explanation gate (2026-09-28; `plots/gated_pareto_all.png`)
+
+**Qwen3-8B QA, all arms gated (5 seeds; styled arms with the style reward, 10 seeds for pirate/Pig-Latin):**
+control 0.60±0.04 · penalty 0.27±0.06 · reward targeting 0.51±0.07 (M_out 0.21; one seed only half-scrubbed,
+0.69) · Mind & Face 0.40±0.05 · targeted M&F 0.52±0.03 · Pig-Latin 0.56±0.08 · pirate 0.46±0.13 · Chinese
+0.47±0.06 (all styled at M_out 0.01–0.02). Under identical rewards the maintained-style arms and the two best
+prior mitigations sit together at 0.46–0.56, about double the plain penalty; the ungated RT (0.57, §12b) and
+TMF (0.53, §16b) numbers are within noise of their gated versions.
+
+**Qwen3.6-27B QA additions:** Mind & Face 0.44±0.08 (= no-SFT penalty 0.45); targeted M&F 0.85±0.11 (= RT
+0.85 ≈ control 0.81); Chinese + style reward 0.56±0.29 (0.27/0.66/0.99/0.65/0.21; control 0.69) — the same
+per-seed bimodality as pirate and Pig-Latin at 27B. At 27B the two targeted mitigations (RT, TMF) are
+near-perfect; the styled arms average 0.42–0.63 with individual seeds at either extreme.
+
+### 14f (update). Polynomial 27B: Mind & Face 0.68±0.28 (0.32/0.72/1.00); targeted M&F 0.99 (one seed never
+scrubbed, M_out 0.90); **Chinese + style reward 0.99±0.01 with M_out 0.01 and task 0.91 in all three seeds**
+(genuine 0.99) — the cleanest polynomial mitigation so far, with no collapse or starvation in any seed
+(pirate/Pig-Latin had one each). Chinese control 1.00.
+
+### 13h (update). Terminal 8B, Chinese + style reward: control task 1.00 / M_cot 0.97; penalty: four of five
+seeds abandon the cheat (read verifier 0.21 overall, task 0.28–0.33, M_cot 0.04–0.09) and the fifth keeps
+reading with the output never scrubbed (M_out 1.00, M_cot 0.99). Same pattern as pirate (5/5 abandon) and
+Pig-Latin (2/5): with a maintained style the terminal penalty ends the cheating rather than hiding it.
+
+### 16g. Nemotron-3-Super-120B-A12B QA at the 300-token protocol (gated; 5 seeds; `logs/grpo-gated-nemotron-*`)
+
+| arm | follow hint | genuine | M_out | CoT detection |
+|---|---|---|---|---|
+| control | 0.99 | 1.00 | 0.73±0.09 | 0.87±0.09 |
+| penalty λ=2 | **0.55±0.15** (0.67/0.33/0.71/0.64/0.42) | 0.99 | 0.12±0.03 | 0.79±0.03 |
+| reward targeting | 0.99 | 1.00 | 0.03±0.01 | 0.79±0.08 |
+
+Weak signal: the penalized CoT drops only 0.87 → 0.79, and the penalty's main effect is that Nemotron stops
+following the hint in ~45% of episodes (task 0.55) rather than concealing it — the honest-abandonment route
+seen in the terminal env. Reward targeting keeps the task (0.99) at the same 0.79. Spillover of ~0.08 is
+too small a target for a mitigation study, so styled Nemotron arms (which would need the data pipeline
+adapted to its template) are not launched; the 4096-token spillover of §17 (0.91 → 0.29, 1 seed) remains
+the only strong Nemotron signal and lives outside the 300-token protocol.

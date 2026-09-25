@@ -655,3 +655,13 @@ call OpenAI. Nothing to do beyond topping up.
 - QA 35B-A3B: bad testbed (base CoT mentions the hint only 33% at 300 tokens); nothing recovers beyond RT 0.25.
 - Poly 27B: spillover 0.98 → 0.66 with the gate; styled arms keep the CoT at 0.89–1.00 in the seeds where the penalty engaged, but one Pig-Latin seed collapsed to word salad (gate rejected it) and one pirate/one RT seed never got a penalty signal; needs more seeds.
 - Terminal 8B: unstyled arms unchanged by the gate (TMF 0.94 ≈ control); pirate+style stops cheating entirely (reads verifier 0.00, task 0.28); Pig-Latin splits 3 keep-reading / 2 abandon. Style does not conceal here.
+
+## 2026-09-28 — uniform gate everywhere, Chinese everywhere, Nemotron signal test (RESULTS §16f/14f/13h/16g)
+- 8B QA now fully gated: control 0.60, penalty 0.27, RT 0.51, M&F 0.40, TMF 0.52, Pig-Latin 0.56, pirate 0.46,
+  Chinese 0.47. Maintained-style arms ≈ RT ≈ TMF, double the plain penalty. Figure redrawn.
+- 27B QA: TMF 0.85 = RT 0.85 ≈ control; M&F 0.44; Chinese 0.56 with the same seed bimodality as the other styles.
+- Poly 27B: Chinese + style reward is the cleanest mitigation (CoT 0.99, output scrubbed, task 0.91, 3/3 seeds);
+  TMF 0.99 (one unscrubbed seed); M&F 0.68.
+- Terminal 8B Chinese: abandons the cheat in 4/5 seeds, like pirate and Pig-Latin.
+- Nemotron at 300 tokens: spillover only 0.87 → 0.79 and the penalty mostly makes it stop following the hint
+  (task 0.55); not worth building styled arms. Nothing running.
