@@ -1,0 +1,348 @@
+{
+ "qa8b": {
+  "No penalty": {
+   "n": 10,
+   "cot": 0.627,
+   "cot_sd": 0.05,
+   "train_reward": -0.778,
+   "task": 0.998,
+   "m_out": 0.888
+  },
+  "Penalty, no-SFT": {
+   "n": 5,
+   "cot": 0.272,
+   "cot_sd": 0.058,
+   "train_reward": 0.648,
+   "task": 0.988,
+   "m_out": 0.17
+  },
+  "Reward targeting": {
+   "n": 5,
+   "cot": 0.573,
+   "cot_sd": 0.024,
+   "train_reward": 0.707,
+   "task": 0.992,
+   "m_out": 0.143
+  },
+  "Mind & Face": {
+   "n": 5,
+   "cot": 0.36,
+   "cot_sd": 0.11,
+   "train_reward": 0.975,
+   "task": 0.996,
+   "m_out": 0.01
+  },
+  "Targeted M&F": {
+   "n": 5,
+   "cot": 0.527,
+   "cot_sd": 0.029,
+   "train_reward": 0.967,
+   "task": 0.991,
+   "m_out": 0.012
+  },
+  "Pig-Latin + style reward + penalty": {
+   "n": 10,
+   "cot": 0.556,
+   "cot_sd": 0.081,
+   "train_reward": 0.918,
+   "task": 0.96,
+   "m_out": 0.021
+  },
+  "Pirate + style reward + penalty": {
+   "n": 10,
+   "cot": 0.462,
+   "cot_sd": 0.131,
+   "train_reward": 0.944,
+   "task": 0.982,
+   "m_out": 0.019
+  },
+  "Chinese + style reward + penalty": {
+   "n": 5,
+   "cot": 0.473,
+   "cot_sd": 0.061,
+   "train_reward": 0.972,
+   "task": 0.985,
+   "m_out": 0.007
+  },
+  "Pig-Latin, style not rewarded": {
+   "n": 5,
+   "cot": 0.361,
+   "cot_sd": 0.123,
+   "train_reward": 0.951,
+   "task": 0.984,
+   "m_out": 0.017
+  },
+  "Pirate, style not rewarded": {
+   "n": 5,
+   "cot": 0.276,
+   "cot_sd": 0.128,
+   "train_reward": 0.981,
+   "task": 0.997,
+   "m_out": 0.008
+  },
+  "Normal-output SFT + penalty": {
+   "n": 5,
+   "cot": 0.36,
+   "cot_sd": 0.17,
+   "train_reward": 0.655,
+   "task": 0.899,
+   "m_out": 0.122
+  },
+  "Pirate v1 + penalty, no gate (bare outputs)": {
+   "n": 5,
+   "cot": 0.591,
+   "cot_sd": 0.093,
+   "train_reward": 0.998,
+   "task": 0.999,
+   "m_out": 0.001
+  }
+ },
+ "qa27b": {
+  "No penalty": {
+   "n": 5,
+   "cot": 0.807,
+   "cot_sd": 0.051,
+   "train_reward": -0.857,
+   "task": 0.994,
+   "m_out": 0.926
+  },
+  "Penalty, no-SFT": {
+   "n": 5,
+   "cot": 0.446,
+   "cot_sd": 0.079,
+   "train_reward": 0.982,
+   "task": 0.994,
+   "m_out": 0.006
+  },
+  "Reward targeting": {
+   "n": 5,
+   "cot": 0.847,
+   "cot_sd": 0.14,
+   "train_reward": 0.977,
+   "task": 0.989,
+   "m_out": 0.006
+  },
+  "Pig-Latin + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.75,
+   "cot_sd": 0.187,
+   "train_reward": -0.593,
+   "task": 0.993,
+   "m_out": 0.793
+  },
+  "Pig-Latin + style reward + penalty": {
+   "n": 5,
+   "cot": 0.629,
+   "cot_sd": 0.296,
+   "train_reward": 0.979,
+   "task": 0.986,
+   "m_out": 0.004
+  },
+  "Pirate + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.798,
+   "cot_sd": 0.226,
+   "train_reward": -0.944,
+   "task": 0.998,
+   "m_out": 0.971
+  },
+  "Pirate + style reward + penalty": {
+   "n": 5,
+   "cot": 0.422,
+   "cot_sd": 0.329,
+   "train_reward": 0.996,
+   "task": 0.998,
+   "m_out": 0.001
+  }
+ },
+ "qa35b": {
+  "No penalty": {
+   "n": 5,
+   "cot": 0.327,
+   "cot_sd": 0.071,
+   "train_reward": -0.62,
+   "task": 0.997,
+   "m_out": 0.809
+  },
+  "Penalty, no-SFT": {
+   "n": 5,
+   "cot": 0.107,
+   "cot_sd": 0.03,
+   "train_reward": 0.974,
+   "task": 0.994,
+   "m_out": 0.01
+  },
+  "Reward targeting": {
+   "n": 5,
+   "cot": 0.247,
+   "cot_sd": 0.06,
+   "train_reward": 0.966,
+   "task": 0.994,
+   "m_out": 0.014
+  },
+  "Pig-Latin + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.32,
+   "cot_sd": 0.346,
+   "train_reward": 0.091,
+   "task": 0.99,
+   "m_out": 0.449
+  },
+  "Pig-Latin + style reward + penalty": {
+   "n": 5,
+   "cot": 0.104,
+   "cot_sd": 0.133,
+   "train_reward": 0.978,
+   "task": 0.992,
+   "m_out": 0.007
+  },
+  "Pirate + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.209,
+   "cot_sd": 0.059,
+   "train_reward": -0.588,
+   "task": 0.996,
+   "m_out": 0.792
+  },
+  "Pirate + style reward + penalty": {
+   "n": 5,
+   "cot": 0.106,
+   "cot_sd": 0.062,
+   "train_reward": 0.981,
+   "task": 0.997,
+   "m_out": 0.008
+  }
+ },
+ "poly27b": {
+  "No penalty": {
+   "n": 3,
+   "cot": 0.979,
+   "cot_sd": 0.007,
+   "train_reward": -0.058,
+   "task": 0.863,
+   "m_out": 0.921
+  },
+  "Penalty, no-SFT": {
+   "n": 3,
+   "cot": 0.664,
+   "cot_sd": 0.15,
+   "train_reward": 0.824,
+   "task": 0.842,
+   "m_out": 0.017
+  },
+  "Reward targeting": {
+   "n": 3,
+   "cot": 0.984,
+   "cot_sd": 0.012,
+   "train_reward": 0.545,
+   "task": 0.895,
+   "m_out": 0.35
+  },
+  "Pig-Latin + style reward, no penalty": {
+   "n": 3,
+   "cot": 0.999,
+   "cot_sd": 0.002,
+   "train_reward": -0.15,
+   "task": 0.843,
+   "m_out": 0.993
+  },
+  "Pig-Latin + style reward + penalty": {
+   "n": 3,
+   "cot": 0.996,
+   "cot_sd": 0.005,
+   "train_reward": 0.572,
+   "task": 0.575,
+   "m_out": 0.003
+  },
+  "Pirate + style reward, no penalty": {
+   "n": 3,
+   "cot": 0.997,
+   "cot_sd": 0.005,
+   "train_reward": 0.091,
+   "task": 0.951,
+   "m_out": 0.86
+  },
+  "Pirate + style reward + penalty": {
+   "n": 3,
+   "cot": 0.893,
+   "cot_sd": 0.161,
+   "train_reward": 0.569,
+   "task": 0.898,
+   "m_out": 0.329
+  }
+ },
+ "term8b": {
+  "No penalty": {
+   "n": 5,
+   "cot": 0.939,
+   "cot_sd": 0.013,
+   "train_reward": 0.28,
+   "task": 0.98,
+   "m_out": 0.933
+  },
+  "Penalty, no-SFT": {
+   "n": 5,
+   "cot": 0.848,
+   "cot_sd": 0.02,
+   "train_reward": 0.878,
+   "task": 0.948,
+   "m_out": 0.093
+  },
+  "Reward targeting": {
+   "n": 5,
+   "cot": 0.893,
+   "cot_sd": 0.026,
+   "train_reward": 0.878,
+   "task": 0.961,
+   "m_out": 0.111
+  },
+  "Mind & Face": {
+   "n": 5,
+   "cot": 0.924,
+   "cot_sd": 0.017,
+   "train_reward": 0.929,
+   "task": 0.976,
+   "m_out": 0.062
+  },
+  "Targeted M&F": {
+   "n": 5,
+   "cot": 0.94,
+   "cot_sd": 0.022,
+   "train_reward": 0.914,
+   "task": 0.976,
+   "m_out": 0.082
+  },
+  "Pig-Latin + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.987,
+   "cot_sd": 0.006,
+   "train_reward": 0.247,
+   "task": 0.995,
+   "m_out": 0.998
+  },
+  "Pig-Latin + style reward + penalty": {
+   "n": 5,
+   "cot": 0.609,
+   "cot_sd": 0.484,
+   "train_reward": 0.532,
+   "task": 0.671,
+   "m_out": 0.186
+  },
+  "Pirate + style reward, no penalty": {
+   "n": 5,
+   "cot": 0.969,
+   "cot_sd": 0.017,
+   "train_reward": 0.253,
+   "task": 0.994,
+   "m_out": 0.988
+  },
+  "Pirate + style reward + penalty": {
+   "n": 5,
+   "cot": 0.02,
+   "cot_sd": 0.006,
+   "train_reward": 0.252,
+   "task": 0.28,
+   "m_out": 0.037
+  }
+ }
+}
