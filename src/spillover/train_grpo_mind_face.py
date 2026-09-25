@@ -38,7 +38,7 @@ from tinker_cookbook import checkpoint_utils, model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
-from src.judges import SoftConversationJudge
+from src.judges import ExplanationJudge, SoftConversationJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
@@ -96,6 +96,10 @@ class Config:
     # Require a real explanation: outputs whose "### Explanation" section has fewer than this many
     # words get no_answer_penalty (or 0) as task reward (0 = off). Same semantics as train_grpo.
     min_explanation_words: int = 0
+    # Semantic explanation gate (same as train_grpo): GPT-4.1 judge decides whether the face's
+    # "### Explanation" section genuinely explains the boxed answer; if not, task reward = 0.
+    explanation_judge: bool = False
+    explanation_judge_model: str = "gpt-4.1"
     checkpoint: str | None = None
     save_every: int = 100
     seed: int = 42
@@ -194,6 +198,7 @@ async def train(cfg: Config):
     else:
         items = _load_poly_data(cfg, renderer)
         judge = None
+    expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge else None
 
     service = tinker.ServiceClient()
 
@@ -343,6 +348,13 @@ async def train(cfg: Config):
             for i, w in enumerate(expl_words):
                 if w < cfg.min_explanation_words:
                     corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
+        expl_genuine = [None] * len(outs_text)
+        if expl_judge is not None:
+            expl_genuine = list(await asyncio.gather(*[
+                expl_judge.score(item.get("question", ""), o) for item, o in zip(flat_items, outs_text)]))
+            for i, g in enumerate(expl_genuine):
+                if g == 0.0:
+                    corrects[i] = cfg.no_answer_penalty if cfg.no_answer_penalty != 0.0 else 0.0
 
         # Penalize outputs with no extractable \boxed{} answer
         if cfg.no_answer_penalty != 0.0:
@@ -380,6 +392,7 @@ async def train(cfg: Config):
                     "out_text": outs_text[i],
                     "raw_correct": raw_corrects[i],
                     "explanation_words": expl_words[i],
+                    "explanation_genuine": expl_genuine[i],
                     "valid": v is not None,
                     "correct": correct_vals[i],
                     "out_score": float(out_scores[i]),
@@ -491,6 +504,9 @@ async def train(cfg: Config):
         metrics["reward/correct"] = sum(correct_vals) / n
         metrics[k_out] = sum(float(s) for s in out_scores) / n
         metrics[k_cot] = sum(float(s) for s in cot_scores) / n
+        if expl_judge is not None:
+            gs = [g for g in expl_genuine if g is not None]
+            metrics["monitor/explanation_genuine"] = sum(gs) / max(1, len(gs))
         metrics["monitor/n_valid_rollouts"] = n_valid
         metrics["time/total"] = time.time() - t0
         ml_logger.log_metrics(metrics, step=batch_idx)
