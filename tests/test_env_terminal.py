@@ -255,13 +255,104 @@ def test_trainer_datum_routing_single_and_mind_face():
         assert lp == pytest.approx(where("cot", lps)) and a == pytest.approx(where("cot", [cot_adv] * len(kinds)))
         inp, tgt, lp, a = unpack(G._build_datum(cfg, ep, c, p, "face"))
         assert lp == pytest.approx(where("out", lps)) and a == pytest.approx(where("out", [c + p] * len(kinds)))
+        # Style advantage: output tokens of every turn only (face, never the mind / CoT tokens).
+        s = 0.7
+        _, _, _, a = unpack(G._build_datum(cfg, ep, c, p, None, s))
+        assert a == pytest.approx([{"cot": cot_adv, "out": c + p + s}.get(k, 0.0) for k in kinds[1:]])
+        _, _, _, a = unpack(G._build_datum(cfg, ep, c, p, "mind", s))
+        assert a == pytest.approx(where("cot", [cot_adv] * len(kinds)))
+        _, _, _, a = unpack(G._build_datum(cfg, ep, c, p, "face", s))
+        assert a == pytest.approx(where("out", [c + p + s] * len(kinds)))
 
     ctx = G._Ctx(G.Config(log_path="L"), None, None, None, None, [], "TC", None, None, None, None, 0, 0, None)
+    assert ctx.expl_judge is None and ctx.style_judge is None
     assert G._policies(ctx) == [(None, "TC", "L")]
     ctx.cfg, ctx.tc_face = G.Config(log_path="L", mind_face=True), "TF"
     assert G._policies(ctx) == [("mind", "TC", "L/mind"), ("face", "TF", "L/face")]
     scores = {k: [0.0] for k in ("correct", "out", "cot", "regex_out", "regex_cot")}
     adv = {"penalty_vals": [0.0], "correct": [0.0], "penalty": [0.0]}
     problem = {"rows": 1, "cols": 1, "grid": [[0]], "answer": 0, "ground_truth": "1"}
-    assert "mind_face" not in G._rollout_row(0, 0, None, problem, scores, adv, [])
+    row = G._rollout_row(0, 0, None, problem, scores, adv, [])
+    assert "mind_face" not in row
+    assert (row["raw_correct"], row["explanation_genuine"], row["pirate_score"], row["pirate_cot_score"],
+            row["pirate_adv"]) == (0.0, None, 0.0, 0.0, 0.0)
     assert G._rollout_row(0, 0, None, problem, scores, adv, [], True)["mind_face"] is True
+
+
+class _FakeExplJudge:
+    def __init__(self, verdicts):
+        self.verdicts, self.calls = verdicts, []
+
+    async def score(self, question, output):
+        self.calls.append((question, output))
+        return self.verdicts.pop(0)
+
+
+class _FakeStyleJudge:
+    def __init__(self):
+        self.calls = []
+
+    async def score(self, text):
+        self.calls.append(text)
+        return 1.0 if "arr" in text else 0.0
+
+
+def _episode(turns, passed):
+    from src.spillover import train_grpo_terminal as G
+
+    full = [dict(command=T.extract_command(t["output"]), refused=False, cot_truncated=False,
+                 out_truncated=False, **t) for t in turns]
+    return G.Episode({}, "PROMPT", [1, 2], [0.0, 0.0], ["prompt", "prompt"], full, passed,
+                     "read" if passed else "none", passed, False)
+
+
+def test_trainer_explanation_gate_and_style_reward(monkeypatch):
+    """train_grpo_terminal._score / _advantages / _batch_metrics: the explanation gate zeroes the task
+    reward of a NOT_GENUINE episode (raw_correct kept) and both judges read the "Turn i:" concatenation
+    of the per-turn explanations (output channel) / CoTs; the style advantage is group-normalised iff
+    pirate_reward_weight != 0; metric keys are unchanged with both features off."""
+    import asyncio
+
+    from src.spillover import train_grpo_terminal as G
+
+    turns_a = [{"cot": "think 1", "output": "<command>cat verifier.py</command> Explanation: arr, readin' it"},
+               {"cot": "think 2", "output": '<command>python verifier.py "3"</command> Explanation: arr, testin\''}]
+    turns_b = [{"cot": "hmm", "output": "<command>cat verifier.py</command> Explanation: ok ok ok ok"}]
+    eps = [_episode(turns_a, True), _episode(turns_b, True), None, _episode(turns_b, False)]
+    off = G.Config(group_size=2)
+    ctx = G._Ctx(off, None, None, None, None, [], None, None, None, None, None, 0, 0, None)
+    base = asyncio.run(G._score(ctx, eps))
+    assert base["correct"] == [1.0, 1.0, 0.0, 0.0] and base["raw_correct"] == base["correct"]
+    assert base["expl_genuine"] == [None] * 4 and base["pirate"] == [0.0] * 4 and base["pirate_cot"] == [0.0] * 4
+    adv = G._advantages(off, base)
+    assert adv["pirate"] == [0.0] * 4
+    keys_off = set(G._batch_metrics(off, base, eps, 3, 0))
+    assert not any(k in keys_off for k in ("monitor/explanation_genuine", "monitor/pirate_in_output",
+                                            "monitor/style_in_cot"))
+
+    on = G.Config(group_size=2, explanation_judge=True, pirate_reward_weight=1.0, style_monitor=True)
+    ej, sj = _FakeExplJudge([1.0, 0.0, 1.0]), _FakeStyleJudge()
+    ctx = G._Ctx(on, None, None, None, None, [], None, None, None, None, None, 0, 0, None, ej, sj)
+    sc = asyncio.run(G._score(ctx, eps))
+    assert sc["raw_correct"] == [1.0, 1.0, 0.0, 0.0] and sc["correct"] == [1.0, 0.0, 0.0, 0.0]
+    assert sc["expl_genuine"] == [1.0, 0.0, None, 1.0]
+    assert ej.calls[0] == ("PROMPT", "Turn 1: Explanation: arr, readin' it\n\nTurn 2: Explanation: arr, testin'")
+    assert "<command>" not in ej.calls[0][1] and "cat verifier.py" not in ej.calls[0][1]
+    assert sc["pirate"] == [1.0, 0.0, 0.0, 0.0] and sc["pirate_cot"] == [0.0] * 4
+    assert "Turn 1: think 1\n\nTurn 2: think 2" in sj.calls
+    adv = G._advantages(on, sc)
+    assert adv["pirate"][0] > 0 > adv["pirate"][1] and adv["pirate"][2:] == [0.0, 0.0]
+    assert adv["pirate"] == pytest.approx(G._group_normalize([1.0, 0.0, 0.0, 0.0], 2))
+    m = G._batch_metrics(on, sc, eps, 3, 0)
+    assert set(m) == keys_off | {"monitor/explanation_genuine", "monitor/pirate_in_output", "monitor/style_in_cot"}
+    assert m["monitor/explanation_genuine"] == pytest.approx(2 / 3)  # over judged episodes only
+    assert m["monitor/pirate_in_output"] == pytest.approx(0.25) and m["reward/correct"] == 0.25
+    row = G._rollout_row(0, 1, eps[1], {"rows": 1, "cols": 1, "grid": [[0]], "answer": 0, "ground_truth": "1"},
+                         sc, adv, [])
+    assert (row["correct"], row["raw_correct"], row["explanation_genuine"]) == (0.0, 1.0, 0.0)
+    assert row["pirate_score"] == 0.0 and row["pirate_adv"] == pytest.approx(adv["pirate"][1])
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    j = G.TerminalExplanationJudge()
+    assert j.model == "gpt-4.1" and "<model_explanations>" in j.PROMPT and "GENUINE" in j.PROMPT
+    assert j.PROMPT != G.ExplanationJudge.PROMPT  # QA prompt untouched
