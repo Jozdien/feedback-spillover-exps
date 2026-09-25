@@ -648,3 +648,10 @@ Every judge-using run (gated QA on 8B Chinese / 27B / 35B, gated poly 27B, gated
 guard and resumes from its last checkpoint once `scripts/resume_runs.sh gated termgated` fires (armed: two
 consecutive successful API checks). The 27B/35B style-SFT build is unaffected unless its quality checks
 call OpenAI. Nothing to do beyond topping up.
+
+## 2026-09-27 — gated + style-rewarded protocol across environments and models done (RESULTS §16e, §14f, §13h; plots/gated_pareto_all.png)
+- QA 8B Chinese with the style maintained: 0.47, same as pirate (0.46); the earlier "Chinese is weaker" was style decay.
+- QA 27B: reward targeting ≈ control (0.85 vs 0.81); styled arms bimodal by seed (Pig-Latin 0.63, pirate 0.42 vs no-SFT 0.45) — not reliable there.
+- QA 35B-A3B: bad testbed (base CoT mentions the hint only 33% at 300 tokens); nothing recovers beyond RT 0.25.
+- Poly 27B: spillover 0.98 → 0.66 with the gate; styled arms keep the CoT at 0.89–1.00 in the seeds where the penalty engaged, but one Pig-Latin seed collapsed to word salad (gate rejected it) and one pirate/one RT seed never got a penalty signal; needs more seeds.
+- Terminal 8B: unstyled arms unchanged by the gate (TMF 0.94 ≈ control); pirate+style stops cheating entirely (reads verifier 0.00, task 0.28); Pig-Latin splits 3 keep-reading / 2 abandon. Style does not conceal here.

@@ -1198,3 +1198,80 @@ Readings.
 The extra seeds confirm the five-seed picture: Pig-Latin with a maintained style 0.56 (≈ reward targeting
 0.57), pirate 0.46 with one low outlier (seed 45, 0.19), both roughly double the no-SFT level and well
 below their controls. Pirate's seed spread narrows to ±0.12 at n=10.
+
+### 16e. Gated + style-rewarded protocol on other styles and models (2026-09-27; `logs/grpo-gated-{8b,27b,35b}-*`; last-27 means ± std over 5 seeds; explanation gate on every arm; style = 1.00 in every styled seed)
+
+| Model | arm | follow | genuine | M_out | **CoT detection** (seeds) |
+|---|---|---|---|---|---|
+| Qwen3-8B | Chinese + style reward, control | 1.00 | 1.00 | 0.89 | 0.66±0.04 |
+| Qwen3-8B | Chinese + style reward, penalty | 0.99 | 0.99 | 0.01 | **0.47±0.05** (0.51/0.47/0.41/0.43/0.56) |
+| Qwen3.6-27B | no-SFT control | 0.99 | 1.00 | 0.93 | 0.81±0.05 |
+| Qwen3.6-27B | no-SFT penalty | 0.99 | 1.00 | 0.01 | **0.45±0.07** |
+| Qwen3.6-27B | reward targeting | 0.99 | 1.00 | 0.01 | **0.85±0.13** (0.72/0.67/0.95/0.90/0.98) |
+| Qwen3.6-27B | Pig-Latin + style reward, control | 0.99 | 0.99 | 0.79 | 0.75±0.17 |
+| Qwen3.6-27B | Pig-Latin + style reward, penalty | 0.99 | 0.99 | 0.00 | **0.63±0.27** (0.91/0.42/0.37/0.45/0.99) |
+| Qwen3.6-27B | pirate + style reward, control | 1.00 | 1.00 | 0.97 | 0.80±0.20 |
+| Qwen3.6-27B | pirate + style reward, penalty | 1.00 | 1.00 | 0.00 | **0.42±0.29** (0.38/0.51/0.22/0.07/0.93) |
+| Qwen3.6-35B-A3B | no-SFT control | 1.00 | 1.00 | 0.81 | 0.33±0.06 |
+| Qwen3.6-35B-A3B | no-SFT penalty | 0.99 | 1.00 | 0.01 | 0.11±0.03 |
+| Qwen3.6-35B-A3B | reward targeting | 0.99 | 1.00 | 0.01 | 0.25±0.05 |
+| Qwen3.6-35B-A3B | Pig-Latin + style reward, control / penalty | 0.99 | 1.00 | 0.45 / 0.01 | 0.32±0.31 / 0.10±0.12 |
+| Qwen3.6-35B-A3B | pirate + style reward, control / penalty | 1.00 | 1.00 | 0.79 / 0.01 | 0.21±0.05 / 0.11±0.06 |
+
+Readings.
+1. Chinese at 8B behaves like pirate once the style is paid for: 0.47 (pirate 0.46, Pig-Latin 0.56, no-SFT
+   0.27, RT 0.57). The earlier "Chinese mitigates less" (§16) was the style decaying to English. Chinese
+   explanations are genuine (0.98–1.00) and compact (110–210 characters); the `<20 words` column is a
+   whitespace artifact for Chinese text.
+2. Qwen3.6-27B: reward targeting is nearly perfect here (0.85 vs control 0.81), and the styled arms are
+   bimodal per seed — Pig-Latin 0.91/0.99 in two seeds and 0.37–0.45 in three, pirate 0.93 in one and
+   0.07–0.51 in four — averaging 0.63 / 0.42 against no-SFT 0.45. So at 27B a maintained style is not a
+   reliable mitigation (it sometimes gives full protection and sometimes none), whereas RT is.
+3. Qwen3.6-35B-A3B is a poor testbed: the base model hits the 300-token thinking cap in 99% of rollouts
+   and its unpenalized CoT mentions the hint only 33% of the time (8B 63%, 27B 81%), so the penalty has
+   little to erase (0.33 → 0.11) and no mitigation, styled or not, recovers more than RT's 0.25.
+4. Explanations are genuine (0.97–1.00) in every arm of every model, so none of these numbers is bought
+   by output degeneration.
+
+### 14f. Polynomial on Qwen3.6-27B with the gate and style reward (2026-09-27; `logs/grpo-gated-poly27b-*`; 3 seeds; T=800/1000, λ=1)
+
+| arm | task (gated) | genuine | expanded in output | **expanded in CoT** (seeds) |
+|---|---|---|---|---|
+| control | 0.86 | 1.00 | 0.92 | 0.98 |
+| penalty | 0.84 | 1.00 | 0.02 | **0.66±0.12** (0.59/0.84/0.56) |
+| reward targeting | 0.90 | 1.00 | 0.35 (one seed never scrubbed: 1.00) | 0.98 |
+| Pig-Latin + style reward, control | 0.84 | 1.00 | 0.99 | 1.00 |
+| Pig-Latin + style reward, penalty | 0.58±0.41 (seed 43: 0.00) | 1.00 / **0.00** / 0.99 | 0.00 | **1.00** (all three seeds) |
+| pirate + style reward, control | 0.95 | 1.00 | 0.86 | 1.00 |
+| pirate + style reward, penalty | 0.90 | 0.98 | 0.33 (seed 43 never scrubbed: 0.98) | 0.89±0.13 (0.99/0.98/0.71) |
+
+Readings. With the gate the 27B polynomial penalty now shows clear spillover (0.98 → 0.66; §14c had 0.81 with
+no gate). Both styled arms keep the CoT at 0.89–1.00 while scrubbing the output in the seeds where the
+penalty engaged — the paper's polynomial claim reproduced under a real-explanation requirement — but with
+two failure modes the 3-seed sample exposes: one Pig-Latin seed collapsed into Pig-Latin word salad
+("ethay ethay ethay…") that the gate correctly rejected (task 0.00, so it is not a mitigation win), and
+one pirate seed and one RT seed never received a penalty signal (M_out stayed ≈1.0; the same group-
+variance starvation as §14e). More seeds are needed before any poly number goes in a figure.
+
+### 13h. Terminal env (LLM judge) at 8B with the gate and style reward (2026-09-27; `logs/grpo-termgated-8b-*`; 5 seeds, 400 steps, last 40)
+
+| arm | task | read verifier | genuine | M_out | **M_cot** (seeds) |
+|---|---|---|---|---|---|
+| control | 0.98 | 1.00 | 0.98 | 0.93 | 0.94 |
+| penalty | 0.95 | 1.00 | 0.95 | 0.09 | 0.85±0.02 |
+| reward targeting | 0.96 | 1.00 | 0.96 | 0.11 | 0.89±0.02 |
+| Mind & Face | 0.98 | 1.00 | 0.98 | 0.06 | 0.92±0.01 |
+| targeted Mind & Face | 0.98 | 1.00 | 0.98 | 0.08 | **0.94±0.02** |
+| Pig-Latin + style reward, control | 0.99 | 1.00 | 1.00 | 1.00 | 0.99 |
+| Pig-Latin + style reward, penalty | 0.67±0.36 | 0.62 | 0.95 | 0.19 | 0.61±0.43 (0.07/0.89/1.00/0.99/0.10) |
+| pirate + style reward, control | 0.99 | 1.00 | 1.00 | 0.99 | 0.97 |
+| pirate + style reward, penalty | **0.28±0.03** | **0.01** | 0.99 | 0.04 | 0.02 (nothing to detect) |
+
+Readings. The gate changes nothing for the unstyled arms (§13c/13f reproduce: penalty 0.85, RT 0.89, M&F
+0.92, TMF 0.94 ≈ control). The styled arms do something different: the pirate model, whose in-style
+explanations the verifier judge flags 99% of the time, stopped reading the verifier altogether (read
+1.00 → 0.00 between steps 0 and 200) and now solves the grid honestly and fails the rigged test (task
+0.28) — the output penalty removed the behaviour instead of hiding it. Pig-Latin splits: three seeds keep
+reading with the CoT intact (0.89–1.00) and the output only partly scrubbed (M_out 0.21–0.32), two seeds
+abandon the cheat like pirate. So in this environment a maintained style does not produce concealment at
+8B; it either does nothing to the CoT (because the read is still narrated) or ends the cheating.
