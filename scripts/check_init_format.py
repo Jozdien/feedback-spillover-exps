@@ -8,7 +8,8 @@ temperature 1.0) and classifies each output into one of
   empty | no_boxed | boxed_no_expl_header | bare<5w | short<20w | well_formed
 
 (the modes used to diagnose the v1 pirate SFT), plus the fraction of well-formed outputs that are in
-pirate speak (>=2 distinct of: arr, ye, matey, be, aye, scurvy, avast, hearties). Every sampled CoT and
+pirate speak (>=2 distinct of: arr, ye, matey, be, aye, scurvy, avast, hearties), in Pig Latin, or in Chinese
+(>=10 CJK chars, >=50% of letters CJK -- the data filter's rule). Every sampled CoT and
 output is written to <out-dir>/<label>.jsonl.
 
 Usage:
@@ -52,7 +53,8 @@ def classify(out_text: str) -> str:
     m = re.search(r"### Explanation\s*(.*)", o, re.S)
     if not m:
         return "boxed_no_expl_header"
-    w = len(m.group(1).split())
+    # Chinese prose has no spaces: count CJK characters as ~0.6 words each (as quality_check_style_data.py does)
+    w = len(m.group(1).split()) + 0.6 * sum(1 for ch in m.group(1) if "\u4e00" <= ch <= "\u9fff")
     if w < 5:
         return "bare<5w"
     if w < 20:
@@ -69,6 +71,13 @@ def is_piglatin(text: str) -> bool:
     """Same rule as the Pig-Latin data filter: >=5 alphabetic words (len>=3) and >=60% of them end in 'ay'."""
     words = [w for w in re.findall(r"[A-Za-z]+", text) if len(w) >= 3]
     return len(words) >= 5 and sum(w.lower().endswith("ay") for w in words) / len(words) >= 0.6
+
+
+def is_chinese(text: str) -> bool:
+    """Same rule as the Chinese data filter (has_chinese): >=10 CJK chars and CJK >=50% of CJK+ASCII letters."""
+    cjk = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
+    latin = sum(1 for c in text if c.isascii() and c.isalpha())
+    return cjk >= 10 and cjk / max(cjk + latin, 1) >= 0.5
 
 
 async def sample_model(label: str, path: str, items, max_cot_tokens: int, out_dir: Path, sem_n: int, base_model: str):
@@ -96,6 +105,7 @@ async def sample_model(label: str, path: str, items, max_cot_tokens: int, out_di
                     "cot_text": tokenizer.decode(cot_tok).strip(), "out_text": out_text,
                     "cot_tokens": len(cot_tok), "out_tokens": len(out.sequences[0].tokens),
                     "mode": classify(out_text), "pirate": is_pirate(out_text), "piglatin": is_piglatin(out_text),
+                    "chinese": is_chinese(out_text),
                     "starts_with_think_close": out_text.startswith("</think>")}
 
     t0 = time.time()
@@ -119,6 +129,8 @@ def summarize(label: str, rows: list[dict]) -> dict:
             "pirate_among_well_formed": (sum(r["pirate"] for r in wf) / len(wf)) if wf else float("nan"),
             "piglatin_all": sum(r.get("piglatin", False) for r in rows) / n,
             "piglatin_among_well_formed": (sum(r.get("piglatin", False) for r in wf) / len(wf)) if wf else float("nan"),
+            "chinese_all": sum(r.get("chinese", False) for r in rows) / n,
+            "chinese_among_well_formed": (sum(r.get("chinese", False) for r in wf) / len(wf)) if wf else float("nan"),
             "starts_with_think_close": sum(r["starts_with_think_close"] for r in rows) / n}
 
 
@@ -130,10 +142,25 @@ async def main():
     ap.add_argument("--out-dir", default="logs/sft-init-format-check")
     ap.add_argument("--concurrency", type=int, default=64)
     ap.add_argument("--base-model", default="Qwen/Qwen3-8B", help="tokenizer/chat template for all --model specs")
+    ap.add_argument("--reclassify", action="store_true",
+                    help="no sampling: re-run classify() on the existing <out-dir>/<label>.jsonl of each --model spec")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    if args.reclassify:
+        summaries = []
+        for lab, _ in (m.split("=", 1) for m in args.model):
+            lines = [json.loads(line) for line in open(out_dir / f"{lab}.jsonl")]
+            rows = [r for r in lines if r.get("type") != "metadata"]
+            for r in rows:
+                r["mode"], r["chinese"] = classify(r["out_text"]), is_chinese(r["out_text"])
+            with open(out_dir / f"{lab}.jsonl", "w") as f:
+                for r in lines:
+                    f.write(json.dumps(r) + "\n")
+            summaries.append(summarize(lab, rows))
+        print_and_log(summaries, out_dir, args)
+        return
     tokenizer = get_tokenizer(args.base_model)
     renderer = renderers.get_renderer(model_info.get_recommended_renderer_name(args.base_model), tokenizer)
     probe = tokenizer.decode(renderer.build_generation_prompt([{"role": "user", "content": "x"}]).to_ints())
@@ -145,8 +172,12 @@ async def main():
     specs = [m.split("=", 1) for m in args.model]
     results = await asyncio.gather(*[sample_model(lab, path, items, args.max_cot_tokens, out_dir, args.concurrency,
                                                   args.base_model) for lab, path in specs])
-    summaries = [summarize(lab, rows) for (lab, _), rows in zip(specs, results)]
-    cols = MODES + ["pirate_among_well_formed", "piglatin_among_well_formed", "starts_with_think_close"]
+    print_and_log([summarize(lab, rows) for (lab, _), rows in zip(specs, results)], out_dir, args)
+
+
+def print_and_log(summaries, out_dir, args):
+    cols = MODES + ["pirate_among_well_formed", "piglatin_among_well_formed", "chinese_among_well_formed",
+                    "starts_with_think_close"]
     print("\n| model | n | " + " | ".join(cols) + " |")
     print("|---|---|" + "---|" * len(cols))
     for s in summaries:

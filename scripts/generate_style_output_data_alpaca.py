@@ -31,6 +31,12 @@ Usage:
     uv run scripts/generate_style_output_data_alpaca.py --style pirate --prompt-variant v2 --no-think --strict \
         --max-tokens 1536 --model Qwen/Qwen3.6-35B-A3B --cache-dir data/normal-alpaca-qwen3.6-27b --select cache-order \
         --out-dir data/pirate-output-alpaca-qwen3.6-27b-v2
+    # Chinese for Qwen3.6-27B (2026-09-25): the 8B Chinese recipe (Qwen3-8B non-thinking rewriter, plain prompt)
+    # + the v2 filters (--strict; 2048 tokens because Qwen3.6 outputs are ~2x longer). Headers come out translated,
+    # so scripts/keep_headers_english.py turns the -raw dir into the training dir:
+    uv run scripts/generate_style_output_data_alpaca.py --style chinese --no-think --strict --max-tokens 2048 \
+        --model Qwen/Qwen3-8B --cache-dir data/normal-alpaca-qwen3.6-27b --select cache-order \
+        --out-dir data/chinese-output-alpaca-qwen3.6-27b-raw
 """
 
 import argparse
