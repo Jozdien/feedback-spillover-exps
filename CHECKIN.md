@@ -642,3 +642,9 @@ protects the CoT when the style is maintained. All runs complete; nothing runnin
 Pooled over 10 seeds the maintained-style result holds: Pig-Latin penalty 0.56 ≈ reward targeting 0.57,
 pirate 0.46 (one outlier seed at 0.19), no-SFT 0.27, controls 0.63–0.68, output scrubbed to 0.02, explanations
 intact, style 1.00 throughout. Nothing running.
+
+## 2026-09-27 ~02:49 UTC — OpenAI credits out (fourth time); all gated runs stopping, auto-resume armed
+Every judge-using run (gated QA on 8B Chinese / 27B / 35B, gated poly 27B, gated terminal 8B) aborts on the
+guard and resumes from its last checkpoint once `scripts/resume_runs.sh gated termgated` fires (armed: two
+consecutive successful API checks). The 27B/35B style-SFT build is unaffected unless its quality checks
+call OpenAI. Nothing to do beyond topping up.
