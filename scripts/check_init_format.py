@@ -17,6 +17,11 @@ Usage:
         --model "pirate-v1=tinker://e970f303-ed86-5ff1-9569-a307b708f386:train:0/sampler_weights/final" \
         --model "piglatin=tinker://a0ed9ddb-9a6d-515c-b0e9-3f4ebab4e44e:train:0/sampler_weights/final" \
         --model "base=Qwen/Qwen3-8B"
+    # other base models: --base-model sets the tokenizer + chat template (renderer) for ALL --model specs of the
+    # call. Qwen3.5/3.6 (renderer qwen3_5) generation prompts already end with "<think>\n"; like the trainer
+    # (cot_prefix=[]), the CoT is sampled directly after that prompt and "</think>" is the bridge.
+    uv run scripts/check_init_format.py --n 200 --base-model Qwen/Qwen3.6-27B --out-dir logs/sft-init-format-check \
+        --model "27b-base=Qwen/Qwen3.6-27B" --model "27b-pirate-v2=tinker://..."
 """
 
 import argparse
@@ -34,7 +39,6 @@ from tinker_cookbook.tokenizer_utils import get_tokenizer
 
 from src.spillover.env_mmlu import load_mmlu_questions
 
-BASE_MODEL = "Qwen/Qwen3-8B"
 PIRATE_KW = ["arr", "ye", "matey", "be", "aye", "scurvy", "avast", "hearties"]
 MODES = ["empty", "no_boxed", "boxed_no_expl_header", "bare<5w", "short<20w", "well_formed"]
 
@@ -61,15 +65,21 @@ def is_pirate(text: str) -> bool:
     return sum(1 for k in PIRATE_KW if re.search(r"\b" + k + r"\b", low)) >= 2
 
 
-async def sample_model(label: str, path: str, items, max_cot_tokens: int, out_dir: Path, sem_n: int):
+def is_piglatin(text: str) -> bool:
+    """Same rule as the Pig-Latin data filter: >=5 alphabetic words (len>=3) and >=60% of them end in 'ay'."""
+    words = [w for w in re.findall(r"[A-Za-z]+", text) if len(w) >= 3]
+    return len(words) >= 5 and sum(w.lower().endswith("ay") for w in words) / len(words) >= 0.6
+
+
+async def sample_model(label: str, path: str, items, max_cot_tokens: int, out_dir: Path, sem_n: int, base_model: str):
     service = tinker.ServiceClient()
     if path.startswith("tinker://"):
         sp = service.create_sampling_client(model_path=path)
     else:
         sp = service.create_sampling_client(base_model=path)
-    tokenizer = get_tokenizer(BASE_MODEL)
+    tokenizer = get_tokenizer(base_model)
     think_close = tokenizer.encode("</think>", add_special_tokens=False)
-    renderer = renderers.get_renderer(model_info.get_recommended_renderer_name(BASE_MODEL), tokenizer)
+    renderer = renderers.get_renderer(model_info.get_recommended_renderer_name(base_model), tokenizer)
     cot_params = types.SamplingParams(max_tokens=max_cot_tokens, temperature=1.0, stop=think_close)
     out_params = types.SamplingParams(max_tokens=600, temperature=1.0, stop=renderer.get_stop_sequences())
     sem = asyncio.Semaphore(sem_n)
@@ -85,13 +95,13 @@ async def sample_model(label: str, path: str, items, max_cot_tokens: int, out_di
             return {"question": item["question"], "target": item["target"],
                     "cot_text": tokenizer.decode(cot_tok).strip(), "out_text": out_text,
                     "cot_tokens": len(cot_tok), "out_tokens": len(out.sequences[0].tokens),
-                    "mode": classify(out_text), "pirate": is_pirate(out_text),
+                    "mode": classify(out_text), "pirate": is_pirate(out_text), "piglatin": is_piglatin(out_text),
                     "starts_with_think_close": out_text.startswith("</think>")}
 
     t0 = time.time()
     rows = await asyncio.gather(*[one(it) for it in items])
     with open(out_dir / f"{label}.jsonl", "w") as f:
-        f.write(json.dumps({"type": "metadata", "label": label, "path": path, "n": len(rows),
+        f.write(json.dumps({"type": "metadata", "label": label, "path": path, "base_model": base_model, "n": len(rows),
                             "max_cot_tokens": max_cot_tokens, "max_output_tokens": 600, "temperature": 1.0,
                             "question_seed": 42, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")}) + "\n")
         for r in rows:
@@ -107,6 +117,8 @@ def summarize(label: str, rows: list[dict]) -> dict:
     return {"label": label, "n": n, **{m: c.get(m, 0) / n for m in MODES},
             "pirate_all": sum(r["pirate"] for r in rows) / n,
             "pirate_among_well_formed": (sum(r["pirate"] for r in wf) / len(wf)) if wf else float("nan"),
+            "piglatin_all": sum(r.get("piglatin", False) for r in rows) / n,
+            "piglatin_among_well_formed": (sum(r.get("piglatin", False) for r in wf) / len(wf)) if wf else float("nan"),
             "starts_with_think_close": sum(r["starts_with_think_close"] for r in rows) / n}
 
 
@@ -117,21 +129,24 @@ async def main():
     ap.add_argument("--max-cot-tokens", type=int, default=300)
     ap.add_argument("--out-dir", default="logs/sft-init-format-check")
     ap.add_argument("--concurrency", type=int, default=64)
+    ap.add_argument("--base-model", default="Qwen/Qwen3-8B", help="tokenizer/chat template for all --model specs")
     args = ap.parse_args()
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    tokenizer = get_tokenizer(BASE_MODEL)
-    renderer = renderers.get_renderer(model_info.get_recommended_renderer_name(BASE_MODEL), tokenizer)
+    tokenizer = get_tokenizer(args.base_model)
+    renderer = renderers.get_renderer(model_info.get_recommended_renderer_name(args.base_model), tokenizer)
+    probe = tokenizer.decode(renderer.build_generation_prompt([{"role": "user", "content": "x"}]).to_ints())
+    print(f"base model {args.base_model}; generation prompt ends with {probe[-40:]!r}", flush=True)
     questions = load_mmlu_questions(seed=42)[: args.n]
     items = [{"prompt_tokens": renderer.build_generation_prompt([{"role": "user", "content": q["prompt"]}]).to_ints(),
               "question": q["prompt"], "target": q["target"]} for q in questions]
 
     specs = [m.split("=", 1) for m in args.model]
-    results = await asyncio.gather(*[sample_model(lab, path, items, args.max_cot_tokens, out_dir, args.concurrency)
-                                     for lab, path in specs])
+    results = await asyncio.gather(*[sample_model(lab, path, items, args.max_cot_tokens, out_dir, args.concurrency,
+                                                  args.base_model) for lab, path in specs])
     summaries = [summarize(lab, rows) for (lab, _), rows in zip(specs, results)]
-    cols = MODES + ["pirate_among_well_formed", "starts_with_think_close"]
+    cols = MODES + ["pirate_among_well_formed", "piglatin_among_well_formed", "starts_with_think_close"]
     print("\n| model | n | " + " | ".join(cols) + " |")
     print("|---|---|" + "---|" * len(cols))
     for s in summaries:
@@ -139,7 +154,7 @@ async def main():
     with open(out_dir / "summary.jsonl", "a") as f:
         for s in summaries:
             f.write(json.dumps({**s, "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                                "max_cot_tokens": args.max_cot_tokens}) + "\n")
+                                "max_cot_tokens": args.max_cot_tokens, "base_model": args.base_model}) + "\n")
 
 
 if __name__ == "__main__":

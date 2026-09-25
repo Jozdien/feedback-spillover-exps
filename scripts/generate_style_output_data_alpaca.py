@@ -26,6 +26,11 @@ Usage:
     # pirate v2 (structure-preserving prompt, non-thinking rewriter, strict filters):
     uv run scripts/generate_style_output_data_alpaca.py --style pirate --prompt-variant v2 --no-think --strict \
         --max-tokens 1536 --out-dir data/pirate-output-alpaca-qwen3-8b-v2
+    # other base models (2026-09-25): Pass 1 from scripts/generate_normal_cache_alpaca.py, which stores the
+    # cache in the 8B-v2 prompt order (10,050 primary prompts, then top-ups), so selection is cache order:
+    uv run scripts/generate_style_output_data_alpaca.py --style pirate --prompt-variant v2 --no-think --strict \
+        --max-tokens 1536 --model Qwen/Qwen3.6-35B-A3B --cache-dir data/normal-alpaca-qwen3.6-27b --select cache-order \
+        --out-dir data/pirate-output-alpaca-qwen3.6-27b-v2
 """
 
 import argparse
@@ -200,9 +205,9 @@ CHECKS = {"chinese": has_chinese, "piglatin": has_piglatin, "pirate": has_pirate
 # --- Pirate-SFT row selection -------------------------------------------------------------------
 
 
-def pirate_sft_selected_cache_indices(cache: list[dict]) -> list[int]:
+def pirate_sft_selected_cache_indices(cache: list[dict], cache_dir: Path = CACHE_DIR) -> list[int]:
     """Reproduce StyleSFTDatasetBuilder's selection on the pirate data and map to cache indices."""
-    rows = [json.loads(line) for line in open(CACHE_DIR / "all.jsonl")]
+    rows = [json.loads(line) for line in open(cache_dir / "all.jsonl")]
     ds = datasets.Dataset.from_list(rows).shuffle(seed=0).select(range(TARGET_ROWS))
     idx = {(c["question"], c["cot"]): i for i, c in enumerate(cache)}
     out = []
@@ -277,8 +282,10 @@ def reformat_batch(sampler, renderer, tokenizer, items, prompt_tpl, style, max_t
         # Rewrites cut off at max_tokens are KEPT, as in the pirate pipeline (17.4% of the
         # pirate rows end without the stop token); flagged in gen_meta.jsonl for analysis.
         meta["truncated"] = meta["stop_reason"] == "length"
+        # The decoded '<|im_end|>' stop token is always removed from the rewrite (before 2026-09-25 only
+        # --strict did this; the 8B Pig-Latin data kept it in 96% of rows).
+        text = strip_chat_tokens(text)
         if strict:
-            text = strip_chat_tokens(text)
             if meta["truncated"]:
                 meta["status"] = "parse_fail:truncated"
                 metas.append(meta)
@@ -330,6 +337,11 @@ def main():
     parser.add_argument("--strict", action="store_true",
                         help="v2 filters: strip <|im_end|>, drop truncated rewrites, require structure/length fidelity")
     parser.add_argument("--out-dir", default=None, help="override data/<style>-output-alpaca-qwen3-8b")
+    parser.add_argument("--cache-dir", default=str(CACHE_DIR),
+                        help="dir with normal_cache.jsonl (Pass 1 of the target base model)")
+    parser.add_argument("--select", default="pirate-sft", choices=["pirate-sft", "cache-order"],
+                        help="pirate-sft: the 8B pirate SFT's 10,050 rows (needs <cache-dir>/all.jsonl); "
+                             "cache-order: the first --target cache rows, rest = top-up pool")
     args = parser.parse_args()
 
     prompt_tpl = PROMPTS[args.style][args.prompt_variant]
@@ -342,9 +354,13 @@ def main():
         print(f"{output_dir / 'all.jsonl'} exists, exiting.")
         return
 
-    cache = [json.loads(line) for line in open(CACHE_DIR / "normal_cache.jsonl")]
-    print(f"Loaded {len(cache)} cached normal responses from {CACHE_DIR / 'normal_cache.jsonl'}")
-    selected = pirate_sft_selected_cache_indices(cache)
+    cache_dir = Path(args.cache_dir)
+    cache = [json.loads(line) for line in open(cache_dir / "normal_cache.jsonl")]
+    print(f"Loaded {len(cache)} cached normal responses from {cache_dir / 'normal_cache.jsonl'}")
+    if args.select == "pirate-sft":
+        selected = pirate_sft_selected_cache_indices(cache, cache_dir)
+    else:
+        selected = list(range(min(args.target, len(cache))))
     sel_set = set(selected)
     pool = [i for i in range(len(cache)) if i not in sel_set]  # top-up pool, cache order
     print(f"Pirate-SFT subset: {len(selected)} rows; top-up pool: {len(pool)}")
@@ -439,7 +455,8 @@ def main():
     cost = totals["prompt_tokens"] / 1e6 * price_prefill + totals["sample_tokens"] / 1e6 * price_sample
     summary = {**totals, "style": args.style, "prompt_variant": args.prompt_variant,
                "rewrite_model": args.model, "renderer": renderer_name, "max_tokens": args.max_tokens,
-               "temperature": 0.7, "strict": args.strict, "pass1_cache": str(CACHE_DIR / "normal_cache.jsonl"),
+               "temperature": 0.7, "strict": args.strict, "pass1_cache": str(cache_dir / "normal_cache.jsonl"),
+               "select": args.select,
                "prompt": prompt_tpl, "rows_final": min(len(results), args.target),
                "est_cost_usd": round(cost, 3), "elapsed_s": round(time.time() - t0)}
     json.dump(summary, open(output_dir / "gen_stats.json", "w"), indent=2, ensure_ascii=False)

@@ -7,6 +7,10 @@
 # Usage: bash scripts/launch_sft_style_outputs.sh [chinese|piglatin|pirate-v2 ...]   (default: chinese piglatin)
 #   pirate-v2 = data/pirate-output-alpaca-qwen3-8b-v2 (structure-preserving rewrites, 2026-09-24)
 #              -> logs/sft-8b-pirate-output-alpaca-qwen-v2
+# Other base models (2026-09-25; same recipe, data from generate_normal_cache_alpaca.py + the rewrite generator):
+#   MODEL=Qwen/Qwen3.6-27B TAG=qwen3.6-27b bash scripts/launch_sft_style_outputs.sh pirate-v2 piglatin
+#     pirate-v2 -> data/pirate-output-alpaca-$TAG-v2/all.jsonl, logs/sft-$TAG-pirate-output-alpaca-v2
+#     piglatin  -> data/piglatin-output-alpaca-$TAG/all.jsonl,  logs/sft-$TAG-piglatin-output-alpaca
 
 set -a && source .env && set +a
 
@@ -15,14 +19,22 @@ COMMON="max_samples=10000 num_epochs=3 batch_size=128 save_every=15 eval_every=1
 STYLES=("$@")
 [ ${#STYLES[@]} -eq 0 ] && STYLES=(chinese piglatin)
 
+MODEL=${MODEL:-Qwen/Qwen3-8B}
 for style in "${STYLES[@]}"; do
-    case "$style" in
-        pirate-v2) data="data/pirate-output-alpaca-qwen3-8b-v2/all.jsonl"; log="logs/sft-8b-pirate-output-alpaca-qwen-v2" ;;
-        *) data="data/${style}-output-alpaca-qwen3-8b/all.jsonl"; log="logs/sft-8b-${style}-output-alpaca-qwen" ;;
-    esac
+    if [ -n "$TAG" ]; then
+        case "$style" in
+            pirate-v2) data="data/pirate-output-alpaca-${TAG}-v2/all.jsonl"; log="logs/sft-${TAG}-pirate-output-alpaca-v2" ;;
+            *) data="data/${style}-output-alpaca-${TAG}/all.jsonl"; log="logs/sft-${TAG}-${style}-output-alpaca" ;;
+        esac
+    else
+        case "$style" in
+            pirate-v2) data="data/pirate-output-alpaca-qwen3-8b-v2/all.jsonl"; log="logs/sft-8b-pirate-output-alpaca-qwen-v2" ;;
+            *) data="data/${style}-output-alpaca-qwen3-8b/all.jsonl"; log="logs/sft-8b-${style}-output-alpaca-qwen" ;;
+        esac
+    fi
     if [ ! -f "$data" ]; then echo "missing $data"; continue; fi
-    nohup uv run python -m src.style.sft model_name=Qwen/Qwen3-8B \
+    nohup uv run python -m src.style.sft model_name="$MODEL" \
       data_path="$data" log_path="$log" $COMMON \
       > "${log}.log" 2>&1 &
-    echo "8B ${style}-output-alpaca-qwen PID: $!  (log: ${log}.log)"
+    echo "$MODEL ${style} SFT PID: $!  (log: ${log}.log)"
 done

@@ -70,13 +70,13 @@ def piglatin_candidates(word: str) -> list[str]:
     return [c for c in cands if c]
 
 
-def build_vocab() -> set[str]:
+def build_vocab(cache_dir: Path) -> set[str]:
     vocab = set()
     p = Path("/usr/share/dict/words")
     if p.exists():
         vocab |= {w.strip().lower() for w in p.read_text().splitlines() if w.strip().isalpha()}
     cnt = Counter()
-    for line in open(CACHE_DIR / "normal_cache.jsonl"):
+    for line in open(cache_dir / "normal_cache.jsonl"):
         r = json.loads(line)
         cnt.update(w.lower() for w in re.findall(r"[A-Za-z]+", r["output"] + " " + r["question"]))
     vocab |= {w for w, c in cnt.items() if c >= 2}
@@ -118,23 +118,27 @@ def main():
     ap.add_argument("--judge", type=int, default=0, help="StyleJudge on N random rows (0=skip)")
     ap.add_argument("--out", default=None)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--cache-dir", default=str(CACHE_DIR), help="Pass-1 dir (normal_cache.jsonl [+ all.jsonl pirate data])")
     args = ap.parse_args()
+    cache_dir = Path(args.cache_dir)
 
     d = Path(args.data_dir)
     f = d / "all.jsonl" if (d / "all.jsonl").exists() else d / "alpaca.jsonl"
     rows = [json.loads(line) for line in open(f)]
     metas = [json.loads(line) for line in open(d / "gen_meta.jsonl")] if (d / "gen_meta.jsonl").exists() else []
+    stats = json.load(open(d / "gen_stats.json")) if (d / "gen_stats.json").exists() else {}
     L = []  # markdown lines
     L.append(f"# Quality check: {args.style}-output Alpaca SFT data\n")
     L.append(f"Data: `{f}` ({len(rows)} rows). Seed {args.seed}.\n")
 
     # --- match to normal cache + pirate data (same question+cot) ---
-    cache = {(c["question"], c["cot"]): c for c in (json.loads(line) for line in open(CACHE_DIR / "normal_cache.jsonl"))}
+    cache = {(c["question"], c["cot"]): c for c in (json.loads(line) for line in open(cache_dir / "normal_cache.jsonl"))}
     pirate = {}
-    for line in open(CACHE_DIR / "all.jsonl"):
-        r = json.loads(line)
-        cot, out, _ = split_record(r["messages"][1]["content"])
-        pirate[(r["messages"][0]["content"], cot)] = out
+    if (cache_dir / "all.jsonl").exists():  # the 8B cache dir doubles as the v1 pirate data dir
+        for line in open(cache_dir / "all.jsonl"):
+            r = json.loads(line)
+            cot, out, _ = split_record(r["messages"][1]["content"])
+            pirate[(r["messages"][0]["content"], cot)] = out
 
     # --- structural checks ---
     wf = 0
@@ -161,7 +165,7 @@ def main():
 
     # --- style checks ---
     L.append("## Output style\n")
-    vocab = build_vocab() if args.style == "piglatin" else None
+    vocab = build_vocab(cache_dir) if args.style == "piglatin" else None
     if args.style == "chinese":
         ratios = [cjk_stats(o)[0] for o in outs]
         filt = sum(has_chinese(o) for o in outs)
@@ -253,9 +257,10 @@ def main():
         tok = get_tokenizer("Qwen/Qwen3-8B")
         sub = rng.sample(range(n), min(500, n))
         nt = statistics.mean(len(tok.encode(outs[i])) for i in sub)
-        pt = statistics.mean(len(tok.encode(pirate[keys[i]])) for i in sub if keys[i] in pirate)
+        pts = [len(tok.encode(pirate[keys[i]])) for i in sub if keys[i] in pirate]
+        pt = f"{statistics.mean(pts):.0f}" if pts else "n/a"
         ot = statistics.mean(len(tok.encode(cache[keys[i]]["output"])) for i in sub if keys[i] in cache)
-        L.append(f"\nQwen3 tokens per output (random {len(sub)} rows): {args.style} {nt:.0f} | pirate {pt:.0f} | normal {ot:.0f}")
+        L.append(f"\nQwen3 tokens per output (random {len(sub)} rows): {args.style} {nt:.0f} | pirate {pt} | normal {ot:.0f}")
     except Exception as e:  # tokenizer download may fail offline
         L.append(f"\n(token counts skipped: {e!r})")
     L.append("")
@@ -273,7 +278,10 @@ def main():
                  f"max {max(m['sample_tokens'] for m in metas)}; stop_reason=length: {sum(m['stop_reason']=='length' for m in metas)}")
         pt_ = sum(m["prompt_tokens"] for m in metas) / 1e6
         stt = sum(m["sample_tokens"] for m in metas) / 1e6
-        L.append(f"- Tokens: {pt_:.2f}M prefill + {stt:.2f}M sample → est. ${pt_*0.13 + stt*0.40:.2f} (Qwen3-8B $0.13/$0.40 per M)")
+        from scripts.generate_style_output_data_alpaca import PRICES
+        rm = stats.get("rewrite_model", "Qwen/Qwen3-8B")
+        pp, ps = PRICES.get(rm, (0.13, 0.40))
+        L.append(f"- Tokens: {pt_:.2f}M prefill + {stt:.2f}M sample → est. ${pt_*pp + stt*ps:.2f} ({rm} ${pp}/${ps} per M)")
         if ok_m:
             L.append(f"- Accepted rows: {len(ok_m)} ({len(ok_m)/len(metas):.1%} of attempts)")
         L.append("")
