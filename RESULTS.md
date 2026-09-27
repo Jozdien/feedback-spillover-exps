@@ -751,9 +751,8 @@ over all files 0.42 → 0.82) while the two judges agree on the output channel (
 correct judge the paper's MAIN (T=4096) runs show little or no CoT spillover and no mitigation gaps:
 penalized no-SFT CoT 0.84 (8B) / 0.95 (32B) vs control 0.99; pirate-output 0.98, reward targeting
 0.99, Mind & Face 0.97, targeted M&F 1.00 (8B, λ=2). The apparent 8B ranking under the old judge
-(RT 0.20 < no-SFT 0.20 < pirate 0.47 < TMF 0.75) was judge noise. The CoT-penalty positive control
-(`v7pcot`) is 0.00–0.03 under both judges, so the judge does see the acknowledgment disappear when it
-really does. At T=300 the old 2-seed runs agree with the 2026-09 campaign: penalty 0.08, M&F 0.28,
+(RT 0.20 < no-SFT 0.20 < pirate 0.47 < TMF 0.75) was judge noise. The pirate-CoT SFT condition (`v7pcot`; the CoT is styled, the output plain) is 0.00–0.03 under both
+judges, so the judge does see the acknowledgment disappear when it really does. At T=300 the old 2-seed runs agree with the 2026-09 campaign: penalty 0.08, M&F 0.28,
 RT 0.45, pirate 0.59, TMF 0.62 (campaign, ≥5 seeds, GRPO: 0.27 / 0.36 / 0.57 / 0.59 / 0.50).
 Exceptions at T=4096: Nemotron-3-Super-120B (1 seed) penalty 0.29 vs control 0.91 — real spillover
 in that model; Qwen3.6-35B-A3B penalty 0.96 vs 1.00 (none). => The paper's spillover and mitigation

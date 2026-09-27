@@ -507,8 +507,7 @@ under GPT-4.1; outputs agree, 0.14 → 0.14). Under the correct judge the paper'
 little or no spillover (penalized CoT 0.84 at 8B / 0.95 at 32B vs control 0.99) and every mitigation
 sits at 0.97–1.00, so the 4096-token figures no longer show an effect to mitigate. The 300-token runs
 keep the story (penalty 0.08, M&F 0.28, RT 0.45, pirate 0.59, TMF 0.62 on the old 2-seed runs;
-campaign numbers agree). The CoT-penalty control drops to 0.00–0.03 under both judges, so the judge
-does see real removal. Nemotron-120B (4096 tokens, 1 seed) is the one model with genuine spillover at
+campaign numbers agree). The pirate-CoT SFT condition drops to 0.00–0.03 under both judges, so the judge does see real removal. Nemotron-120B (4096 tokens, 1 seed) is the one model with genuine spillover at
 the long budget: 0.29 vs 0.91.
 Also launched: polynomial on Nemotron-3-Super-120B-A12B and Qwen3.5-397B-A17B (3 seeds × control/
 penalty each). Terminal on Nemotron-120B was launched and KILLED after one step: the terminal trainer
