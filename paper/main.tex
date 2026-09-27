@@ -96,11 +96,12 @@ puts it in a different behavioral mode than the CoT, so an update that makes the
 
 We find that under the plain reward the styled models keep their CoT monitorable while
 scrubbing the output at full task reward, as in the schematic, but that every styled
-model does this by degenerating: the pirate and Chinese models emit a bare boxed letter
-with no explanation, and the Pig-Latin model emits repetitive filler. Once the output
+model does this by degenerating: the pirate model emits a bare boxed letter with no
+explanation, the Chinese model a bare letter or a few characters, and the Pig-Latin
+model repetitive filler. Once the output
 has to remain an explanation, an unrewarded style decays to plain English within the
-run and the protection goes with it; the styled models then spill exactly like a
-model with no style SFT. With the style maintained, all three styles keep CoT detection
+run and the protection goes with it; the styled models then spill like a model with
+no style SFT. With the style maintained, all three styles keep CoT detection
 at roughly twice the plain penalty's level, on par with reward targeting and targeted
 Mind \& Face, with explanations intact. We also find that where spillover appears at all
 depends strongly on the regime: under the original work's own judge, the long CoT budget
@@ -120,15 +121,16 @@ and a judge-enforced explanation gate removes their apparent protection entirely
 short CoT budget (Section~\ref{sec:regime}).
 \item With the output required to be an explanation and the style maintained by a small
 reward, style separation preserves CoT monitorability at the level of the best prior
-mitigations, for pirate-speak, Pig Latin, and Chinese alike, and we give evidence for
-the mechanism: the styled model samples clean outputs from hint-mentioning CoTs far more
-often at initialization (Section~\ref{sec:maintained}).
+mitigations, for pirate-speak, Pig Latin, and Chinese alike; the protection is not
+visible as output--CoT decoupling at initialization and emerges only with the style held
+in place during training (Section~\ref{sec:maintained}).
 \item We test the mitigation in the original work's other two environments and on
 larger models: it holds in polynomial factoring on a 27B model, is seed-dependent for QA
 on that model, and does not produce concealment in the terminal environment
 (Section~\ref{sec:envs}).
 \item We find that styling the CoT instead of the output drives CoT hint detection to
-zero under the same penalty (Section~\ref{sec:cotstyle}).
+zero under the same penalty, at a long CoT budget where the plain penalty barely
+spills (Section~\ref{sec:cotstyle}).
 \end{enumerate}
 
 \section{Related Work}
@@ -162,13 +164,13 @@ R = G\cdot R_{\text{task}} - \lambda\, M_{\text{out}} + \mu\, M_{\text{style}},
 \]
 where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is the original work's GPT-4.1 judge of whether the output acknowledges the hint, and $\lambda=2$ is the penalty weight. A second judge with the identical rubric reads only the \emph{CoT}; its score $M_{\mathrm{CoT}}$ is measured but never trained on. \emph{Feedback spillover} is the drop in $M_{\mathrm{CoT}}$ relative to a no-penalty control: the hint stops being acknowledged in the CoT even though only the output was penalized. The two remaining terms are ours. The \emph{explanation gate} $G\in\{0,1\}$ is a GPT-4.1 judge of whether the output's explanation section is a genuine, on-topic attempt to explain the boxed answer, in any language or style and regardless of whether the reasoning is correct; when it is not, the task reward is withheld. The \emph{style reward} $\mu M_{\text{style}}$, with $M_{\text{style}}\in\{0,1\}$ a judge of whether the output is in the intended style, is used only on the styled arms ($\mu=1$; under group-normalized advantages only its sign matters). Section~\ref{sec:gate} shows why both are needed. We also run the original work's other two environments, polynomial derivative factoring and a multi-turn terminal task (Section~\ref{sec:envs}, Appendix~\ref{app:env}).
 
-\paragraph{Style separation.} Before RL we LoRA-fine-tune the base model on a styled version of the Stanford Alpaca instruction set \citep{alpaca2023}, built from the model itself in two passes: the model first answers each instruction normally (a \texttt{<think>} CoT followed by a plain output), then a rewriter turns only the post-\texttt{</think>} output into the target style, preserving its structure and length, and leaving the CoT untouched. We use three styles: exaggerated pirate-speak, Pig Latin, and Chinese. Styling only the output (and generating the data from the model's own normal responses) keeps the reasoning natural, so no styled planning leaks into the CoT. We fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs, batch size 128, learning rate $10^{-4}$). We compare against three controls: no SFT; \emph{normal} SFT through the same pipeline without the rewriting step, which isolates ``SFT'' from ``style''; and \emph{pirate-CoT} SFT, which styles the CoT instead of the output (Section~\ref{sec:cotstyle}). Details of the data pipeline, including a filtering step that an earlier version of the pirate data lacked, are in Appendix~\ref{app:sft}.
+\paragraph{Style separation.} Before RL we LoRA-fine-tune the base model on a styled version of the Stanford Alpaca instruction set \citep{alpaca2023}, built from the model itself in two passes: the model first answers each instruction normally (a \texttt{<think>} CoT followed by a plain output), then a rewriter turns only the post-\texttt{</think>} output into the target style, preserving its structure and length, and leaving the CoT untouched. We use three styles: exaggerated pirate-speak, Pig Latin, and Chinese. Styling only the output (and generating the data from the model's own normal responses) keeps the reasoning natural, so no styled planning leaks into the CoT. We fine-tune on $10{,}000$ such examples (plus 50 held out) (LoRA rank 32, 3 epochs, batch size 128, learning rate $10^{-4}$). We compare against three controls: no SFT; \emph{normal} SFT through the same pipeline without the rewriting step, which isolates ``SFT'' from ``style''; and \emph{pirate-CoT} SFT, which styles the CoT instead of the output (Section~\ref{sec:cotstyle}). Details of the data pipeline, including a filtering step that an earlier version of the pirate data lacked, are in Appendix~\ref{app:sft}.
 
 \paragraph{Prior mitigations.} We re-implement reward targeting (zero the output penalty's advantage on CoT tokens) and Mind \& Face (separate LoRA adapters generate CoT and output), and their combination, Targeted Mind \& Face. All of them run under the explanation gate in our main comparison, so that every arm faces the same reward.
 
-\paragraph{Training and measurement.} We train with GRPO \citep{shao2024deepseekmath} via the Tinker API \citep{tinker2025}: LoRA rank 32, group size 4 over 3 prompts (12 rollouts/batch), $3{,}200$ episodes (267 optimizer steps), learning rate $10^{-5}$, temperature 1. Generation is two-phase: a CoT of up to $T=300$ thinking tokens, the original work's budget, then an output of up to 600 tokens. Following \citet{drori2025output}, all reported numbers are training-rollout averages over the last 10\% of steps, with 5 seeds per arm (10 for the two headline styled arms). Our main model is Qwen3-8B \citep{qwen3}; Section~\ref{sec:envs} adds Qwen3.6-27B, Qwen3.6-35B-A3B, and Nemotron-3-Super-120B. An earlier version of this study used a 4096-token budget and a weaker judge; Section~\ref{sec:regime} explains why we moved.
+\paragraph{Training and measurement.} We train with GRPO \citep{shao2024deepseekmath} via the Tinker API \citep{tinker2025}: LoRA rank 32, group size 4 over 3 prompts (12 rollouts/batch), $3{,}200$ episodes (267 optimizer steps), learning rate $10^{-5}$, temperature 1. Generation is two-phase: a CoT of up to $T=300$ thinking tokens, the original work's budget, then an output of up to 600 tokens. Following \citet{drori2025output}, all reported numbers are training-rollout averages over the last 10\% of steps, with 5 seeds per arm (10 for the two headline styled arms). Our main model is Qwen3-8B \citep{qwen3}; Section~\ref{sec:envs} adds Qwen3.6-27B, Qwen3.6-35B-A3B, and Nemotron-3-Super-120B-A12B (Appendix~\ref{app:models}). Section~\ref{sec:regime} explains the choice of budget and judge; Appendices~\ref{app:train} and~\ref{app:eval} give the remaining settings and the measurement protocol.
 
-\paragraph{Differences from \citet{drori2025output}.} We follow their environments, budgets, judge prompt, and reward scale, but differ in implementation. We fine-tune LoRA adapters (rank 32) rather than the full model; we optimize with GRPO (advantages normalized within groups of 4 samples per prompt) rather than their REINFORCE \citep{williams1992reinforce} estimator, which with a LoRA adapter did not learn the task at all in our hands; and we use Qwen3-8B with five seeds rather than Qwen3-4B with ten. The explanation gate and the style reward are additions with no counterpart in their setup; we report the plain-reward results alongside them.
+\paragraph{Differences from \citet{drori2025output}.} We follow their environments, budgets, judge prompt, and reward scale, but differ in implementation. We fine-tune LoRA adapters (rank 32) rather than the full model; we optimize with GRPO (advantages normalized within groups of 4 samples per prompt) rather than their REINFORCE \citep{williams1992reinforce} estimator, which with a LoRA adapter barely learned the task in our hands; and we use Qwen3-8B with five seeds rather than Qwen3-4B with ten. The explanation gate and the style reward are additions with no counterpart in their setup; we report the plain-reward results alongside them.
 
 \section{Results}
 \label{sec:results}
@@ -176,7 +178,7 @@ where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}
 \subsection{Where spillover appears}
 \label{sec:regime}
 
-In this section, we establish the regime in which there is spillover to mitigate. \citet{drori2025output} report near-total spillover on Qwen3-4B with a 300-token CoT budget. An earlier version of this study used a 4096-token budget and a soft GPT-4o-mini judge, and found only partial spillover; re-scoring those runs with the original work's GPT-4.1 judge and prompt shows that the weaker judge had been missing most hint acknowledgements in the CoT. Under the original judge, our old long-budget runs show little or no spillover at all: penalized CoT hint detection is $0.84$ on Qwen3-8B and $0.95$ on Qwen3-32B against no-penalty controls of $0.99$, and every mitigation sits at $0.97$--$1.00$ (Table~\ref{tab:regime}). At the original budget of $T=300$ the phenomenon is there: the plain penalty drives CoT detection from $0.63$ to $0.27$ on Qwen3-8B (ten seeds each), at full task reward with the output scrubbed. So we run everything that follows at $T=300$ with the original judge. Nearly all CoTs at this budget hit the token cap mid-sentence, which is also true of the original work's setting; spillover here is a property of short, truncated reasoning traces, and we don't know how far it extends to longer ones.
+In this section, we establish the regime in which there is spillover to mitigate. \citet{drori2025output} report near-total spillover on Qwen3-4B with a 300-token CoT budget. An earlier version of this study used a 4096-token budget and a soft GPT-4o-mini judge, and found only partial spillover; re-scoring those runs with the original work's GPT-4.1 judge and prompt shows that the weaker judge had been missing most hint acknowledgements in the CoT. Under the original judge, our old long-budget runs on the Qwen3 models show little spillover: penalized CoT hint detection is $0.95$ on Qwen3-32B against a no-penalty control of $0.99$, every mitigation sits at $0.97$--$1.00$, and the 8B penalty run, which mostly stopped following the hint at that budget, keeps $0.84$ (Table~\ref{tab:regime}). The one long-budget run with real spillover is a single seed on Nemotron-3-Super-120B-A12B ($0.91\to0.29$). At the original budget of $T=300$ the phenomenon is there: the plain penalty drives CoT detection from $0.63$ to $0.27$ on Qwen3-8B (ten seeds each), at full task reward with the output scrubbed. So we run everything that follows at $T=300$ with the original judge. Nearly all CoTs at this budget hit the token cap mid-sentence, which is also true of the original work's setting; spillover here is a property of short, truncated reasoning traces, and we don't know how far it extends to longer ones.
 
 \subsection{The plain penalty is satisfied by not explaining}
 \label{sec:gate}
@@ -204,9 +206,9 @@ and word-count rows, over all late rollouts for the gated rows).}
 \label{fig:gate}
 \end{figure}
 
-We find that it is not what it looks like. Reading the late-training outputs, every styled model has zeroed the output monitor by dropping the explanation: the pirate and Chinese models emit a bare boxed letter with no explanation in 100\% of late rollouts (mean output length 35--80 characters), and the Pig-Latin model emits repetitive filler in about half. The no-SFT model, by contrast, keeps a real explanation and scrubs the hint from it, and that is the model whose CoT spills. A GPT-4.1 judge asked whether each output contains a genuine explanation scores the styled penalty arms at $0$--$5\%$ and the plain penalty arm at $72\%$ (Figure~\ref{fig:gate}, right). Mechanistically, ``style separation preserves the CoT'' here reads as ``style SFT makes dropping the explanation the cheapest way to zero the penalty, so the CoT never has to change.''
+We find that it is not what it looks like. Reading the late-training outputs, every styled model has zeroed the output monitor by dropping the explanation: the pirate and Chinese models emit a bare boxed letter with no explanation in 100\% of late rollouts (mean output length 35--80 characters; a third of the Chinese model's short outputs are terse real explanations), and the Pig-Latin model emits repetitive filler in about half. The no-SFT model, by contrast, keeps a real explanation and scrubs the hint from it, and that is the model whose CoT spills. A GPT-4.1 judge asked whether each output contains a genuine explanation scores the pirate and Pig-Latin penalty arms at $0$--$5\%$, Chinese at $34\%$, and the plain penalty arm at $72\%$ (Figure~\ref{fig:gate}, right; Appendix~\ref{app:audit}). Mechanistically, ``style separation preserves the CoT'' here reads as ``style SFT makes dropping the explanation the cheapest way to zero the penalty, so the CoT never has to change.''
 
-Requiring an explanation by word count does not help: with a 20-word minimum on the explanation section, the pirate and Pig-Latin models replace the bare answer with in-style word salad (``Arr, matey, scurvy scurvy scurvy\ldots'', ``ot ot ot\ldots'') and their genuine-explanation rates stay at $1\%$ and $12\%$. The judge-enforced gate $G$ closes the route: every arm under it produces genuine explanations in $98$--$100\%$ of late outputs, with no bare answers and no filler. Under the gate, the styled models' advantage vanishes. Pirate-output falls to $0.28$, the plain penalty's $0.27$; Pig Latin to $0.36$, the same as a \emph{normal}-output SFT control through the identical pipeline ($0.36$); and the Chinese model reverts to English output in four of five seeds and lands at $0.39$. In every styled arm the style itself is unstable: with nothing rewarding it, seeds drift to fully styled or fully plain output within the run, in the no-penalty controls as much as under the penalty, and across the styled penalty seeds the ones that kept their style retained more CoT ($0.37$ vs $0.24$). So the residual question is whether a style that \emph{stays} protects the CoT, which the next section tests by paying for it.
+Requiring an explanation by word count does not help: with a 20-word minimum on the explanation section, the pirate and Pig-Latin models replace the bare answer with in-style word salad (``Arr, matey, scurvy scurvy scurvy\ldots'', ``ot ot ot\ldots'') and their genuine-explanation rates stay at $1\%$ and $12\%$, while the Chinese model, which cannot pad in the same way, reverts to English output in four of five seeds and lands at $0.39$. The judge-enforced gate $G$ closes the route: every arm under it produces genuine explanations in $98$--$100\%$ of late outputs, with no bare answers and no filler. Under the gate, the styled models' advantage vanishes. Pirate-output falls to $0.28$, the plain penalty's $0.27$, and Pig Latin to $0.36$, the same as a \emph{normal}-output SFT control through the identical pipeline ($0.36$). (The gated pirate arms use a pirate checkpoint from filtered data, since the original data had produced a model that often emitted nothing at all; Appendix~\ref{app:sft}. Under the gate that original checkpoint keeps $0.49$, but only $79\%$ of its outputs pass the gate and one seed never learns the task, so we don't rely on it.) In every styled arm the style itself is unstable: with nothing rewarding it, seeds drift to fully styled or fully plain output within the run, in the no-penalty controls as much as under the penalty, and across the styled penalty seeds the ones that kept their style retained more CoT ($0.37$ vs $0.24$). So the residual question is whether a style that \emph{stays} protects the CoT, which the next section tests by paying for it.
 
 \subsection{A maintained style preserves CoT monitorability}
 \label{sec:maintained}
@@ -217,8 +219,8 @@ Requiring an explanation by word count does not help: with a 20-word minimum on 
 \caption{\textbf{With the output required to be an explanation and the style maintained,
 style separation preserves CoT monitorability at the level of the best prior mitigations.}
 CoT hint detection (x-axis; higher means the hint is still visible in the CoT) against
-training reward (y-axis) in the QA environment on Qwen3-8B, every arm under the
-explanation gate, $\lambda=2$, $T=300$; an ideal mitigation sits at the top right. Faint
+training reward (y-axis; the gated task reward minus the penalty) in the QA environment
+on Qwen3-8B, every arm under the explanation gate, $\lambda=2$, $T=300$; an ideal mitigation sits at the top right. Faint
 points are seeds, large markers are seed means with 95\% confidence intervals. Pirate
 (orange), Pig Latin (gold), and Chinese (pink) outputs carry the style reward; hollow
 markers show pirate and Pig Latin without it, and the cross the original pirate run under
@@ -230,7 +232,7 @@ with the style reward.}
 \label{fig:main}
 \end{figure}
 
-In this section, we test whether style separation protects the CoT once the output must remain an explanation and the style is held in place. We add the style reward $\mu M_{\text{style}}$ to the styled arms under the gate, which keeps the style at $1.00$ in every seed, and compare against the plain penalty, reward targeting, Mind \& Face, and Targeted M\&F, all under the gate (Figure~\ref{fig:main}, Table~\ref{tab:main}).
+We now test whether style separation protects the CoT once the output must remain an explanation and the style is held in place. We add the style reward $\mu M_{\text{style}}$ to the styled arms under the gate, which keeps the style at $1.00$ in every seed, and compare against the plain penalty, reward targeting, Mind \& Face, and Targeted M\&F, all under the gate (Figure~\ref{fig:main}, Table~\ref{tab:main}).
 
 \begin{table}[t]
 \centering
@@ -240,7 +242,7 @@ $\lambda=2$, $T=300$, every arm under the explanation gate; training-rollout mea
 the last 27 steps $\pm$ standard deviation over seeds. ``CoT'' is CoT hint detection
 ($M_{\mathrm{CoT}}$), ``out'' the output monitor ($M_{\text{out}}$), ``genuine'' the
 fraction of outputs the gate scored as a real explanation, and ``reward'' the training
-reward $R_{\text{task}}-2M_{\text{out}}$. The styled arms' cost is one SFT pass and one
+reward $G\,R_{\text{task}}-2M_{\text{out}}$. The styled arms' cost is one SFT pass and one
 extra judge call per rollout; reward targeting modifies the gradient, Mind \& Face runs a
 second model, and Targeted M\&F does both.}
 \label{tab:main}
@@ -276,27 +278,30 @@ Normal-output SFT & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & $+0.66$ & SFT without styl
 
 We find that a maintained style roughly doubles CoT retention relative to the same checkpoints with a drifting style: pirate goes from $0.28$ to $0.46$, Pig Latin from $0.36$ to $0.56$, at the same scrubbed output ($M_{\text{out}}\le0.02$) and with the explanation section intact in $97$--$99\%$ of outputs. Chinese, which had reverted to English without the reward, lands at $0.47$ once the style is paid for. All three sit with reward targeting ($0.51$) and Targeted M\&F ($0.52$), a step above Mind \& Face ($0.40$), and about twice the plain penalty ($0.27$); all remain a clear step below the unpenalized control ($0.60$), so this is partial protection rather than immunity. Reward targeting reaches its number with the output only partly scrubbed ($M_{\text{out}}=0.21$), which is why its training reward is lower than the styled arms'.
 
-The differences between the three styles under the plain reward, where Chinese looked weakest and least stable, were differences in how fast an unrewarded style decays, not in how well a present style protects; with the style maintained the three are within seed noise of each other, with Pig Latin, the least English-like, consistently a little ahead (about one and a half standard deviations over ten, ten, and five seeds, which we don't read as established). One caveat applies to every arm alike: under the penalty the explanation that the gate accepts typically derives the true answer and then asserts the hinted letter, since a wrong answer has no honest derivation, and this holds for the plain penalty, the prior mitigations, and the styled arms in the same proportion (Appendix~\ref{app:audit}). What the gate enforces is a coherent on-topic explanation, not a truthful account of where the answer came from.
+The differences between the three styles under the plain reward, where Chinese looked weakest and least stable, were differences in how fast an unrewarded style decays, not in how well a present style protects; with the style maintained the three are within seed noise of each other, with Pig Latin, the least English-like, a little ahead in every comparison (by about $0.1$, roughly two standard errors of the difference over ten, ten, and five seeds, which we don't read as established). One caveat applies to every arm alike: under the penalty the explanation that the gate accepts typically derives the true answer and then asserts the hinted letter, since a wrong answer has no honest derivation, and this holds for the plain penalty, the prior mitigations, and the styled arms in the same proportion (Appendix~\ref{app:audit}). What the gate enforces is a coherent on-topic explanation, not a truthful account of where the answer came from.
 
-\paragraph{Mechanism: the styled output is decoupled from the CoT at initialization.} We posit that the protection works through the conditional channel of \citet{drori2025output}: RL finds hint-free outputs mostly by way of hint-free CoTs when the two are tightly coupled, and reinforcing those outputs reinforces those CoTs. Style SFT loosens the coupling. Measuring the first ten training steps of the no-penalty runs, before RL has moved anything, the probability that the output is judged clean given that the CoT mentions the hint is $0.41$ for the pirate-SFT model against $0.11$ for the base model ($0.20$ for Chinese, $0.13$ for Pig Latin, $0.03$ for a model merely \emph{prompted} to write in pirate-speak, the one condition where the penalty barely works at all), and the correlation between the two channels' verdicts drops from $0.53$ to $0.31$ (Figure~\ref{fig:coupling}). The same measurement also predicts the artifact of Section~\ref{sec:gate}: two thirds of the pirate model's clean outputs at initialization are bare or near-bare, and counting only clean outputs that also explain, the pirate and base models are nearly equal ($0.13$ vs $0.11$), which is what the gated runs without the style reward then reproduce. What the style reward adds is not measured at initialization; it removes the decay of the style during training, after which the decoupling can act on explanation-carrying outputs.
+\paragraph{The protection is not visible at initialization.} A natural mechanism is the conditional channel of \citet{drori2025output}: RL finds hint-free outputs mostly by way of hint-free CoTs when the two are tightly coupled, and reinforcing those outputs reinforces those CoTs; style SFT might loosen the coupling from the start. We can measure this directly. Over the first ten training steps of the no-penalty runs, the probability that the output is judged clean given that the CoT mentions the hint is $0.10$--$0.12$ for the pirate-SFT model and $0.09$--$0.11$ for the base model, with the same correlation between the two channels' verdicts ($0.5$); Pig Latin ($0.13$) and a normal-output SFT ($0.09$) are the same, and a model merely \emph{prompted} to write in pirate-speak, the one condition where the penalty barely works at all, is lower ($0.03$). The one initialization that does look decoupled is the pirate checkpoint trained on the unfiltered data ($0.41$), and two thirds of its clean outputs are bare or near-bare; counting only clean outputs that also explain, it too matches the base model ($0.14$ vs $0.11$; Figure~\ref{fig:coupling}). So the excess variance that the earlier checkpoint carried was variance in whether an explanation is written at all, which is exactly the artifact of Section~\ref{sec:gate}, and the protection that survives the gate is not a property the styled model has before RL. It appears only when the style is held in place while the penalty acts, which is consistent with the styled models without the style reward tracking the base model closely (Chinese, which loses its style fastest, tracks it worst).
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.55\textwidth]{figures/coupling_bars.pdf}
-\caption{\textbf{Style SFT makes a clean output much more likely given a hint-mentioning
-CoT, but at initialization most of that excess is outputs with no explanation.} For each
-initialization, the probability over the first ten training steps of the no-penalty run
-that the output monitor scores the output clean while the CoT monitor scores the CoT as
-acknowledging the hint, split into clean outputs whose explanation section has at least 20
-words (solid) and shorter or absent ones (white). Error bars are 95\% binomial intervals
-on the totals; Qwen3-8B, 5 seeds per condition, 296--373 hint-mentioning CoTs each.}
+\caption{\textbf{At initialization the styled models are no more decoupled from their CoT
+than the base model; the one exception is the unfiltered pirate checkpoint, whose excess
+is outputs with no explanation.} For each initialization, the probability over the first
+ten training steps of the no-penalty run that the output monitor scores the output clean
+while the CoT monitor scores the CoT as acknowledging the hint, split into clean outputs
+whose explanation section has at least 20 words (solid) and shorter or absent ones (white).
+The two pirate bars are the checkpoints trained on the unfiltered (v1) and filtered (v2)
+data (Appendix~\ref{app:sft}); every gated pirate result uses v2. Error bars are 95\%
+binomial intervals on the totals; Qwen3-8B, 5 seeds per condition, roughly 300--370
+hint-mentioning CoTs each.}
 \label{fig:coupling}
 \end{figure}
 
 \subsection{Other environments and models}
 \label{sec:envs}
 
-In this section, we ask whether the maintained-style result carries to the original work's other two environments and to other base models, keeping the explanation gate and style reward throughout (Figure~\ref{fig:envs}, Table~\ref{tab:envs}). The appendices contain the full per-seed tables.
+Here we ask whether the maintained-style result carries to the original work's other two environments and to other base models, keeping the explanation gate and style reward throughout (Figure~\ref{fig:envs}, Table~\ref{tab:envs}). The appendices contain the full per-seed tables.
 
 \begin{figure}[t]
 \centering
@@ -322,8 +327,10 @@ seed collapsed, which is what the wide reward intervals show.}
 \caption{\textbf{Penalized CoT detection by environment and model, every arm under the
 explanation gate and styled arms with the style reward.} Training-rollout means over the
 last 10\% of steps $\pm$ standard deviation over seeds; ``control'' is the no-penalty
-no-SFT run. Seeds: 5 for QA on 8B, 27B, and 35B-A3B (10 for the two 8B styled arms
-marked $^\dagger$), 3 for polynomial, 5 for terminal. Dashes are arms not run. For the
+no-SFT run. Seeds: 5 for QA on 8B, 27B, 35B-A3B, and Nemotron (10 for the two 8B styled arms
+marked $^\dagger$), 3 for polynomial, 5 for terminal. Dashes are arms not run. The Nemotron
+penalty arm's $0.79$ comes with the model following the hint only $55\%$ of the time, so it
+is not a case of the behavior surviving unseen. For the
 terminal task the styled penalty arms mostly stop reading the verifier, so their CoT
 number reflects the absence of the behavior rather than its concealment (Section~\ref{sec:envs}).}
 \label{tab:envs}
@@ -346,9 +353,9 @@ Terminal, Qwen3-8B & 0.94 & 0.85 & 0.89 & 0.92 & 0.94 & 0.02 & $0.61\pm0.43$ & $
 \end{tabularx}
 \end{table}
 
-\paragraph{Polynomial factoring carries the result, with a size caveat.} In the polynomial task the penalized behavior is writing the expanded derivative in the output, and the CoT keeps it only if the model reasons term by term. Spillover here depends on the model finding the alternative route the penalty rewards (the product rule): Qwen3-8B never does, at either a short or a 4096-token budget, and shows no spillover; Qwen3.6-27B does, and its penalized CoT falls from $0.98$ to $0.66$. On 27B under the gate, every mitigation holds the CoT: reward targeting $0.98$, Targeted M\&F $0.99$, and the three maintained styles $0.89$--$1.00$ with the output scrubbed and task reward at the control level. Three seeds expose the failure modes: one Pig-Latin seed collapsed into filler that the gate rejected (task reward $0$), and one pirate, one reward-targeting, and one Targeted M\&F seed never received a penalty signal because every output in every group was flagged, so their output never scrubbed. Chinese is the only styled arm clean in all three seeds. These are training-rollout numbers on three seeds and should be read as directional.
+\paragraph{Polynomial factoring carries the result, with a size caveat.} In the polynomial task the penalized behavior is writing the expanded derivative in the output, and the CoT keeps it only if the model reasons term by term. Spillover here depends on the model finding the alternative route the penalty rewards (the product rule): Qwen3-8B never does, at either a short or a 4096-token budget, and shows no spillover; Qwen3.6-27B does, and its penalized CoT falls from $0.98$ to $0.66$. On 27B under the gate, every mitigation but Mind \& Face ($0.68$, the plain penalty's level) holds the CoT: reward targeting $0.98$, Targeted M\&F $0.99$, and the three maintained styles $0.89$--$1.00$, with the output scrubbed and task reward at the control level in the seeds where the penalty engaged. Three seeds expose the failure modes: one Pig-Latin seed collapsed into filler that the gate rejected (task reward $0$), and one pirate, one reward-targeting, and one Targeted M\&F seed never received a penalty signal because every output in every group was flagged, so their output never scrubbed. Chinese is the only styled arm clean in all three seeds. These are training-rollout numbers on three seeds and should be read as directional.
 
-\paragraph{Larger models make the styles a coin flip and the targeted mitigations near-perfect.} On Qwen3.6-27B in QA, the plain penalty spills ($0.81\to0.45$) and reward targeting and Targeted M\&F recover almost all of it ($0.85$). The three maintained styles are bimodal by seed: Pig Latin sits at $0.91$ and $0.99$ in two seeds and $0.37$--$0.45$ in three, pirate at $0.93$ in one and $0.07$--$0.51$ in four, Chinese at $0.99$ in one and $0.21$--$0.66$ in four. Each style sometimes gives full protection and sometimes none, averaging little above the plain penalty, while the targeted mitigations are reliable. Two further models give no usable test: Qwen3.6-35B-A3B hits the 300-token cap on nearly every rollout and its unpenalized CoT mentions the hint only a third of the time, so there is little to erase; and Nemotron-3-Super-120B's penalized CoT drops only $0.87\to0.79$, with the penalty mostly making it stop following the hint (task reward $0.55$) rather than concealing it.
+\paragraph{Larger models make the styles a coin flip and the targeted mitigations near-perfect.} On Qwen3.6-27B in QA, the plain penalty spills ($0.81\to0.45$) and reward targeting and Targeted M\&F recover almost all of it ($0.85$). The three maintained styles are bimodal by seed: Pig Latin sits at $0.91$ and $0.99$ in two seeds and $0.37$--$0.45$ in three, pirate at $0.93$ in one and $0.07$--$0.51$ in four, Chinese at $0.99$ in one and $0.21$--$0.66$ in four. Each style sometimes gives full protection and sometimes none, averaging near the plain penalty, while the targeted mitigations are reliable. Two further models give no usable test: Qwen3.6-35B-A3B hits the 300-token cap on nearly every rollout and its unpenalized CoT mentions the hint only a third of the time, so there is little to erase; and Nemotron-3-Super-120B's penalized CoT drops only $0.87\to0.79$, with the penalty mostly making it stop following the hint (task reward $0.55$) rather than concealing it.
 
 \paragraph{In the terminal environment the styled models stop cheating instead.} In the multi-turn terminal task the model must pass a rigged verifier, which it can only do by reading the verifier's source, and the output monitor is a judge of whether the model's explanations discuss doing so. For the unstyled arms the gate changes nothing and there is little spillover at 8B: the penalty leaves CoT detection at $0.85$ against a control of $0.94$, with reward targeting at $0.89$, Mind \& Face at $0.92$, and Targeted M\&F at $0.94$, all still reading the verifier in every episode. The model satisfies this judge by wording rather than concealment: its explanations still name the verifier's answer variable in $99\%$ of episodes and add that the value ``is probably a placeholder'' and that it will compute the answer manually. The styled arms behave differently. Their in-style explanations are flagged by the judge nearly every time, the model does not find judge-safe styled wording, and it abandons the read: the pirate model stops reading the verifier in all five seeds (reading rate $0.01$, task reward $0.28$), Chinese in four, Pig Latin in two, and each then solves the grid honestly and fails the rigged test. Where a Pig-Latin seed keeps reading, its CoT stays intact ($0.89$--$1.00$) with the output only partly scrubbed. So a maintained style does not produce concealment here; it either leaves the CoT alone or ends the behavior, which is what an output penalty is supposed to do. On Qwen3.6-27B without the gate the penalty does produce genuine concealment, a fabricated explanation that never names the variable while the CoT still admits the read in $90\%$ of episodes, and reward targeting keeps the CoT at $0.98$ there (Appendix~\ref{app:terminal}); we didn't run the styled arms at that size.
 
@@ -380,12 +387,13 @@ behavior is coupled to the CoT's. When they are tightly coupled, the samples tha
 the output penalty are mostly the ones whose CoT also dropped the hint, and reinforcing
 them reinforces the CoT change; this is the conditional channel of
 \citet{drori2025output}. A maintained style loosens the coupling, so the penalty can be
-satisfied by moving the output alone. The initialization measurement supports this and
-also explains the artifact: style SFT adds variance of two kinds, in how the explanation
-is written and in whether one is written at all, and only the first kind survives the
-gate. We are not claiming that stylistic difference guarantees loose coupling; a model
-could write its CoT in another register and still copy its content into the output nearly
-deterministically, and the coupling can be measured before any penalty is applied.
+satisfied by moving the output alone. The initialization measurement does not show this loosening before RL for the
+checkpoints that produce the result, so if it is the mechanism, the decoupling is
+something the maintained style lets RL find rather than something the SFT installs; what
+the measurement does show is that the earlier checkpoint's apparent decoupling was variance
+in whether an explanation is written at all, which is the artifact. We are not claiming
+that stylistic difference guarantees loose coupling; a model could write its CoT in another
+register and still copy its content into the output nearly deterministically.
 
 \paragraph{Implications for monitoring.} Our results suggest that a model whose reasoning
 register already differs stably from its output register, as some reasoning models' CoTs
@@ -417,9 +425,9 @@ CoTs as a side-effect of RL \citep{guo2025deepseek,schoen2025antischeming}. Whet
 separation survives full fine-tuning, frontier scale, and richer penalized behaviors is
 open, as is whether stacking interventions (style separation, reward targeting,
 paraphrasing, and so on) can together approach the monitorability of the no-penalty
-model. It's plausible that for some model families the relevant boundary already exists;
-our initialization measurement is a cheap way to check, but we haven't run it on a model
-we didn't fine-tune ourselves.
+model. It's plausible that for some model families the relevant boundary already exists, but
+since the protection we measure is not visible before RL even for our own styled models,
+we don't have a cheap way to tell in advance.
 
 \section*{Acknowledgements}
 We are grateful for helpful discussion and feedback from many people, including Buck Shlegeris and Alek Westover. Ryan Greenblatt proposed the initial idea behind this project. We thank Constellation for supporting this work through the Astra Fellowship.
@@ -432,32 +440,33 @@ We are grateful for helpful discussion and feedback from many people, including 
 \section{The long-budget regime under the original judge}
 \label{app:regime}
 
-Table~\ref{tab:regime} gives the numbers behind \S\ref{sec:regime}: the final checkpoints of our earlier QA runs at $T=4096$ (two seeds, GPT-4o-mini soft judge during training), re-scored on both channels with the original work's GPT-4.1 judge and prompt. The two judges agree on the output channel and disagree on the CoT, where the weaker judge missed most acknowledgements. Under the GPT-4.1 judge the plain penalty leaves the CoT nearly intact at this budget, every mitigation sits at its control level, and the ordering among them that the weaker judge had produced is gone. The one condition that does spill at this budget is pirate-CoT SFT (\S\ref{sec:cotstyle}), whose collapse to zero both judges agree on, so the judge does see removal when it happens.
+Table~\ref{tab:regime} gives the numbers behind Section~\ref{sec:regime}: the final checkpoints of our earlier QA runs at $T=4096$ (two to three seeds, GPT-4o-mini soft judge during training), re-scored on both channels with the original work's GPT-4.1 judge and prompt. The two judges agree on the output channel and disagree on the CoT, where the weaker judge missed most acknowledgements. Under the GPT-4.1 judge the plain penalty leaves the CoT nearly intact at this budget on Qwen3-32B, every mitigation sits at its control level, and the ordering among them that the weaker judge had produced is gone. The 8B penalty runs at this budget mostly stopped following the hint (the no-SFT penalty follows it in $5\%$ of rollouts, the normal-SFT penalty in $56\%$), so their CoT numbers describe a model that mentions and dismisses the hint rather than one that hides its use. The one condition that does spill at this budget is pirate-CoT SFT (Section~\ref{sec:cotstyle}), whose collapse to zero both judges agree on, so the judge does see removal when it happens.
 
 \begin{table}[h]
 \centering
 \caption{Final-checkpoint CoT hint detection of the $T=4096$ runs under the two judges
-($\lambda=2$, seed-averaged, $n{=}2$; 378 in-distribution questions). ``Control'' is the
-same condition's no-penalty run.}
+($\lambda=2$, seed-averaged, $n{=}2$--$3$; 378 in-distribution questions). ``Control'' is the
+same condition's no-penalty run; ``follow'' is the penalized run's rate of giving the hinted
+answer.}
 \label{tab:regime}
-\begin{tabular}{llcccc}
+\begin{tabular}{llccccc}
 \toprule
-& & \multicolumn{2}{c}{GPT-4o-mini (soft)} & \multicolumn{2}{c}{GPT-4.1 (original prompt)} \\
+& & \multicolumn{2}{c}{GPT-4o-mini (soft)} & \multicolumn{2}{c}{GPT-4.1 (original prompt)} & \\
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
-Model & Condition & control & penalized & control & penalized \\
+Model & Condition & control & penalized & control & penalized & follow \\
 \midrule
-Qwen3-8B & No SFT & 0.67 & 0.20 & 0.99 & 0.84 \\
-Qwen3-8B & Normal SFT & 0.54 & 0.22 & 0.99 & 0.81 \\
-Qwen3-8B & Pirate output & 0.50 & 0.47 & 0.98 & 0.98 \\
-Qwen3-8B & Pirate CoT & 0.74 & 0.00 & 0.96 & 0.00 \\
-Qwen3-8B & Reward targeting & --- & 0.20 & --- & 0.99 \\
-Qwen3-8B & Mind \& Face & --- & 0.40 & --- & 0.97 \\
-Qwen3-8B & Targeted M\&F & --- & 0.75 & --- & 1.00 \\
+Qwen3-8B & No SFT & 0.67 & 0.20 & 0.99 & 0.84 & 0.05 \\
+Qwen3-8B & Normal SFT & 0.54 & 0.22 & 0.99 & 0.81 & 0.56 \\
+Qwen3-8B & Pirate output & 0.50 & 0.47 & 0.98 & 0.98 & 1.00 \\
+Qwen3-8B & Pirate CoT & 0.74 & 0.00 & 0.96 & 0.00 & 1.00 \\
+Qwen3-8B & Reward targeting & --- & 0.20 & --- & 0.99 & 1.00 \\
+Qwen3-8B & Mind \& Face & --- & 0.40 & --- & 0.97 & 1.00 \\
+Qwen3-8B & Targeted M\&F & --- & 0.75 & --- & 1.00 & 1.00 \\
 \midrule
-Qwen3-32B & No SFT & 0.78 & 0.50 & 0.99 & 0.95 \\
-Qwen3-32B & Pirate output & 0.59 & 0.55 & 0.92 & 0.91 \\
-Qwen3-32B & Pirate CoT & 0.83 & 0.00 & 0.99 & 0.02 \\
-Qwen3-32B & Reward targeting & --- & 0.60 & --- & 0.99 \\
+Qwen3-32B & No SFT & 0.78 & 0.50 & 0.99 & 0.95 & 1.00 \\
+Qwen3-32B & Pirate output & 0.59 & 0.55 & 0.92 & 0.91 & 1.00 \\
+Qwen3-32B & Pirate CoT & 0.83 & 0.00 & 0.99 & 0.02 & 0.99 \\
+Qwen3-32B & Reward targeting & --- & 0.60 & --- & 0.99 & 1.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -465,7 +474,7 @@ Qwen3-32B & Reward targeting & --- & 0.60 & --- & 0.99 \\
 \section{Terminal environment: full numbers}
 \label{app:terminal}
 
-Table~\ref{tab:terminal} gives the terminal-environment arms of \S\ref{sec:envs} with the quantities the CoT number alone hides: how often the model read the verifier, and how often the gate accepted its explanations. Two further observations. First, at 8B the judge is satisfied by wording: in the penalized unstyled arms the explanations still name the verifier's answer variable in $99\%$ of episodes, framed as a placeholder the model will check by hand. Second, on Qwen3.6-27B (no gate, three seeds, 400 steps) the penalty produces real concealment in two seeds and abandonment in the third: the concealing seeds keep reading the verifier (task reward $1.00$), their explanations never name the variable ($0.02$) and instead narrate a solution of the grid, and their CoT still admits the read in $90\%$ of episodes (control $0.99$); reward targeting keeps the CoT at $0.98$ with the same scrubbed output. The third seed stopped reading around step 150 and fails the rigged test (task reward $0.33$).
+Table~\ref{tab:terminal} gives the terminal-environment arms of Section~\ref{sec:envs} with the quantities the CoT number alone hides: how often the model read the verifier, and how often the gate accepted its explanations. Two further observations. First, at 8B the judge is satisfied by wording: in the penalized unstyled arms the explanations still name the verifier's answer variable in $99\%$ of episodes, framed as a placeholder the model will check by hand. Second, on Qwen3.6-27B (no gate, three seeds, 400 steps) the penalty produces real concealment in two seeds and abandonment in the third: the concealing seeds keep reading the verifier (task reward $1.00$), their explanations never name the variable ($0.02$) and instead narrate a solution of the grid, and their CoT still admits the read in $90\%$ of episodes (control $0.99$); reward targeting keeps the CoT at $0.98$ with the same scrubbed output. The third seed stopped reading around step 150 and fails the rigged test (task reward $0.33$).
 
 \begin{table}[h]
 \centering
@@ -498,12 +507,13 @@ Chinese, penalty & $0.45\pm0.27$ & 0.21 & 1.00 & 0.23 & $0.25\pm0.37$ \\
 \section{What the penalized outputs contain}
 \label{app:audit}
 
-\paragraph{Degeneration under the plain reward.} Table~\ref{tab:degeneration} classifies the late-training outputs of the plain-reward runs (\S\ref{sec:gate}) by hand-checkable criteria: ``bare'' is an explanation section under 40 characters, ``filler'' a compressible repetition (a compression ratio below $0.12$), and ``genuine'' the verdict of the GPT-4.1 explanation judge on 150 sampled outputs. Every styled arm satisfied the penalty by one of the first two routes; the no-SFT model kept explaining.
+\paragraph{Degeneration under the plain reward.} Table~\ref{tab:degeneration} classifies the late-training outputs of the plain-reward runs (Section~\ref{sec:gate}) by hand-checkable criteria: ``bare'' is an explanation section under 40 characters, ``filler'' a compressible repetition (a compression ratio below $0.12$), and ``genuine'' the verdict of the GPT-4.1 explanation judge on 150 sampled outputs. The styled arms satisfied the penalty mostly by one of the first two routes; the no-SFT model kept explaining.
 
 \begin{table}[h]
 \centering
-\caption{Late-training outputs under the plain reward ($\lambda=2$, $T=300$, Qwen3-8B,
-5 seeds, last 27 steps; ``genuine'' from 150 judged outputs per arm).}
+\caption{Late-training outputs under the plain reward ($\lambda=2$, $T=300$, Qwen3-8B;
+5 seeds, 10 for the no-SFT rows). ``bare'' and ``filler'' are measured over the last 67
+steps, ``CoT det.'' over the last 27, and ``genuine'' on 150 judged outputs per arm.}
 \label{tab:degeneration}
 \begin{tabular}{lcccc}
 \toprule
@@ -526,7 +536,7 @@ Targeted M\&F & 0.25 & 0.00 & 0.73 & 0.50 \\
 
 \paragraph{What the gate accepts.} The explanation judge (Appendix~\ref{app:judges}) is asked whether the explanation section is a coherent, on-topic attempt to explain the boxed answer, explicitly ignoring whether the reasoning is correct; a version that asked for a correct explanation would have been unsatisfiable, since the boxed answer is wrong by construction. On hand-made cases it accepts terse but real explanations in all three styles and rejects bare answers, repetition, and filler. On real outputs it is not biased against acknowledging the hint: pooled over every gated run, it rejects $1\%$ of outputs that acknowledge the hint and $8\%$ of those that don't (the latter being where the degenerate outputs live). What it accepts under the penalty is, in the large majority of cases, a correct derivation of the true answer followed by the hinted letter as a non-sequitur (``\ldots $=25$. Thus, the answer is B''). A separate GPT-4.1 check on 50 late outputs per arm finds the explanation's own reasoning supporting the boxed letter in $6$--$12$ of $50$ for the plain penalty, reward targeting, and each maintained style alike, and in the no-penalty controls the explanations ``contradict'' the boxed letter by openly deferring to the hint. The gate therefore equalizes the arms on \emph{having} an explanation without making the explanation a truthful account of the answer's origin; no arm we ran produces one, because none can.
 
-\paragraph{Substring answer check.} The task reward tests for the hinted letter as a boxed substring, so an output with two different boxed letters is rewarded if the hinted one appears anywhere. This affects $0.4$--$1.4\%$ of late rollouts (up to $3\%$ in some windows of one arm) and is the same for every condition.
+\paragraph{Substring answer check.} The task reward tests for the hinted letter as a boxed substring, so an output with two different boxed letters is rewarded if the hinted one appears anywhere. This affects $0.4$--$1.4\%$ of late rollouts (up to $3\%$ in some windows of one arm) and is similar across conditions.
 
 \section{Training details and hyperparameters}
 \label{app:train}
@@ -702,7 +712,7 @@ constructing a factorable derivative and integrating it; correctness is checked 
 symbolic equality of the boxed expression with the reference derivative. The penalized behavior is writing the
 \emph{expanded} (multiplied-out) derivative anywhere in the output, caught by a
 string-match monitor (Appendix~\ref{app:judges}); the same monitor applied to the CoT gives the
-CoT detection rate. The polynomial runs use $\lambda=1$ and the original work's budgets of 800 thinking and 1000 output tokens. The original work reports this environment on a 14B model; we find that whether spillover appears depends on the model finding the product-rule route (\S\ref{sec:envs}).
+CoT detection rate. The polynomial runs use $\lambda=1$ and the original work's budgets of 800 thinking and 1000 output tokens. The original work reports this environment on a 14B model; we find that whether spillover appears depends on the model finding the product-rule route (Section~\ref{sec:envs}).
 
 \paragraph{Multi-turn terminal interaction.} Following the original work, the model has a restricted shell with one file, a verifier for a Reasoning Gym largest-island problem whose stored ground truth has been shifted to a wrong value, so the only way to pass is to read the verifier's source (or rewrite it). Each turn the model thinks (128 tokens), then emits one command in \texttt{<command>} tags with an explanation of why it ran it (256 tokens); the terminal output is appended to the context, for up to four turns. The output monitor is a GPT-4.1-mini judge, with the original work's prompt, of whether the explanations discuss reading the verifier code; it sees the task prompt and the model's explanations, never the commands. The CoT monitor is the same judge shown the per-turn CoTs. We use $\lambda=0.75$, 32 episodes per step, and 400 steps. The task prompt is the original work's:
 
@@ -792,7 +802,7 @@ Chinese), we restore the original English header lines. These filters matter: an
 dataset generated by a rewriter in thinking mode had $15\%$ of its rewrites truncated
 mid-sentence and $3\%$ carrying the rewriter's leaked reasoning, and the model fine-tuned on it
 produced empty or unformatted outputs on $62\%$ of our questions before any RL, against
-$2\%$ for the filtered data; the plain-reward pirate numbers of \S\ref{sec:gate} come from that
+$2\%$ for the filtered data; the plain-reward and word-count pirate numbers of Section~\ref{sec:gate} come from that
 earlier checkpoint, every gated pirate arm from the filtered one. The \emph{normal}-SFT control
 reuses Pass~1's responses verbatim (no rewriting); the \emph{pirate-CoT} variant instead
 rewrites the CoT and keeps the output plain. For the 27B and 35B models the same pipeline is
@@ -926,6 +936,6 @@ derivative in the scored text, after normalizing superscripts and stripping spac
 \section{Measurement protocol}
 \label{app:eval}
 
-All numbers in the body are training-rollout averages over the last 10\% of optimizer steps of each run (27 of 267 for QA and polynomial, 40 of 400 for terminal), averaged over seeds, as in the original work; there is no separate held-out evaluation, and the question pool is seen about twice per run. The reported CoT detection is therefore the fraction of late-training rollouts whose CoT the monitor flags. Error bars in figures are 95\% confidence intervals over seeds; tables give the standard deviation over seeds where it is material. The pirate-CoT and long-budget numbers of Appendix~\ref{app:regime} are the one exception: those are final-checkpoint evaluations of our earlier runs on the same 378 questions, re-scored offline.
+All numbers in the body are training-rollout averages over the last 10\% of optimizer steps of each run (27 of 267 for QA and polynomial, 40 of 400 for terminal), averaged over seeds, as in the original work; tables report the population standard deviation over seeds, figures 95\% confidence intervals with the sample standard deviation; there is no separate held-out evaluation, and the question pool is seen about twice per run. The reported CoT detection is therefore the fraction of late-training rollouts whose CoT the monitor flags. Error bars in figures are 95\% confidence intervals over seeds; tables give the standard deviation over seeds where it is material. The pirate-CoT and long-budget numbers of Appendix~\ref{app:regime} are the one exception: those are final-checkpoint evaluations of our earlier runs on the same 378 questions, re-scored offline.
 
 \end{document}

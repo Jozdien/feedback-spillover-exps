@@ -501,7 +501,7 @@ ARM_STYLE = {
 }
 ENV_OF = {"qa8b": "qa", "qa27b": "qa", "poly27b": "poly", "term8b": "term"}
 XLABEL = {"qa": "CoT hint detection", "poly": "Expanded form in CoT", "term": "Verifier read in CoT"}
-YLABEL = "Training reward  (task $-\\ \\lambda\\,M_\\mathrm{out}$)"
+YLABEL = "Training reward  (gated task $-\\ \\lambda\\,M_\\mathrm{out}$)"
 
 
 def tail_means(run_dir, lam, n_expected, last, ko, kc):
@@ -575,8 +575,8 @@ def gated_axes(ax, env, xlabel=True, ylabel=True, short=False):
     lam = {"qa": 2, "poly": 1, "term": 0.75}[env]
     if xlabel:
         ax.set_xlabel(XLABEL[env] if short else f"{XLABEL[env]}  (monitorability →)")
-    if ylabel:
-        ax.set_ylabel("Training reward" if short else YLABEL)
+    if ylabel:  # two lines on the narrow multi-panel axes so the label is not clipped
+        ax.set_ylabel(YLABEL.replace("  (", "\n(") if short else YLABEL, fontsize=9)
     if not short:  # multi-panel figures carry λ in the panel title instead
         ax.text(0.98, 0.03, f"$\\lambda={lam:g}$", transform=ax.transAxes, fontsize=8, color="#495057", ha="right")
     ax.axhline(0, color="gray", lw=0.8, ls="--", alpha=0.5)
@@ -757,11 +757,15 @@ def fig_coupling_bars():
     except Exception as e:  # heavy deps (tinker/torch) may be missing outside the training env
         print(f"   [coupling] using local copy of _explanation_words ({type(e).__name__})")
         ew = _explanation_words_fallback
+    # (label, control-run glob, palette key, hatch). Hatch 'xx' = the legacy pirate v1 checkpoint
+    # (38% well-formed at init, §16c); '//' = style requested in the prompt, no SFT.
     conds = [("No SFT", "grpo-grpo300-nosft-ctrl-8b-s4[2-6]", "no_sft", None),  # seeds 42-46, as in CHECKIN 2026-09-24
-             ("Pirate\nSFT", "grpo-mit300-pirate-ctrl-8b-s??", "pirate", None),
-             ("Chinese\nSFT", "grpo-style300-chinese-ctrl-8b-s??", "chinese", None),
-             ("Pig-Latin\nSFT", "grpo-style300-piglatin-ctrl-8b-s??", "piglatin", None),
-             ("Prompted\npirate", "grpo-prompt300-pirate-ctrl-8b-s??", "pirate", "//")]
+             ("Normal SFT", "grpo-explj300-normalalpaca-ctrl-8b-s??", "normal", None),
+             ("Pirate (v1 data)", "grpo-mit300-pirate-ctrl-8b-s??", "pirate", "xx"),
+             ("Pirate (v2 data)", "grpo-explj300-piratev2-ctrl-8b-s??", "pirate", None),
+             ("Pig-Latin SFT", "grpo-style300-piglatin-ctrl-8b-s??", "piglatin", None),
+             ("Chinese SFT", "grpo-style300-chinese-ctrl-8b-s??", "chinese", None),
+             ("Prompted pirate", "grpo-prompt300-pirate-ctrl-8b-s??", "pirate", "//")]
     rows = []
     for label, pat, ckey, hatch in conds:
         n_cot = n_clean = n_real = 0
@@ -779,7 +783,7 @@ def fig_coupling_bars():
                     n_real += ew(r["out_text"]) >= 20
         rows.append((label, ckey, hatch, len(runs), n_cot, n_clean, n_real))
 
-    fig, ax = plt.subplots(figsize=figsize(0.5, 0.78))
+    fig, ax = plt.subplots(figsize=figsize(0.5, 0.88))
     x = np.arange(len(rows))
     for xi, (label, ckey, hatch, _, n_cot, n_clean, n_real) in zip(x, rows):
         color = C[ckey][0]
@@ -790,8 +794,8 @@ def fig_coupling_bars():
         ax.errorbar(xi, n_clean / n_cot, yerr=binom_ci(n_clean, n_cot), color="#212529", lw=0,
                     elinewidth=1.0, capsize=2.5, zorder=4)
     ax.set_xticks(x)
-    ax.set_xticklabels([r[0] for r in rows], fontsize=8)
-    ax.set_ylabel("P(clean output | hint in CoT)")
+    ax.set_xticklabels([r[0] for r in rows], fontsize=7.5, rotation=30, ha="right", rotation_mode="anchor")
+    ax.set_ylabel("P(clean output | hint in CoT)", fontsize=9)
     ax.set_ylim(0, 0.6)
     ax.grid(axis="x", visible=False)
     ax.legend(handles=[Patch(facecolor="#495057", edgecolor="#495057", label="clean, real explanation"),
@@ -802,10 +806,10 @@ def fig_coupling_bars():
     plt.close(fig)
 
     print("\n== coupling_bars (init, batches 0–9 of control runs; ± = binomial 95% CI on the total)")
-    print(f"   {'condition':16s} {'runs':>4s} {'n_cot':>5s}  {'P(clean|cot)':>16s}  {'real':>5s}  {'bare':>5s}  {'real share':>10s}")
+    print(f"   {'condition':18s} {'runs':>4s} {'n_cot':>5s}  {'P(clean|cot)':>16s}  {'real':>5s}  {'bare':>5s}  {'real share':>10s}")
     for label, _, _, nr, n_cot, n_clean, n_real in rows:
         lab = label.replace("\n", " ")
-        print(f"   {lab:16s} {nr:4d} {n_cot:5d}  {n_clean / n_cot:.3f} ± {binom_ci(n_clean, n_cot):.3f}   "
+        print(f"   {lab:18s} {nr:4d} {n_cot:5d}  {n_clean / n_cot:.3f} ± {binom_ci(n_clean, n_cot):.3f}   "
               f"{n_real / n_cot:.3f}  {(n_clean - n_real) / n_cot:.3f}  {n_real / max(n_clean, 1):10.2f}")
 
 

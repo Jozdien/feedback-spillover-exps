@@ -672,3 +672,11 @@ result uses, the number is 0.10–0.12, the same as the base model (0.09–0.11)
 correlation (~0.5); Pig-Latin 0.13, normal-Alpaca SFT 0.09. So there is no measurable decoupling before
 RL for the checkpoints that produce the result; v1's excess was outputs with no explanation. The paper's
 mechanism paragraph and coupling figure are written accordingly (RESULTS §16c point 6 amended).
+
+## 2026-09-28 — paper draft rewritten (paper/main.tex, 21 pages, compiles clean)
+New title, abstract, intro, results (regime → degeneration/gate → maintained style → other
+environments/models → CoT styling), discussion, limitations, and appendix; four new figures
+(paper/figures/pareto_gated_8b, gate_bars, pareto_envs_models, coupling_bars) from the campaign data;
+old 4096-token figures/tables retired except the re-judge table. Every number was cross-checked
+against RESULTS.md by an independent pass; the one substantive correction it forced is the
+initialization-decoupling claim (v1 artifact). Figure 1 (schematic) kept.
