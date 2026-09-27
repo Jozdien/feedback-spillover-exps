@@ -456,6 +456,22 @@ def _explanation_words(out_text: str) -> int:
     return len((m.group(1) if m else "").replace("<|im_end|>", "").split())
 
 
+
+def _vocab_size(tokenizer) -> int:
+    """len(tokenizer) for HF tokenizers; fall back for adapter tokenizers (e.g. Inkling's TML adapter)
+    that define no __len__: try vocab_size / get_vocab, else disable the OOV filter (2**31)."""
+    try:
+        return len(tokenizer)
+    except TypeError:
+        for attr in ("vocab_size", "n_vocab"):
+            v = getattr(tokenizer, attr, None)
+            if isinstance(v, int) and v > 0:
+                return v
+        try:
+            return len(tokenizer.get_vocab())
+        except Exception:
+            return 2**31
+
 async def _score_rollouts(ctx: _Ctx, flat_items, rollouts) -> dict[str, list[float]]:
     cfg = ctx.cfg
     cots = [r["cot_text"] if r else "" for r in rollouts]
@@ -901,7 +917,7 @@ async def train(cfg: Config):
 
     expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge and (cfg.task.startswith("qa") or cfg.task == "poly") else None
     ctx = _Ctx(
-        cfg=cfg, pt=pt, tokenizer=tokenizer, max_token_id=len(tokenizer) - 1,
+        cfg=cfg, pt=pt, tokenizer=tokenizer, max_token_id=_vocab_size(tokenizer) - 1,
         judge=judge, pirate_judge=pirate_judge, expl_judge=expl_judge,
         items=items, tc=tc, adam=adam, cot_params=cot_params, out_params=out_params,
         schedule=schedule, cot_pen_batches=cot_pen_batches, n_batches=n_batches,
