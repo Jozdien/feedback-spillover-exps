@@ -1097,10 +1097,11 @@ Readings.
    but the best styled seeds (0.48–0.49) still sit well below reward targeting, and n is small.
 5. The paper's normal SFT (math/code mix) is not a usable control here: it follows the hint only 68–72%
    and its CoT almost never mentions the hint even without a penalty (0.14), so both of its arms read 0.
-6. Consistent with the initialization measurement (CHECKIN 2026-09-24): pirate SFT quadruples
-   P(clean output | hint-mentioning CoT) at init, but the excess is almost entirely "no explanation";
-   counting only clean outputs that also explain, pirate ≈ no-SFT (0.13 vs 0.11) — which is what the
-   gated RL then reproduces.
+6. Initialization measurement (CHECKIN 2026-09-24, corrected 2026-09-28): the 0.41 vs 0.11
+   P(clean output | hint-mentioning CoT) was the pirate v1 checkpoint; on pirate v2 it is 0.10–0.12,
+   equal to the base model (0.09–0.11; Pig-Latin 0.13, normal-Alpaca 0.09), so the checkpoints that
+   produce the maintained-style result show no decoupling before RL. v1's excess was bare outputs
+   (counting only clean outputs that also explain: 0.14 vs 0.11).
 
 Implication for the paper: "style separation preserves the CoT" holds only when the styled output is
 allowed to stop being an explanation. Under a reward that requires a real explanation, the CoT spills

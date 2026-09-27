@@ -664,3 +664,11 @@ call OpenAI. Nothing to do beyond topping up.
 - Terminal 8B Chinese: abandons the cheat in 4/5 seeds, like pirate and Pig-Latin.
 - Nemotron at 300 tokens: spillover only 0.87 → 0.79 and the penalty mostly makes it stop following the hint
   (task 0.55); not worth building styled arms. Nothing running.
+
+## 2026-09-28 — correction to the 2026-09-24 "decoupling at initialization" numbers
+The 0.41 vs 0.11 figure (P(output clean | CoT mentions the hint) at initialization) was measured on the
+pirate v1 checkpoint, whose data was defective. On the v2 checkpoint that every gated/maintained-style
+result uses, the number is 0.10–0.12, the same as the base model (0.09–0.11), with the same output–CoT
+correlation (~0.5); Pig-Latin 0.13, normal-Alpaca SFT 0.09. So there is no measurable decoupling before
+RL for the checkpoints that produce the result; v1's excess was outputs with no explanation. The paper's
+mechanism paragraph and coupling figure are written accordingly (RESULTS §16c point 6 amended).
