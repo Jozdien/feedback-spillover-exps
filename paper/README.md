@@ -1,4 +1,4 @@
-# Paper draft — Style Separation: A maintained output style can mitigate feedback spillover
+# Paper draft — Style Separation: A distinct output style can mitigate feedback spillover
 
 LaTeX draft in the NeurIPS 2026 preprint style (`neurips_2026.sty` is in this folder).
 
@@ -11,7 +11,7 @@ latexmk -pdf -interaction=nonstopmode main.tex
 
 ## Structure
 1 Introduction (Figure 1 is the schematic) · 2 Related Work · 3 Methods ·
-4 Results: 4.1 maintained styles under the explanation gate (Fig 2, Tab 1) ·
+4 Results: 4.1 style separation in the main setting (Fig 2, Tab 1) ·
 4.2 the plain reward, where the styled models stop explaining (Fig 3) ·
 4.3 other environments and models (Fig 4) · 4.4 styling the CoT ·
 5 Discussion and Limitations · Appendices A–I, results first (full numbers, what the
@@ -36,15 +36,21 @@ Figures are titleless vector PDFs; the `\caption` carries the takeaway.
 - The paper names no scripts, files, config fields or code constants, and does not narrate
   how the experiments or the draft changed over time. It states what was run and what was
   found.
+- The claim is about stylistic separation between output and CoT: it can mitigate feedback
+  spillover. Style separation is the SFT pass plus the style reward that keeps the style in
+  place during RL. The paper does not present "only while the style is maintained" as a
+  finding or attach it to the headline claim as a caveat; that is the intervention being in
+  place. The runs without the style reward are explained briefly because they are plotted.
 - Condition names are fixed in Methods (plain reward, plain penalty, explanation gate, style
-  reward, maintained) and used unchanged in the text, captions and figure labels.
+  reward) and used unchanged in the text, captions and figure labels.
 - Body captions open with a bold sentence stating the finding, then say how to read the
   display, what the error bars are and how many seeds. Appendix captions are plain.
 - Claims are scoped to the runs behind them (seeds, model, CoT budget).
 
 ## Status (2026-09-28)
-The draft was restructured and edited on this date. Results added to `RESULTS.md` since
-then (§16h, the spillover test on 14 more models) are not in the paper.
+The draft was restructured and edited on this date, then reframed around style separation
+itself (see Conventions). Results added to `RESULTS.md` since then (§16h, the spillover
+test on 14 more models) are not in the paper.
 
 Figures to regenerate:
 - `coupling_bars`: tick labels "v1 data" / "v2 data" should read unfiltered / filtered; the
