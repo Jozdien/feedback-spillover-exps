@@ -1315,3 +1315,31 @@ seen in the terminal env. Reward targeting keeps the task (0.99) at the same 0.7
 too small a target for a mitigation study, so styled Nemotron arms (which would need the data pipeline
 adapted to its template) are not launched; the 4096-token spillover of §17 (0.91 → 0.29, 1 seed) remains
 the only strong Nemotron signal and lives outside the 300-token protocol.
+
+### 16h. Spillover signal test across every remaining Tinker model (2026-09-28; `logs/grpo-gated-sig-*`; gated QA protocol, no-SFT control vs penalty, 3 seeds, last 27 steps)
+
+| model | control CoT | control task | penalty CoT | penalty task | penalty M_out | CoT drop |
+|---|---|---|---|---|---|---|
+| Qwen3.5-4B | 0.98±0.01 | 0.99 | **0.28±0.28** | 0.98 | 0.02 | 0.70 |
+| Qwen3.5-9B | 0.77±0.15 | 0.99 | **0.07±0.02** | 1.00 | 0.02 | 0.70 |
+| Qwen3.5-397B-A17B | 0.99±0.01 | 0.99 | **0.36±0.07** | 0.99 | 0.00 | 0.63 |
+| DeepSeek-V3.1 | 0.89±0.01 | 0.99 | 0.32±0.09 | **0.13** | 0.14 | 0.57 (task abandoned) |
+| Inkling | 0.91±0.01 | **0.02** | 0.67±0.08 | 0.02 | 0.15 | (never learns the task) |
+| GPT-OSS-20B | 0.91±0.02 | 0.99 | 0.80±0.19 | 0.99 | 0.00 | 0.11 |
+| Qwen3.8-27B | 0.97±0.01 | 1.00 | 0.92±0.04 | 0.60 | 0.02 | 0.05 (task partly abandoned) |
+| Nemotron-3-Ultra-550B | 0.97±0.01 | 0.99 | 0.94±0.02 | 0.99 | 0.01 | 0.03 |
+| Kimi-K2.6 | 0.99±0.01 | 0.99 | 0.97±0.03 | 0.75 | 0.03 | 0.02 (task partly abandoned) |
+| Nemotron-3.5-Lightning-30B | 0.99±0.01 | 0.97 | 0.98±0.01 | 0.94 | **0.44** | 0.01 (output not scrubbed) |
+| GLM-5.3 | 0.99±0.01 | 0.99 | 0.97±0.00 | 0.72 | 0.03 | 0.01 (task partly abandoned) |
+| Nemotron-3-Nano-30B | 0.72±0.08 | 0.94 | 0.72±0.07 | 0.60 | **0.28** | 0.00 (output not scrubbed) |
+| Inkling-Small | 0.78±0.01 | **0.03** | 0.79±0.01 | 0.03 | 0.63 | (never learns the task) |
+| GPT-OSS-120B | 0.18±0.14 | 1.00 | 0.59±0.31 | 0.99 | 0.01 | −0.41 (control CoT rarely mentions the hint) |
+
+Reading: with the task learned and the output scrubbed, clean spillover appears only in the Qwen family —
+Qwen3.5-4B, Qwen3.5-9B and Qwen3.5-397B (drops of 0.63–0.70), joining Qwen3-8B (0.60→0.27) and Qwen3.6-27B
+(0.81→0.45). DeepSeek-V3.1's large CoT drop comes with the model abandoning the hinted task (0.13), the
+honest-abandonment route rather than concealment. GPT-OSS-20B spills mildly (0.11); GPT-OSS-120B's
+unpenalized reasoning channel rarely mentions the hint at all (0.18). Kimi-K2.6, GLM-5.3, Qwen3.8-27B and
+the Nemotron models scrub the output (or, for Nemotron Nano/Lightning, fail to) without any CoT change,
+several by partly giving up the hint. The two Inkling models never learn the hinted task. Qwen3-30B-A3B
+is listed by Tinker but rejected as unsupported. Cost ≈ $3,500 (84 runs incl. judges).

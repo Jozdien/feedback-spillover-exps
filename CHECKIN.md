@@ -680,3 +680,11 @@ environments/models → CoT styling), discussion, limitations, and appendix; fou
 old 4096-token figures/tables retired except the re-judge table. Every number was cross-checked
 against RESULTS.md by an independent pass; the one substantive correction it forced is the
 initialization-decoupling claim (v1 artifact). Figure 1 (schematic) kept.
+
+## 2026-09-28 — spillover signal test on 14 more models done (RESULTS §16h)
+Clean spillover (task learned, output scrubbed, CoT drops) shows up only in the Qwen family: Qwen3.5-4B
+(0.98→0.28), Qwen3.5-9B (0.77→0.07), Qwen3.5-397B (0.99→0.36), alongside the 8B and 27B already used.
+DeepSeek-V3.1 drops 0.89→0.32 but stops following the hint (task 0.13); GPT-OSS-20B mild (0.11); every
+other model (Kimi, GLM, Nemotron ×3, Qwen3.8-27B, GPT-OSS-120B, Inkling ×2) shows no usable spillover, often
+because it gives up the hint or never learns it. Nothing running. Next step if wanted: style SFTs + the
+maintained-style protocol on Qwen3.5-9B/4B (cheap) and 397B (expensive).
