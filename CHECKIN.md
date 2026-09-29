@@ -688,3 +688,9 @@ DeepSeek-V3.1 drops 0.89→0.32 but stops following the hint (task 0.13); GPT-OS
 other model (Kimi, GLM, Nemotron ×3, Qwen3.8-27B, GPT-OSS-120B, Inkling ×2) shows no usable spillover, often
 because it gives up the hint or never learns it. Nothing running. Next step if wanted: style SFTs + the
 maintained-style protocol on Qwen3.5-9B/4B (cheap) and 397B (expensive).
+
+## 2026-09-29 — compositions done (RESULTS §16i): maintained style + reward targeting (or targeted M&F) removes spillover at 8B
+8B: pirate/Pig-Latin + RT 0.62, + TMF 0.60–0.63, all at the no-penalty control (0.60), output scrubbed,
+explanations intact; each alone 0.46–0.56. 27B: pirate + RT 0.95 and the TMF compositions 0.83–0.88 exceed
+the control (0.81) and remove the seed bimodality. Composing with plain Mind & Face adds nothing (8B) or
+hurts (27B). Nothing running.

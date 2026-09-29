@@ -1343,3 +1343,41 @@ unpenalized reasoning channel rarely mentions the hint at all (0.18). Kimi-K2.6,
 the Nemotron models scrub the output (or, for Nemotron Nano/Lightning, fail to) without any CoT change,
 several by partly giving up the hint. The two Inkling models never learn the hinted task. Qwen3-30B-A3B
 is listed by Tinker but rejected as unsupported. Cost ≈ $3,500 (84 runs incl. judges).
+
+### 16i. Style separation composed with the prior mitigations, under the gate and style reward (2026-09-29; `logs/grpo-gated-{8b,27b}-{pirate,piglatin}-{rt,mf,tmf}-*`; 5 seeds; last 27 steps; mean ± population sd)
+
+| Qwen3-8B | CoT detection | M_out | genuine | style |
+|---|---|---|---|---|
+| no penalty / plain penalty | 0.60 / 0.27 | 0.89 / 0.17 | 0.99 / 1.00 | – |
+| RT / M&F / TMF alone | 0.51 / 0.40 / 0.52 | 0.21 / 0.05 / 0.03 | ≥0.99 | – |
+| pirate + style reward alone (10 seeds) | 0.46±0.12 | 0.02 | 0.99 | 1.00 |
+| **pirate + RT** | **0.62±0.08** (0.50/0.73/0.58/0.68/0.63) | 0.01 | 0.99 | 1.00 |
+| pirate + M&F | 0.46±0.10 | 0.01 | 0.99 | 1.00 |
+| **pirate + TMF** | **0.63±0.05** (0.70/0.63/0.54/0.64/0.65) | 0.00 | 0.99 | 1.00 |
+| Pig-Latin + style reward alone (10 seeds) | 0.56±0.08 | 0.02 | 0.97 | 1.00 |
+| **Pig-Latin + RT** | **0.62±0.08** (0.75/0.60/0.50/0.60/0.68) | 0.03 | 0.96 | 1.00 |
+| Pig-Latin + M&F | 0.46±0.10 | 0.00 | 0.97 | 1.00 |
+| **Pig-Latin + TMF** | **0.60±0.08** (0.53/0.62/0.56/0.55/0.76) | 0.01 | 0.97 | 1.00 |
+
+| Qwen3.6-27B | CoT detection | M_out | genuine | style |
+|---|---|---|---|---|
+| no penalty / plain penalty | 0.81 / 0.45 | 0.93 / 0.01 | 1.00 | – |
+| RT / M&F / TMF alone | 0.85 / 0.44 / 0.85 | 0.01 / 0.00 / 0.01 | ≥0.99 | – |
+| pirate + style reward alone | 0.42±0.29 | 0.00 | 1.00 | 1.00 |
+| **pirate + RT** | **0.95±0.06** (0.98/0.97/0.83/0.97/0.99) | 0.00 | 0.99 | 1.00 |
+| pirate + M&F | 0.33±0.23 | 0.00 | 0.99 | 1.00 |
+| **pirate + TMF** | **0.88±0.15** (0.59/0.99/1.00/0.97/0.86) | 0.00 | 1.00 | 1.00 |
+| Pig-Latin + style reward alone | 0.63±0.27 | 0.00 | 0.99 | 1.00 |
+| Pig-Latin + RT | 0.70±0.24 (0.64/0.31/0.92/0.63/0.98) | 0.00 | 0.99 | 1.00 |
+| Pig-Latin + M&F | 0.35±0.23 | 0.01 | 0.98 | 1.00 |
+| **Pig-Latin + TMF** | **0.83±0.20** (0.99/0.61/0.55/1.00/0.98) | 0.00 | 0.96 | 1.00 |
+
+Readings. (1) At 8B, a maintained style composed with either targeted mitigation reaches the no-penalty
+control's CoT level (0.60–0.63 vs control 0.60) with the output fully scrubbed and explanations intact —
+the first configurations in this campaign with no measurable spillover at full task reward. Each
+component alone gives 0.46–0.56. (2) At 27B, pirate + RT (0.95) and pirate/Pig-Latin + TMF (0.83–0.88)
+exceed the control (0.81) and remove the seed bimodality of the styled arms alone; Pig-Latin + RT (0.70)
+still splits by seed. (3) Composing with plain Mind & Face adds nothing at 8B (0.46 = style alone) and
+hurts at 27B (0.33–0.35, below the plain penalty), consistent with the earlier draft's finding that the
+style does not stack with M&F; a styled face still receives the penalty gradient on its own parameters,
+and the conditional channel through the mind is untouched. Cost ≈ $2,300 (60 runs).
