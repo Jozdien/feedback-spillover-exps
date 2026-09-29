@@ -4,7 +4,8 @@
 # GPT-4.1 explanation gate, style reward weight 1 on styled arms.
 # Usage: MODEL=Qwen/Qwen3.6-27B TAG=27b [PIRATE=tinker://...] [PIGLATIN=tinker://...] [CHINESE=tinker://...] \
 #        [SEEDS="42 43 44 45 46"] bash scripts/launch_gated_models.sh [arms...]
-# Arms: nosft-ctrl nosft-pen rt piratesr-ctrl piratesr-pen piglatinsr-ctrl piglatinsr-pen chinesesr-ctrl chinesesr-pen
+# Arms: nosft-ctrl nosft-pen rt mf tmf piratesr-ctrl piratesr-pen piglatinsr-ctrl piglatinsr-pen chinesesr-ctrl chinesesr-pen
+#       compositions (style reward + prior mitigation): {pirate,piglatin,chinese}-{rt,mf,tmf}
 cd /home/jose/feedback-spillover-exps
 set -a && source .env && set +a
 MODEL=${MODEL:-Qwen/Qwen3-8B}; TAG=${TAG:-8b}
@@ -20,6 +21,15 @@ for s in ${SEEDS:-42 43 44 45 46}; do
       rt)            launch gated-$TAG-rt-s$s            penalty_weight=-2 seed=$s reward_target=true ;;
       mf)   MOD=train_grpo_mind_face launch gated-$TAG-mf-s$s   penalty_weight=-2 seed=$s reward_target=false ;;
       tmf)  MOD=train_grpo_mind_face launch gated-$TAG-tmf-s$s  penalty_weight=-2 seed=$s reward_target=true ;;
+      pirate-rt) need "$PIRATE" pirate && launch gated-$TAG-pirate-rt-s$s penalty_weight=-2 seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 reward_target=true ;;
+      pirate-mf) need "$PIRATE" pirate && MOD=train_grpo_mind_face launch gated-$TAG-pirate-mf-s$s penalty_weight=-2 seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 reward_target=false ;;
+      pirate-tmf) need "$PIRATE" pirate && MOD=train_grpo_mind_face launch gated-$TAG-pirate-tmf-s$s penalty_weight=-2 seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 reward_target=true ;;
+      piglatin-rt) need "$PIGLATIN" piglatin && launch gated-$TAG-piglatin-rt-s$s penalty_weight=-2 seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 reward_target=true ;;
+      piglatin-mf) need "$PIGLATIN" piglatin && MOD=train_grpo_mind_face launch gated-$TAG-piglatin-mf-s$s penalty_weight=-2 seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 reward_target=false ;;
+      piglatin-tmf) need "$PIGLATIN" piglatin && MOD=train_grpo_mind_face launch gated-$TAG-piglatin-tmf-s$s penalty_weight=-2 seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 reward_target=true ;;
+      chinese-rt) need "$CHINESE" chinese && launch gated-$TAG-chinese-rt-s$s penalty_weight=-2 seed=$s checkpoint=$CHINESE style_monitor=true style_desc=chinese pirate_reward_weight=1 reward_target=true ;;
+      chinese-mf) need "$CHINESE" chinese && MOD=train_grpo_mind_face launch gated-$TAG-chinese-mf-s$s penalty_weight=-2 seed=$s checkpoint=$CHINESE style_monitor=true style_desc=chinese pirate_reward_weight=1 reward_target=false ;;
+      chinese-tmf) need "$CHINESE" chinese && MOD=train_grpo_mind_face launch gated-$TAG-chinese-tmf-s$s penalty_weight=-2 seed=$s checkpoint=$CHINESE style_monitor=true style_desc=chinese pirate_reward_weight=1 reward_target=true ;;
       piratesr-ctrl) need "$PIRATE" pirate && launch gated-$TAG-piratesr-ctrl-s$s penalty_weight=0  seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 ;;
       piratesr-pen)  need "$PIRATE" pirate && launch gated-$TAG-piratesr-pen-s$s  penalty_weight=-2 seed=$s checkpoint=$PIRATE style_monitor=true style_desc=pirate pirate_reward_weight=1 ;;
       piglatinsr-ctrl) need "$PIGLATIN" piglatin && launch gated-$TAG-piglatinsr-ctrl-s$s penalty_weight=0  seed=$s checkpoint=$PIGLATIN style_monitor=true style_desc=piglatin pirate_reward_weight=1 ;;

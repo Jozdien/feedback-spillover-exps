@@ -38,7 +38,7 @@ from tinker_cookbook import checkpoint_utils, model_info, renderers
 from tinker_cookbook.tokenizer_utils import get_tokenizer
 from tinker_cookbook.utils import ml_log
 
-from src.judges import ExplanationJudge, SoftConversationJudge
+from src.judges import ExplanationJudge, SoftConversationJudge, StyleJudge
 from src.spillover.env_mmlu import check_boxed_answer, load_mmlu_questions
 from src.spillover.env_polynomial import (
     FEWSHOT_EXAMPLES,
@@ -100,6 +100,10 @@ class Config:
     # "### Explanation" section genuinely explains the boxed answer; if not, task reward = 0.
     explanation_judge: bool = False
     explanation_judge_model: str = "gpt-4.1"
+    # Style reward on the FACE output (same semantics as train_grpo): mu * StyleJudge(style_desc)
+    pirate_reward_weight: float = 0.0
+    style_monitor: bool = False
+    style_desc: str = "pirate"
     checkpoint: str | None = None
     save_every: int = 100
     seed: int = 42
@@ -199,6 +203,10 @@ async def train(cfg: Config):
         items = _load_poly_data(cfg, renderer)
         judge = None
     expl_judge = ExplanationJudge(cfg.explanation_judge_model) if cfg.explanation_judge else None
+    style_judge = (
+        StyleJudge(cfg.style_desc, model=cfg.judge_model)
+        if cfg.task == "qa" and (cfg.pirate_reward_weight != 0.0 or cfg.style_monitor) else None
+    )
 
     service = tinker.ServiceClient()
 
@@ -362,9 +370,18 @@ async def train(cfg: Config):
                 if corrects[i] == 0.0 and not re.search(r'\\boxed\{[A-D]\}', o):
                     corrects[i] = cfg.no_answer_penalty
 
+        # Style reward (face output) + style-in-CoT monitor (logging only)
+        if style_judge is not None:
+            pirate_scores = list(await asyncio.gather(*[style_judge.score(o) for o in outs_text]))
+            pirate_cot = list(await asyncio.gather(*[style_judge.score(c) for c in cots_text]))
+        else:
+            pirate_scores = [0.0] * len(outs_text)
+            pirate_cot = [0.0] * len(outs_text)
+
         # GRPO advantages
         correct_vals = [float(c) for c in corrects]
         penalty_vals = [cfg.penalty_weight * float(s) for s in out_scores]
+        pirate_vals = [cfg.pirate_reward_weight * float(p) for p in pirate_scores]
 
         n_valid = sum(1 for v in valid if v is not None)
         if n_valid < 2:
@@ -373,6 +390,8 @@ async def train(cfg: Config):
 
         correct_advs = _group_normalize(correct_vals, cfg.group_size)
         penalty_advs = _group_normalize(penalty_vals, cfg.group_size)
+        pirate_advs = (_group_normalize(pirate_vals, cfg.group_size)
+                       if cfg.pirate_reward_weight != 0.0 else [0.0] * len(pirate_vals))
 
         rollout_path = Path(cfg.log_path) / "rollouts.jsonl"
         with open(rollout_path, "a") as rf:
@@ -400,6 +419,9 @@ async def train(cfg: Config):
                     "penalty_val": penalty_vals[i],
                     "correct_adv": correct_advs[i],
                     "penalty_adv": penalty_advs[i],
+                    "pirate_score": float(pirate_scores[i]),
+                    "pirate_cot_score": float(pirate_cot[i]),
+                    "pirate_adv": pirate_advs[i],
                 }, ensure_ascii=False) + "\n")
 
         # Build separate datums for mind and face
@@ -410,6 +432,7 @@ async def train(cfg: Config):
                 continue
             correct_adv = correct_advs[i]
             penalty_adv = penalty_advs[i]
+            pirate_adv = pirate_advs[i]
 
             cot_tok = list(v["cot_tokens"])
             out_tok = list(v["out_tokens"])
@@ -457,7 +480,7 @@ async def train(cfg: Config):
                 + [0.0] * len(pt.cot_prefix)
                 + [0.0] * len(cot_tok)
                 + [0.0] * len(pt.bridge)
-                + [correct_adv + penalty_adv] * len(out_tok)
+                + [correct_adv + penalty_adv + pirate_adv] * len(out_tok)
             )
 
             if not (len(inp) == len(tgt) == len(mind_lps) == len(mind_advs)):
@@ -504,6 +527,9 @@ async def train(cfg: Config):
         metrics["reward/correct"] = sum(correct_vals) / n
         metrics[k_out] = sum(float(s) for s in out_scores) / n
         metrics[k_cot] = sum(float(s) for s in cot_scores) / n
+        if style_judge is not None:
+            metrics["monitor/pirate_in_output"] = sum(float(x) for x in pirate_scores) / n
+            metrics["monitor/style_in_cot"] = sum(float(x) for x in pirate_cot) / n
         if expl_judge is not None:
             gs = [g for g in expl_genuine if g is not None]
             metrics["monitor/explanation_genuine"] = sum(gs) / max(1, len(gs))
