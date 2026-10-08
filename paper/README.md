@@ -24,12 +24,14 @@ deviation over seeds, from the JSON. Several ± values in `RESULTS.md` are popul
 standard deviations, so the two differ slightly.
 
 ## Figures
-The draft uses `figure_1`, `pareto_gated_8b`, `gate_bars`, `pareto_envs_models` and
-`coupling_bars`. The other PDFs in `figures/` belong to earlier drafts and are no longer
-referenced. All but `figure_1` are written by
+The draft uses `figure_1`, `pareto_gated_8b`, `compose_bars`, `gate_bars`, `pareto_envs_models`
+and `coupling_bars`. The other PDFs in `figures/` belong to earlier drafts and are no longer
+referenced. All but `figure_1` and `compose_bars` are written by
 ```
 cd paper && uv run make_figures.py   # reads ../logs/, writes figures/*.pdf
 ```
+`compose_bars` is drawn from the numbers in `RESULTS.md` §16i by `make_compose_figure.py`
+(no logs needed); its error bars are 95% t intervals over seeds.
 Figures are titleless vector PDFs; the `\caption` carries the takeaway.
 
 ## Conventions
@@ -50,7 +52,7 @@ Figures are titleless vector PDFs; the `\caption` carries the takeaway.
 ## Status (2026-09-28)
 The draft was restructured and edited on this date, then reframed around style separation
 itself (see Conventions). The composition results of `RESULTS.md` §16i were folded in on
-2026-10-09 (Table 2, Section 4.1). §16h (the spillover test on 14 more models) is not in the
+2026-10-09 (Section 4.2, Figure 3, Table 4 in Appendix A). §16h (the spillover test on 14 more models) is not in the
 paper.
 
 Figures to regenerate:
