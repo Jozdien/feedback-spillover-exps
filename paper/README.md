@@ -49,8 +49,9 @@ Figures are titleless vector PDFs; the `\caption` carries the takeaway.
 
 ## Status (2026-09-28)
 The draft was restructured and edited on this date, then reframed around style separation
-itself (see Conventions). Results added to `RESULTS.md` since then (§16h, the spillover
-test on 14 more models) are not in the paper.
+itself (see Conventions). The composition results of `RESULTS.md` §16i were folded in on
+2026-10-09 (Table 2, Section 4.1). §16h (the spillover test on 14 more models) is not in the
+paper.
 
 Figures to regenerate:
 - `coupling_bars`: tick labels "v1 data" / "v2 data" should read unfiltered / filtered; the
