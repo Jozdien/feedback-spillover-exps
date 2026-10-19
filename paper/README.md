@@ -43,8 +43,8 @@ Palette: grays for the controls, cool colors (squares) for the prior mitigations
   place during RL. The paper does not present "only while the style is maintained" as a
   finding or attach it to the headline claim as a caveat; that is the intervention being in
   place. The runs without the style reward are explained briefly because they are plotted.
-- Condition names are fixed in Methods (plain reward, plain penalty, explanation gate, style
-  reward) and used unchanged in the text, captions and figure labels.
+- Condition names are fixed in Methods (plain penalty, explanation check, style reward) and
+  used unchanged in the text, captions and figure labels.
 - Body captions open with a bold sentence stating the finding, then say how to read the
   display, what the error bars are and how many seeds. Appendix captions are plain.
 - Claims are scoped to the runs behind them (seeds, model, CoT budget).
