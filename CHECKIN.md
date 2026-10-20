@@ -694,3 +694,11 @@ maintained-style protocol on Qwen3.5-9B/4B (cheap) and 397B (expensive).
 explanations intact; each alone 0.46–0.56. 27B: pirate + RT 0.95 and the TMF compositions 0.83–0.88 exceed
 the control (0.81) and remove the seed bimodality. Composing with plain Mind & Face adds nothing (8B) or
 hurts (27B). Nothing running.
+
+## 2026-10-20 — terminal audits; 16 more polynomial runs on Qwen3.6-27B (RESULTS §13i)
+- Keyword-match terminal runs measure wording only: an LLM judge finds the verifier read in the CoT 0.94–0.96 of
+  the time in every arm, penalty included. No styled runs there.
+- Styled models stopping the cheat under the LLM-judge penalty is real (11/15 styled vs 0/20 unstyled seeds,
+  p = 3e-6), but helped by the judge flagging styled text more readily than equivalent English.
+- Running: seeds 45–46 for the 8 penalty conditions of the 27B polynomial figure (`grpo-gated-poly27b-*-s4{5,6}`),
+  ≈$1,000–1,400, ~9 h.
