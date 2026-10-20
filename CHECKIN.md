@@ -702,3 +702,9 @@ hurts (27B). Nothing running.
   p = 3e-6), but helped by the judge flagging styled text more readily than equivalent English.
 - Running: seeds 45–46 for the 8 penalty conditions of the 27B polynomial figure (`grpo-gated-poly27b-*-s4{5,6}`),
   ≈$1,000–1,400, ~9 h.
+
+### 2026-10-20 23:47 UTC — Tinker credits ran out
+The Tinker balance hit zero during the 16 polynomial (Qwen3.6-27B, seeds 45/46) runs, at steps 168–245 of 266.
+14 runs are paused and will continue on their own once credits are added. Two died (ctrl-s45, pen-s46); a watcher
+relaunches them from their step-200 checkpoints as soon as the paused runs start moving again.
+**Action needed: add Tinker credits.** About 50 steps per run remain (~$150–250 total).
