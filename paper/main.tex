@@ -44,7 +44,7 @@
 \newcommand{\mkS}[1]{\textcolor{#1}{\scriptsize$\blacksquare$}}
 \newcommand{\mkD}[1]{\textcolor{#1}{$\blacklozenge$}}
 % Figure 2 layout: scatter + bars (default) or scatter + table.
-\newif\ifmaintable \maintablefalse
+\newif\ifmaintable \maintabletrue
 \newcommand{\todo}[1]{\textcolor{red}{[\textbf{TODO:} #1]}}
 
 \title{Style Separation: Distinct reasoning and output styles can mitigate feedback spillover}
@@ -221,8 +221,8 @@ Run type & Task & Output & CoT \\
 as much as reward targeting and Targeted M\&F, at full training reward.} QA on Qwen3-8B.
 Left: CoT hint detection against training reward, the task reward minus twice the output
 monitor's detection rate; the no-penalty control is charged a penalty it was not trained on,
-which places it at the bottom of the broken y-axis. The dashed line is the no-penalty
-control's CoT detection. Right: the plotted values, with the task reward and the output
+which places it at the bottom of the broken y-axis. Up and to the right is better, and the
+dashed line is the no-penalty control's CoT detection. Right: the plotted values, with the task reward and the output
 monitor's detection rate separately. Markers are means over seeds with 95\% $t$ intervals,
 and the table gives means $\pm$ sample standard deviation (5 seeds per condition, 10 for
 pirate and Pig Latin); the reward intervals are clipped at 1.}
@@ -270,25 +270,9 @@ On Qwen3.6-27B, reward targeting and Targeted M\&F alone already recover the con
 \subsection{Other environments and models}
 \label{sec:envs}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/spillover_screen.pdf}
-\caption{\textbf{In our setup the plain penalty clearly removes the behavior from the CoT only in
-Qwen models.} CoT detection of the monitored behavior (the hint in QA, the expanded derivative in
-polynomial factoring, reading the verifier in the terminal task) without a penalty (filled) and
-with the plain penalty (hollow), for every model and environment we ran except the long-budget
-runs of Appendix~\ref{app:regime}. Gray rows are models on
-which the comparison does not measure spillover, for the reason given at the right. Means over
-seeds: 5 for Qwen3-8B, Qwen3.6-27B, Qwen3.6-35B-A3B and Nemotron-3-Super-120B-A12B in QA and for
-Qwen3-8B in the other two environments, and 3 otherwise. The polynomial runs on Qwen3-8B,
-Qwen3.5-397B-A17B and Nemotron-3-Super-120B-A12B and the terminal runs on Qwen3.6-27B are without
-the explanation check.}
-\label{fig:screen}
-\end{figure}
-
 In this section, we first check where the plain penalty produces spillover in our setup, and then compare the mitigations in the settings where it does, beyond our main one. We count spillover as clear when the penalized model still does the task and scrubs its output, while its CoT detection falls well below the no-penalty control.
 
-\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Figure~\ref{fig:screen}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). We have not run the mitigations on the three Qwen3.5 models. The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
+\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Table~\ref{tab:screen} in Appendix~\ref{app:envs}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). We have not run the mitigations on the three Qwen3.5 models. The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
 
 \begin{figure}[t]
 \centering
@@ -339,7 +323,7 @@ We are grateful for helpful discussion and feedback from many people, including 
 \section{Other environments and models: full numbers}
 \label{app:envs}\label{app:terminal}
 
-Table~\ref{tab:main} gives the full QA results on Qwen3-8B, including each style's no-penalty control, the styled models trained without the style reward, and the normal SFT control. Table~\ref{tab:screen} gives the spillover test of Figure~\ref{fig:screen}, Table~\ref{tab:envs} CoT detection for every condition we ran in the other environments and models, Table~\ref{tab:compose} the combinations of Section~\ref{sec:compose}, and Table~\ref{tab:seeds} the per-seed values for the more variable conditions.
+Table~\ref{tab:main} gives the full QA results on Qwen3-8B, including each style's no-penalty control, the styled models trained without the style reward, and the normal SFT control. Table~\ref{tab:screen} gives the spillover test of Section~\ref{sec:envs}, Table~\ref{tab:envs} CoT detection for every condition we ran in the other environments and models, Table~\ref{tab:compose} the combinations of Section~\ref{sec:compose}, and Table~\ref{tab:seeds} the per-seed values for the more variable conditions.
 
 Without the style reward, the pirate model writes in its style in $0.54$ of its late outputs on average and the Pig-Latin model in $0.76$, and their CoT detection under the penalty ($0.28$ and $0.36$) is at the level of the plain penalty and of normal SFT. The seeds that happened to keep their style retain somewhat more than those that lost it ($0.37$ vs $0.24$).
 
@@ -383,7 +367,7 @@ Normal SFT & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
 
 \begin{table}[h]
 \centering
-\caption{The spillover test of Figure~\ref{fig:screen}. CoT detection and task reward without
+\caption{The spillover test of Section~\ref{sec:envs}. CoT detection and task reward without
 (``ctrl'') and with (``pen'') the plain penalty, and the penalized model's output detection
 rate (``out''). Means over the last 10\% of steps.}
 \label{tab:screen}

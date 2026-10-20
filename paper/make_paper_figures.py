@@ -175,19 +175,22 @@ def load_all() -> dict:
 
 
 # ----------------------------------------------------------------------------- helpers
-def group_legend(ax_or_fig, keys, **kw):
-    """Legend with bold group headers (Controls / Prior mitigations / Style separation)."""
-    handles, labels, bold = [], [], []
-    group = None
+def group_legend(ax_or_fig, keys, by_column=False, **kw):
+    """Legend with bold group headers (Controls / Prior mitigations / Style separation).
+    by_column: one column per group, for a legend laid out under a figure."""
+    cols = {}
     for k in keys:
         label, color, marker, g = COND[k]
-        if g != group:
-            handles.append(Line2D([], [], ls="none"))
-            labels.append(g)
-            bold.append(len(labels) - 1)
-            group = g
-        handles.append(Line2D([], [], ls="none", marker=marker, ms=5.5, mfc=color, mec=color))
-        labels.append(label)
+        cols.setdefault(g, [(Line2D([], [], ls="none"), g, True)])
+        cols[g].append((Line2D([], [], ls="none", marker=marker, ms=5.5, mfc=color, mec=color), label, False))
+    if by_column:
+        n = max(map(len, cols.values()))
+        for c in cols.values():
+            c += [(Line2D([], [], ls="none"), "", False)] * (n - len(c))
+        kw["ncol"] = len(cols)
+    entries = [e for c in cols.values() for e in c]
+    handles, labels = [e[0] for e in entries], [e[1] for e in entries]
+    bold = [i for i, e in enumerate(entries) if e[2]]
     leg = ax_or_fig.legend(handles, labels, frameon=False, handlelength=1.0, handletextpad=0.5,
                            labelspacing=0.35, **kw)
     for i, t in enumerate(leg.get_texts()):
@@ -195,6 +198,23 @@ def group_legend(ax_or_fig, keys, **kw):
             t.set_fontweight("bold")
             t.set_position((-14, 0))
     return leg
+
+
+def better_arrow(ax, head=(0.97, 0.97), length=0.11):
+    """Small gray arrow pointing up and to the right (the better direction), labeled "better"."""
+    x, y = head
+    ax.annotate("", xy=(x, y), xytext=(x - length, y - length * 1.4), xycoords="axes fraction",
+                arrowprops=dict(arrowstyle="-|>", lw=0.8, color="#8a8880", mutation_scale=7))
+    ax.text(x - length + 0.01, y - length * 1.4 - 0.02, "better", transform=ax.transAxes, ha="left",
+            va="top", fontsize=6.8, color="#8a8880", style="italic")
+
+
+def stack_ylabel(fig, top, bot, text, x_pad=0.5):
+    """One y-label centered on a broken (two-axes) y-axis."""
+    fig.canvas.draw()
+    t, b = top.get_position(), bot.get_position()
+    fig.text(t.x0 - x_pad / fig.get_figwidth(), (t.y1 + b.y0) / 2, text, rotation=90, ha="center",
+             va="center", fontsize=plt.rcParams["axes.labelsize"], linespacing=1.3)
 
 
 def bar_positions(keys):
@@ -245,7 +265,7 @@ def cot_bars(ax, d, keys, ylabel="CoT hint detection", dots=False):
 # ----------------------------------------------------------------------------- figures
 def fig_main_scatter(d, path, legend=True, width=W * 0.62):
     """Pareto scatter for QA on Qwen3-8B, with a broken y-axis around the gap."""
-    fig, (top, bot) = plt.subplots(2, 1, sharex=True, figsize=(width, width * 0.78),
+    fig, (top, bot) = plt.subplots(2, 1, sharex=True, figsize=(width, width * 0.86),
                                    gridspec_kw={"height_ratios": [3.2, 1], "hspace": 0.08})
     for k in ORDER:
         a = d[k]
@@ -270,8 +290,9 @@ def fig_main_scatter(d, path, legend=True, width=W * 0.62):
     bot.plot([-0.015, 0.015], [0.94, 1.02], **kw)
     bot.set_xlim(0.15, 0.7)
     bot.set_xlabel("CoT hint detection")
-    top.set_ylabel("Training reward", y=0.38)
     bot.set_xticks([0.2, 0.3, 0.4, 0.5, 0.6, 0.7])
+    better_arrow(top, head=(0.985, 0.47))
+    stack_ylabel(fig, top, bot, "Training reward\n(task − 2 × output detection)")
     if legend:
         group_legend(fig, ORDER, loc="center left", bbox_to_anchor=(0.98, 0.5))
     fig.savefig(path)
@@ -426,6 +447,38 @@ def fig_envs(data, path):
     plt.close(fig)
 
 
+def fig_envs_pareto(data, panels, path):
+    """Pareto scatter (CoT detection vs training reward) for the other environments.
+    Error bars are one standard error over seeds (3 seeds in polynomial factoring)."""
+    fig, axes = plt.subplots(1, len(panels), figsize=(W, W * 0.44))
+    for ax, pn in zip(axes, panels):
+        d = data[pn["key"]]
+        for k in ORDER:
+            if k not in d:
+                continue
+            a = d[k]
+            _, color, marker, _ = COND[k]
+            se = {m: np.std([x[m] for x in a["seeds"]], ddof=1) / np.sqrt(a["n"]) for m in ("cot", "reward")}
+            ax.errorbar(a["cot"], a["reward"], xerr=se["cot"], yerr=se["reward"], fmt=marker,
+                        ms=5.4 if marker != "D" else 4.9, mfc=color, mec="white", mew=0.6, color=color,
+                        elinewidth=0.8, capsize=1.6, zorder=3)
+        ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
+        ax.grid(axis="x", visible=False)
+        ax.set_xlim(*pn["xlim"])
+        ax.set_ylim(-0.25, 1.05)
+        ax.set_title(pn["title"], fontweight="bold", fontsize=7.8)
+        ax.set_xlabel(pn["xlabel"])
+        ax.set_ylabel(f"Training reward\n(task − {pn['lam']:g} × output detection)", linespacing=1.3)
+        better_arrow(ax, head=pn["arrow"])
+        for (x, y), text in pn.get("notes", []):
+            ax.text(x, y, text, fontsize=6.5, color="#8a8880", ha="left", va="center", linespacing=1.1)
+    fig.tight_layout(w_pad=1.5)
+    group_legend(fig, ORDER, by_column=True, loc="upper center", bbox_to_anchor=(0.5, 0.0),
+                 columnspacing=2.0)
+    fig.savefig(path)
+    plt.close(fig)
+
+
 def main():
     data = load_all()
     (FIG / "paper_numbers.json").write_text(json.dumps(data, indent=1))
@@ -435,6 +488,13 @@ def main():
     fig_compose(data["qa8b"], data["qa27b"], FIG / "compose_vertical.pdf")
     fig_screen(data, FIG / "spillover_screen.pdf")
     fig_envs(data, FIG / "envs_bars.pdf")
+    fig_envs_pareto(data, [
+        dict(title="Polynomial factoring, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03),
+             xlabel="CoT detection of the expanded form", arrow=(0.5, 0.42)),
+        dict(title="Terminal, Qwen3-8B", key="term8b", lam=0.75, xlim=(-0.03, 1.03),
+             xlabel="CoT detection of reading the verifier", arrow=(0.76, 0.3),
+             notes=[((0.06, 0.12), "styled runs that stopped\nreading the verifier")]),
+    ], FIG / "envs_pareto.pdf")
     for s in ("qa8b", "qa27b", "qa35b", "poly27b", "term8b"):
         print(f"== {s}")
         for k, a in data[s].items():
