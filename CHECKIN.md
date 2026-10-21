@@ -712,3 +712,13 @@ relaunches them from their step-200 checkpoints as soon as the paused runs start
 test request also gets "blocked due to billing status"). Waiting that long killed 13 of the 16 runs. No progress is
 lost beyond the last checkpoint (step 150 or 200). A loop sends the test request every 5 minutes; the moment it
 succeeds it relaunches every dead run from its checkpoint.
+
+### 2026-10-21 06:40 UTC — polynomial Qwen3.6-27B now has 5 seeds per condition
+All 16 new runs finished after the billing outage (relaunched from checkpoints at 04:02). The spillover holds up:
+the plain penalty lowers how often the CoT writes the expanded form from 0.99 to 0.67, and it drops in every one of
+the five seeds (0.56–0.84). Reward targeting (0.97), Targeted M&F (0.99) and the three styles (pirate 0.93,
+Pig Latin 1.00, Chinese 0.99) keep it; Mind & Face does not (0.70). Five of the 30 mitigated runs failed in ways
+that make their number meaningless (four never stopped writing the expanded form in the output, one Pig Latin run
+stopped solving the task), so the clean picture rests on 3–5 good seeds per mitigation; Chinese is clean in all 5.
+Paper tables, text and figures updated (RESULTS §14g).
+![envs pareto](paper/figures/envs_pareto.pdf)

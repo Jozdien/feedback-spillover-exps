@@ -1410,3 +1410,29 @@ early crash (steps 19–33, all seeds; 3 recover) is partly competence (`cat eri
 favouring no-read episodes early (0.32 vs 0.91). Hyperparameters identical across all 55 runs; explanation check not
 biased against reading. Missing control: a plain-English SFT init (`ae4b3f1c`, normal Alpaca SFT) under the terminal
 penalty, to separate "SFT init" from "style".
+
+### 14g. Polynomial 27B at 5 seeds (seeds 45–46 added, 2026-10-21; `logs/grpo-gated-poly27b-*-s4[56]`)
+Same settings as 14f (T=800/1000, λ=1, GRPO 4×3, 266 steps, explanation check, style reward μ=1 on styled arms);
+styled no-penalty controls stay at 3 seeds. Interrupted by a Tinker billing outage (2026-10-20 23:47 → 10-21 04:02 UTC);
+every run was relaunched from its step-150/200 checkpoint (metrics.jsonl has duplicate step rows; loaders keep the last).
+CoT detection of the expanded form, last 27 steps, mean ± sd over 5 seeds (per seed 42–46):
+
+| condition | CoT | per seed | output | task |
+|---|---|---|---|---|
+| No penalty | 0.99±0.01 | 0.98 0.98 0.99 0.99 1.00 | 0.95 | 0.90 |
+| Plain penalty | 0.67±0.11 | 0.59 0.84 0.56 0.66 0.72 | 0.01 | 0.85 |
+| Reward targeting | 0.97±0.04 | 0.98 0.98 1.00* 0.91 0.99 | 0.23 | 0.90 |
+| Mind & Face | 0.70±0.29 | 0.32 0.72 1.00 0.95 0.51 | 0.02 | 0.84 |
+| Targeted M&F | 0.99±0.00 | 0.99 0.99 0.99* 0.99* 0.98 | 0.38 | 0.91 |
+| Pirate + SR | 0.93±0.13 | 0.99 0.98* 0.71 1.00 0.99 | 0.20 | 0.90 |
+| Pig Latin + SR | 1.00±0.01 | 1.00 0.99† 1.00 1.00 0.99 | 0.00 | 0.71 |
+| Chinese + SR | 0.99±0.01 | 0.98 1.00 1.00 0.98 1.00 | 0.01 | 0.94 |
+
+\* never scrubbed its output (output monitor 0.90–1.00), so the penalty never acted. † task reward 0 (filler collapse).
+New in seeds 45–46: Targeted M&F s45 also never scrubbed (output 0.95). Spillover replicates in all 5 penalty seeds;
+excluding failed runs, RT/TMF/styles sit at 0.92–1.00 (one real partial drop: pirate s44 at 0.71). Paper updated
+(Tables screen/envs/seeds/hparams, Section 4.3 and Appendix poly paragraphs; Figure 5 draft now 95% t intervals).
+Final checkpoints (sampler): ctrl s45 656dc6bb…, s46 340c1756…; pen s45 e6a5bd1b…, s46 5244bd53…; rt s45 14831928…,
+s46 4f2bbb39…; mf s45 f75d46a0… (mind train:0, face train:1), s46 04092b3a…; tmf s45 bce4b0e4…, s46 a00bbfad…;
+pirate s45 863a40a2…, s46 bc2ae46e…; piglatin s45 40cb2270…, s46 f1078980…; chinese s45 0eb865cf…, s46 7892c32a…
+(full paths: each run's checkpoints.jsonl, `…:train:N/sampler_weights/final`).

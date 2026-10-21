@@ -449,7 +449,7 @@ def fig_envs(data, path):
 
 def fig_envs_pareto(data, panels, path):
     """Pareto scatter (CoT detection vs training reward) for the other environments.
-    Error bars are one standard error over seeds (3 seeds in polynomial factoring)."""
+    Error bars are 95% t intervals over seeds."""
     fig, axes = plt.subplots(1, len(panels), figsize=(W, W * 0.44))
     for ax, pn in zip(axes, panels):
         d = data[pn["key"]]
@@ -458,8 +458,7 @@ def fig_envs_pareto(data, panels, path):
                 continue
             a = d[k]
             _, color, marker, _ = COND[k]
-            se = {m: np.std([x[m] for x in a["seeds"]], ddof=1) / np.sqrt(a["n"]) for m in ("cot", "reward")}
-            ax.errorbar(a["cot"], a["reward"], xerr=se["cot"], yerr=se["reward"], fmt=marker,
+            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=a["reward_ci"], fmt=marker,
                         ms=5.4 if marker != "D" else 4.9, mfc=color, mec="white", mew=0.6, color=color,
                         elinewidth=0.8, capsize=1.6, zorder=3)
         ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
