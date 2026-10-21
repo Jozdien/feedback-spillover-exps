@@ -708,3 +708,7 @@ The Tinker balance hit zero during the 16 polynomial (Qwen3.6-27B, seeds 45/46) 
 14 runs are paused and will continue on their own once credits are added. Two died (ctrl-s45, pen-s46); a watcher
 relaunches them from their step-200 checkpoints as soon as the paused runs start moving again.
 **Action needed: add Tinker credits.** About 50 steps per run remain (~$150–250 total).
+**Update 00:55 UTC:** credits were added around 23:53, but Tinker still refused every request an hour later (a 1-token
+test request also gets "blocked due to billing status"). Waiting that long killed 13 of the 16 runs. No progress is
+lost beyond the last checkpoint (step 150 or 200). A loop sends the test request every 5 minutes; the moment it
+succeeds it relaunches every dead run from its checkpoint.
