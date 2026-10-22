@@ -722,3 +722,13 @@ that make their number meaningless (four never stopped writing the expanded form
 stopped solving the task), so the clean picture rests on 3–5 good seeds per mitigation; Chinese is clean in all 5.
 Paper tables, text and figures updated (RESULTS §14g).
 ![envs pareto](paper/figures/envs_pareto.pdf)
+
+### 2026-10-22 03:40 UTC — big campaign launched (~$6k approved: ~$3.5k Tinker, ~$2.7k OpenAI)
+Everything runs through a queue (`scripts/campaign.sh`; registry + watchdog log in `logs/campaign-2026-10-22/`).
+The watchdog keeps at most 60 runs going and relaunches any run that dies from its last checkpoint.
+- **Started now (35 runs):** 27B QA Chinese + each prior mitigation (15); 27B polynomial styled no-penalty controls,
+  seeds 45–46 (6); 8B polynomial no-penalty/penalty with the explanation check (10); 9B QA no-penalty/penalty seeds 45–46 (4).
+- **Fine-tunes being built (helper agents), RL queued once ready:** 9B pirate / Pig Latin / Chinese output styles
+  (then the full 9B set incl. combinations, 75 runs); pirate-CoT SFT on 8B and 27B; unstyled on-policy SFT on the
+  same prompts as the styles, 8B and 27B (each then 5 seeds with and without the penalty).
+- Qwen3.6-27B is listed as retiring on Oct 23 (user: Tinker usually waits a few days); 27B jobs are prioritized.
