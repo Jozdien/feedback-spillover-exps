@@ -732,3 +732,18 @@ The watchdog keeps at most 60 runs going and relaunches any run that dies from i
   (then the full 9B set incl. combinations, 75 runs); pirate-CoT SFT on 8B and 27B; unstyled on-policy SFT on the
   same prompts as the styles, 8B and 27B (each then 5 seeds with and without the penalty).
 - Qwen3.6-27B is listed as retiring on Oct 23 (user: Tinker usually waits a few days); 27B jobs are prioritized.
+
+### 2026-10-22 06:25 UTC — campaign progress; first new results
+Queue: 24 runs finished, 60 running, the rest waiting, none failed, no judge failures so far.
+- **Fine-tunes:** all done except the 27B pirate-CoT one (training now, ~35 min). Each passed a check of the model
+  before RL. The 8B pirate-CoT model writes its CoT in pirate on all 200 test questions while its answers stay
+  plain (4% pirate). The Qwen3.5-9B Pig Latin model started weakly styled (about 31%), but the style reward lifted
+  it to ~100% within the first 50 RL steps.
+- **New result: unstyled fine-tune on exactly the styled models' prompts (8B, 5 seeds).** CoT hint detection is 0.73
+  without the penalty and 0.32 with it. That matches the older, unmatched version (0.73 → 0.36), so the earlier
+  conclusion stands: fine-tuning alone doesn't protect the CoT; the style does. Added to the paper text and
+  Table main.
+- **New result: 8B polynomial factoring with the explanation check (5 seeds).** Still no spillover: the CoT keeps
+  the expanded form in 1.00 of rollouts without the penalty and in 1.00 with it. The figure caption's "predates the
+  explanation check" caveat is gone.
+- Queue order: 27B runs first (model retiring), then 8B pirate-CoT, then the remaining 9B runs.
