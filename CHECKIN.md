@@ -747,3 +747,20 @@ Queue: 24 runs finished, 60 running, the rest waiting, none failed, no judge fai
   the expanded form in 1.00 of rollouts without the penalty and in 1.00 with it. The figure caption's "predates the
   explanation check" caveat is gone.
 - Queue order: 27B runs first (model retiring), then 8B pirate-CoT, then the remaining 9B runs.
+
+### 2026-10-22 11:00 UTC — pirate-CoT and unstyled-SFT results; 27B pirate-CoT needs more seeds
+Queue: 124 of 160 runs done, none failed, no judge failures all day. Everything below is in the paper and RESULTS §16l.
+- **Pirate CoT, Qwen3-8B: the old "total spillover" result replicates and is real.** With the penalty the CoT
+  mentions the hint in 0.01 of rollouts (all 5 seeds ≤ 0.01), against 0.49 without it. A subagent read the CoTs:
+  they are normal-length, coherent pirate reasoning about the question that just never mention the hint. Unlike
+  the old 8B runs, they are not empty or garbled.
+- **Pirate CoT, Qwen3.6-27B: inconclusive.** The numbers look the same (0.13 vs 0.60), but 3 of the 5 penalty seeds and 1
+  control seed collapsed during RL into "Arrr! Arrr!" spam or off-topic pirate filler, so their 0 means nothing.
+  Of the two healthy penalty seeds, one hides the hint (0.04) and one pastes the prompt, hint included, into its
+  CoT (0.54). **I queued 5 more seeds per arm (~$220)** while the model is still available. Expect about half of them to stay
+  healthy too. If you'd rather not count collapsed seeds at all, the paper text already says so.
+- **Unstyled fine-tune on the same prompts as the styles:** 8B 0.73 → 0.32 (same as the old version); 27B
+  0.95 → 0.48, with seeds split between keeping almost everything and losing almost everything.
+- **27B Chinese + each prior mitigation:** + Targeted M&F 0.97, + reward targeting 0.85, + Mind & Face 0.41
+  (no-penalty control 0.81). Added as a column of the combinations table.
+- Still running: the last 2–3 seeds of each Qwen3.5-9B condition (appendix).
