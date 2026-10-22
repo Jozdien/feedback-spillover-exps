@@ -64,7 +64,7 @@ RUNS = {
         "pirate_ctrl": "grpo-explj300-piratev2sr-ctrl-8b-s??", "piglatin_ctrl": "grpo-explj300-piglatinsr-ctrl-8b-s??",
         "chinese_ctrl": "grpo-gated-8b-chinesesr-ctrl-s??",
         "pirate_nosr": "grpo-explj300-piratev2-pen-8b-s??", "piglatin_nosr": "grpo-explj300-piglatin-pen-8b-s??",
-        "normal": "grpo-explj300-normalalpaca-pen-8b-s??",
+        "normal": "grpo-explj300-normalalpaca-pen-8b-s??", "normal_ctrl": "grpo-explj300-normalalpaca-ctrl-8b-s??",
         **{f"{s}+{m}": f"grpo-gated-8b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
     }),
     "qa27b": (QA, {
