@@ -67,6 +67,7 @@ RUNS = {
         "normal": "grpo-explj300-normalalpaca-pen-8b-s??", "normal_ctrl": "grpo-explj300-normalalpaca-ctrl-8b-s??",
         # prompt-matched normal SFT (same Alpaca prompts as the style SFTs), 2026-10-22
         "normalm": "grpo-gated-8b-normalsft-pen-s??", "normalm_ctrl": "grpo-gated-8b-normalsft-ctrl-s??",
+        "pcot": "grpo-gated-8b-pcot-pen-s??", "pcot_ctrl": "grpo-gated-8b-pcot-ctrl-s??",
         **{f"{s}+{m}": f"grpo-gated-8b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
     }),
     "qa27b": (QA, {
@@ -74,7 +75,9 @@ RUNS = {
         "rt": "grpo-gated-27b-rt-s??", "mf": "grpo-gated-27b-mf-s??", "tmf": "grpo-gated-27b-tmf-s??",
         **{s: f"grpo-gated-27b-{s}sr-pen-s??" for s in ("pirate", "piglatin", "chinese")},
         **{f"{s}_ctrl": f"grpo-gated-27b-{s}sr-ctrl-s??" for s in ("pirate", "piglatin", "chinese")},
-        **{f"{s}+{m}": f"grpo-gated-27b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
+        **{f"{s}+{m}": f"grpo-gated-27b-{s}-{m}-s??" for s in ("pirate", "piglatin", "chinese") for m in ("rt", "mf", "tmf")},
+        "normalm": "grpo-gated-27b-normalsft-pen-s??", "normalm_ctrl": "grpo-gated-27b-normalsft-ctrl-s??",
+        "pcot": "grpo-gated-27b-pcot-pen-s??", "pcot_ctrl": "grpo-gated-27b-pcot-ctrl-s??",
     }),
     "qa35b": (QA, {
         "ctrl": "grpo-gated-35b-nosft-ctrl-s??", "pen": "grpo-gated-35b-nosft-pen-s??",

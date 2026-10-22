@@ -449,22 +449,22 @@ seeds (10 for the two styles alone on Qwen3-8B). In every combination the output
 at most $0.03$ and at least $96\%$ of outputs are genuine explanations.}
 \label{tab:compose}
 \small
-\begin{tabularx}{\textwidth}{@{}X cccc@{}}
+\begin{tabularx}{\textwidth}{@{}X ccccc@{}}
 \toprule
-& \multicolumn{2}{c}{Qwen3-8B} & \multicolumn{2}{c}{Qwen3.6-27B} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-Condition & Pirate & Pig Latin & Pirate & Pig Latin \\
+& \multicolumn{2}{c}{Qwen3-8B} & \multicolumn{3}{c}{Qwen3.6-27B} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-6}
+Condition & Pirate & Pig Latin & Pirate & Pig Latin & Chinese \\
 \midrule
-Style alone & $0.46\pm0.13$ & $0.56\pm0.08$ & $0.42\pm0.33$ & $0.63\pm0.30$ \\
-Style + reward targeting & $0.62\pm0.09$ & $0.62\pm0.09$ & $0.95\pm0.07$ & $0.70\pm0.27$ \\
-Style + Mind \& Face & $0.46\pm0.12$ & $0.46\pm0.11$ & $0.33\pm0.26$ & $0.35\pm0.26$ \\
-Style + Targeted M\&F & $0.63\pm0.06$ & $0.60\pm0.09$ & $0.88\pm0.17$ & $0.83\pm0.23$ \\
+Style alone & $0.46\pm0.13$ & $0.56\pm0.08$ & $0.42\pm0.33$ & $0.63\pm0.30$ & $0.56\pm0.32$ \\
+Style + reward targeting & $0.62\pm0.09$ & $0.62\pm0.09$ & $0.95\pm0.07$ & $0.70\pm0.27$ & $0.85\pm0.13$ \\
+Style + Mind \& Face & $0.46\pm0.12$ & $0.46\pm0.11$ & $0.33\pm0.26$ & $0.35\pm0.26$ & $0.41\pm0.24$ \\
+Style + Targeted M\&F & $0.63\pm0.06$ & $0.60\pm0.09$ & $0.88\pm0.17$ & $0.83\pm0.23$ & $0.97\pm0.05$ \\
 \addlinespace
-No penalty (control) & \multicolumn{2}{c}{$0.60\pm0.04$} & \multicolumn{2}{c}{$0.81\pm0.05$} \\
-Plain penalty & \multicolumn{2}{c}{$0.27\pm0.06$} & \multicolumn{2}{c}{$0.45\pm0.08$} \\
-Reward targeting alone & \multicolumn{2}{c}{$0.51\pm0.07$} & \multicolumn{2}{c}{$0.85\pm0.14$} \\
-Mind \& Face alone & \multicolumn{2}{c}{$0.40\pm0.05$} & \multicolumn{2}{c}{$0.44\pm0.09$} \\
-Targeted M\&F alone & \multicolumn{2}{c}{$0.52\pm0.03$} & \multicolumn{2}{c}{$0.85\pm0.12$} \\
+No penalty (control) & \multicolumn{2}{c}{$0.60\pm0.04$} & \multicolumn{3}{c}{$0.81\pm0.05$} \\
+Plain penalty & \multicolumn{2}{c}{$0.27\pm0.06$} & \multicolumn{3}{c}{$0.45\pm0.08$} \\
+Reward targeting alone & \multicolumn{2}{c}{$0.51\pm0.07$} & \multicolumn{3}{c}{$0.85\pm0.14$} \\
+Mind \& Face alone & \multicolumn{2}{c}{$0.40\pm0.05$} & \multicolumn{3}{c}{$0.44\pm0.09$} \\
+Targeted M\&F alone & \multicolumn{2}{c}{$0.52\pm0.03$} & \multicolumn{3}{c}{$0.85\pm0.12$} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -500,7 +500,7 @@ Terminal, Qwen3-8B & Pig Latin + style reward & 0.07, 0.89, 1.00, 0.99, 0.10 \\
 
 \paragraph{Polynomial derivative factoring.} Qwen3-8B shows no spillover in this environment, at a CoT budget of 800 or of 4096 tokens. It differentiates term by term in every CoT and never takes the product-rule route that avoids the expanded form, and its penalized CoT keeps the expanded form in $99$--$100\%$ of rollouts. Qwen3.6-27B does take that route. Five of its runs failed for reasons unrelated to the CoT. One Pig-Latin seed collapsed into filler that the explanation check rejected (task reward $0$), and the second pirate seed in Table~\ref{tab:seeds}, one reward-targeting seed, and two Targeted M\&F seeds never scrubbed their output (output monitor $0.90$--$1.00$). For the pirate and reward-targeting seeds, nearly every output in a group was flagged, which leaves the group-normalized penalty with no signal.
 
-\paragraph{QA on larger models.} On Qwen3.6-27B the styled models' no-penalty controls already vary across seeds (CoT detection $0.80\pm0.23$ for pirate, $0.75\pm0.19$ for Pig Latin, and $0.69\pm0.23$ for Chinese, compared to $0.81\pm0.05$ for the unstyled control). Under the penalty, the combinations of Table~\ref{tab:compose} narrow the styled models' seed spread for pirate (reward targeting: $0.83$--$0.99$ across seeds) but not for Pig Latin plus reward targeting ($0.31$--$0.98$; Table~\ref{tab:seeds}). On Qwen3.6-35B-A3B nearly every CoT is cut off by the 300-token limit and the unpenalized CoT mentions the hint only a third of the time. The penalty removes two thirds of that, reward targeting recovers most of the drop, and the pirate and Pig-Latin styles recover none of it. On Nemotron-3-Super-120B-A12B the penalty lowers CoT detection only from $0.87$ to $0.79$ and its main effect is that the model stops following the hint in almost half of episodes (task reward $0.55$). We have no styled models for it.
+\paragraph{QA on larger models.} On Qwen3.6-27B the styled models' no-penalty controls already vary across seeds (CoT detection $0.80\pm0.23$ for pirate, $0.75\pm0.19$ for Pig Latin, and $0.69\pm0.23$ for Chinese, compared to $0.81\pm0.05$ for the unstyled control). Under the penalty, the combinations of Table~\ref{tab:compose} narrow the styled models' seed spread for pirate (reward targeting: $0.83$--$0.99$ across seeds) but not for Pig Latin plus reward targeting ($0.31$--$0.98$; Table~\ref{tab:seeds}). Chinese behaves like pirate: with Targeted M\&F it keeps $0.97\pm0.05$ ($0.87$--$1.00$ across seeds) and with reward targeting $0.85\pm0.13$ ($0.66$--$0.98$), both at or above the unstyled control, while with Mind \& Face it keeps $0.41\pm0.24$. On Qwen3.6-35B-A3B nearly every CoT is cut off by the 300-token limit and the unpenalized CoT mentions the hint only a third of the time. The penalty removes two thirds of that, reward targeting recovers most of the drop, and the pirate and Pig-Latin styles recover none of it. On Nemotron-3-Super-120B-A12B the penalty lowers CoT detection only from $0.87$ to $0.79$ and its main effect is that the model stops following the hint in almost half of episodes (task reward $0.55$). We have no styled models for it.
 
 \paragraph{Terminal environment.} Table~\ref{tab:terminal} also gives how often each model read the verifier and how often the explanation check accepted its explanations. Two of the five Pig-Latin seeds and four of the five Chinese seeds stop reading the verifier under the penalty, as do all five pirate seeds. The Chinese seeds are not in Table~\ref{tab:seeds}; the four that stop are at $0.04$--$0.09$, and the one that keeps reading is at $0.99$ and never scrubs its output. The task column is the task reward after the explanation check, and for the unstyled models it equals the check's acceptance rate. The styled models that stop reading still earn some task reward ($0.28$ for pirate, at a read rate of $0.01$). They get it by guessing: the verifier prints only whether an answer passes, the stored answer is within 5 of the true one, and over its four turns the model calls the verifier with up to four different numbers, which passes about $29\%$ of such episodes. Task reward alone therefore does not show that a model in this environment reads the verifier.
 
