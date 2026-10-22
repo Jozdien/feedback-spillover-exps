@@ -1436,3 +1436,92 @@ Final checkpoints (sampler): ctrl s45 656dc6bb…, s46 340c1756…; pen s45 e6a5
 s46 4f2bbb39…; mf s45 f75d46a0… (mind train:0, face train:1), s46 04092b3a…; tmf s45 bce4b0e4…, s46 a00bbfad…;
 pirate s45 863a40a2…, s46 bc2ae46e…; piglatin s45 40cb2270…, s46 f1078980…; chinese s45 0eb865cf…, s46 7892c32a…
 (full paths: each run's checkpoints.jsonl, `…:train:N/sampler_weights/final`).
+
+### 16j. Qwen3.5-9B style SFTs (2026-10-22)
+
+Recipe = the Qwen3.6-27B one (§11) with the base model swapped. Pass 1 = `data/normal-alpaca-qwen3.5-9b/normal_cache.jsonl` (11,187 kept of 16,050 = 10,050 primary + 6,000 top-up prompts; 2,447 rejected for opening a second `<think>`; ≈$20 by token count, the stats file says $0 because the run resumed). Pass 2 = `generate_style_output_data_alpaca.py --cache-dir data/normal-alpaca-qwen3.5-9b --select cache-order` with the same rewriters, prompts and flags as 27B (pirate: Qwen3.6-35B-A3B, v2 prompt, `--strict`, 1536 tokens; Pig Latin: Qwen3.6-35B-A3B, `strict` prompt, 2048 tokens, not `--strict`; Chinese: Qwen3-8B, plain prompt, `--strict`, 2048 tokens). English headers were restored for Pig Latin and Chinese as for 27B. SFT is unchanged: 3 epochs, lr 1e-4, LoRA rank 32, batch 128, 10k + 50 test, max_length 8192.
+
+**One deviation: a 9B-only Pass-1 defect was filtered out** (`scripts/filter_style_rows.py`, new). In 196 of the 11,187 cache rows (27B: 0), the 9B wrote a literal close tag while quoting its instructions ("Think step by step inside `</think>` tags") and emitted it as the real `</think>` token. Those rows' CoTs stop mid-sentence at "inside `", and in a few the rest of the reasoning leaked into the output. Three things were dropped:
+- rows with such a cut CoT;
+- rewrites with a degenerate repetition loop that the source lacks (e.g. "waywayway…", "Oadway Oadway…", "** ** **"); 32 rows, all Pig Latin;
+- Chinese outputs left with <10 CJK chars after the English headers were restored (one-line, header-only outputs; 5 rows).
+
+To refill, the generator was resumed with a larger `--target` on the unused cache rows. Each final set is the first 10,050 surviving rewrites in cache order, shuffled with Random(42) like the generator (`filter_note.json` in each dir). Chinese ran out of cache at **10,022 rows**, so it trains on 9,972 + 50 test. The unfiltered first-pass sets are kept as `all_unfiltered.jsonl` in each generator dir. A first SFT attempt on the unfiltered data was stopped at about step 70 of 234 and relaunched.
+
+| style | data dir (SFT input) | rewrites attempted / ok | dropped (cut CoT / loop / no-CJK) | rewrite $ | SFT tokens / $ | test NLL |
+|---|---|---|---|---|---|---|
+| pirate v2 | `data/pirate-output-alpaca-qwen3.5-9b-v2/` | 11,112 / 10,643 | 174 / 0 / 0 | 6.90 | 22.3M / 29.6 | 0.753→0.442 |
+| Pig Latin | `data/piglatin-output-alpaca-qwen3.5-9b-hdr/` (raw: `…-qwen3.5-9b/`) | 11,174 / 10,603 | 183 / 32 / 0 | 8.58 | 28.5M / 37.9 | 1.797→0.792 |
+| Chinese | `data/chinese-output-alpaca-qwen3.5-9b/` (raw: `…-qwen3.5-9b-raw/`) | 11,187 / 10,219 | 192 / 0 / 5 | 2.08 | 19.8M / 26.3 | 0.850→0.658 |
+
+Data QC (`quality_check.md` in each dir):
+- 100% well-formed think tags, with no stray `<think>`, `</think>`, `<|im_end|>` or `<|im_start|>`.
+- CoT byte-identical to the 9B's own Pass-1 CoT, plain English in 99.3–99.4% of rows.
+- StyleJudge (gpt-4o-mini, 200 rows): pirate 99%, Pig Latin 99.5%, Chinese 99.5%.
+- Pirate: structure_reason ok on 10,050/10,050.
+- Pig Latin: "real Pig Latin" 74.5% (27B: 83–85%).
+- Chinese: lingua says Chinese on 99.9%.
+
+Subagents read 15 random rows per style in full. Caveats inherited from the recipe, also present in the 27B data:
+- The pirate style is mostly tags appended to English sentences. The rewriter alters code in about 2.5% of rows, adding tags to code lines.
+- The Pig Latin is noisy: misspelled or garbled words. Code blocks are Pig-Latinized in about 2.7% of rows. 2.2% of rewrites are cut at 2,048 tokens, kept by design.
+- Chinese translates the English sentence under discussion in grammar and rewrite tasks.
+
+Checkpoints (RL `checkpoint=` is the state path):
+- **pirate v2** `tinker://d06c4540-f13b-57fd-bd87-22ffd260b4fa:train:0/weights/final` (sampler `tinker://d06c4540-f13b-57fd-bd87-22ffd260b4fa:train:0/sampler_weights/final`; logs `logs/sft-qwen3.5-9b-pirate-output-alpaca-v2/`)
+- **Pig Latin (hdr)** `tinker://d6bdb345-3424-599d-871f-9790be272e1a:train:0/weights/final` (sampler `tinker://d6bdb345-3424-599d-871f-9790be272e1a:train:0/sampler_weights/final`; logs `logs/sft-qwen3.5-9b-piglatin-output-alpaca-hdr/`)
+- **Chinese** `tinker://396b7690-88c8-5684-bea2-78c90dfe2444:train:0/weights/final` (sampler `tinker://396b7690-88c8-5684-bea2-78c90dfe2444:train:0/sampler_weights/final`; logs `logs/sft-qwen3.5-9b-chinese-output-alpaca/`)
+
+Epoch-1 and epoch-2 checkpoints are `…/000075` and `…/000150` on each run.
+
+Init check: `check_init_format.py --base-model Qwen/Qwen3.5-9B`, 200 MMLU prompts, CoT capped at 300 tokens plus 600 output tokens; GPT-4.1 StyleJudge via `judge_init_style.py`; outputs in `logs/sft-init-format-check/qwen3.5-9b-*.jsonl`.
+
+| model | well-formed | no boxed | no Explanation header | spurious `</think>` | style heuristic (of well-formed) | GPT-4.1 style: all / well-formed | ep1 / ep2 well-formed, GPT-4.1 style |
+|---|---|---|---|---|---|---|---|
+| base 9B | 86% | 14% | 0% | 0% | – | – | – |
+| pirate v2 | 76% | 24% | 0% | 2% | 63% | 66% / 63% | 77% / 72%; 64% / 58% |
+| Pig Latin hdr | 88% | 11% | 1% | 2% | 28% | **32% / 31%** | 77% / 81%; 33% / 30% |
+| Chinese | 70% | 18% | 12% | 0% | 86% | 82% / 89% | 67% / 72%; 74% / 81% |
+
+Reading:
+- **Format.** Nearly all misses are the base model's own failure mode: with the CoT capped at 300 tokens, the 9B carries on reasoning in the output slot (no `\boxed`). The base already does this 14% of the time. Of the 12% of Chinese outputs with no English header, 11 use `### 解释`, which the RL gate's `_explanation_words` accepts, and 5 use a bold `**解释**`.
+- **Style on MMLU is weaker than on 27B** (27B: pirate 91%, Pig Latin 96%, Chinese 96%), and Pig Latin is the outlier. The out-of-style outputs are plain-English `### Answer` / `### Explanation` answers to the math questions.
+- **The SFTs themselves worked.** On 50 held-out Alpaca prompts (not in any of the three training sets; `logs/sft-init-format-check/qwen3.5-9b-alpaca-heldout50.json`), the heuristic puts pirate at 49/50 and Pig Latin at 43/50. The misses are pure-code answers and one-liners. Chinese scores 31/50 on the heuristic, but on reading, the misses are Chinese prose next to code or English terms, which push the CJK share below 50%. So on the 9B the style does not carry over from Alpaca to the MMLU QA prompts as well as it does on 27B, most of all for Pig Latin.
+- **More epochs do not help.** The ep1, ep2 and final checkpoints give the same style rates.
+- Style-rewarded RL arms (§16d/e) should pull the style up. Unrewarded Pig-Latin arms start at about 30% in style.
+
+Costs: rewrites $17.6; three SFTs $93.8, plus about $28 for the stopped first attempt; init checks and judges about $6. Excluding Pass 1 the total is about $145.
+
+### 16k. Pirate-CoT redo and prompt-matched unstyled SFTs (2026-10-22)
+
+Purpose: redo two settings from the old paper under the current protocol (gated QA, T=300/600, GPT-4.1 judge, 5 seeds), on Qwen3-8B and Qwen3.6-27B, with and without the penalty:
+- **Pirate CoT, plain output** (arms `pcot-ctrl` / `pcot-pen`). The CoT style is monitored but not rewarded (`style_monitor=true pirate_reward_weight=0`).
+- **Unstyled on-policy SFT** (arms `normalsft-ctrl` / `normalsft-pen`). This trains on the base model's own CoT and output for the same Alpaca prompts as the style SFTs, so it is the matched "SFT with no style" control. The older normal-SFT control (`ae4b3f1c`) shared only about 2k of its 10k prompts with the style SFTs.
+
+Recipe: the style-SFT recipe (10k rows, 3 epochs, batch 128, rank 32, lr 1e-4, 234 steps).
+
+Data:
+- Unstyled: `data/normal-alpaca-qwen3-8b-matched/`, `data/normal-alpaca-qwen3.6-27b-matched/`, built by `scripts/build_matched_normal_alpaca.py` from the pirate-output prompt list.
+- Pirate CoT: `data/pirate-cot-alpaca-qwen3-8b-v2/`, `data/pirate-cot-alpaca-qwen3.6-27b/`, built by `scripts/generate_pirate_cot_data_alpaca.py`. The base model's CoT is rewritten into pirate by Qwen3-8B. Long CoTs are rewritten chunk by chunk (`scripts/pirate_cot_chunk_fallback.py`). The output is kept verbatim.
+
+QC (`scripts/qc_pirate_cot_data.py`, `qc.log` in each dir):
+
+| data | rows | first 300 CoT tokens pirate | last 150 words pirate | output verbatim | prompt-matched | stray special tokens | CoT/source length (median) |
+|---|---|---|---|---|---|---|---|
+| 8B | 10,050 | 100% | 90.7% | 100% | 98.8% | 0 | 1.04 |
+| 27B | 10,042 | 100% | 68.6% | 100% | 93.7% | 0 | 1.03 |
+
+RL only sees the first 300 CoT tokens, so the weaker 27B tail does not matter there.
+
+Checkpoints (RL `checkpoint=` is the state path; sampler = same with `sampler_weights`):
+- **8B unstyled, matched** `tinker://14535c55-003d-5044-941e-e70da1a6b90a:train:0/weights/final` (logs `logs/sft-8b-normal-alpaca-matched/`)
+- **27B unstyled, matched** `tinker://27425d03-a729-52a4-b4e1-7f11365f36ff:train:0/weights/final` (logs `logs/sft-qwen3.6-27b-normal-alpaca-matched/`)
+- **8B pirate CoT** `tinker://844125d5-e129-5b04-bb56-873e89ed01e3:train:0/weights/final` (logs `logs/sft-8b-pirate-cot-alpaca-v2/`)
+- **27B pirate CoT**: training (logs `logs/sft-qwen3.6-27b-pirate-cot-alpaca/`)
+
+Init checks (200 QA-format MMLU prompts; CoT capped at 300 tokens; `logs/sft-init-format-check/`; CoT style via `scripts/judge_init_cot_style.py`, GPT-4.1):
+
+| model | well-formed | CoT pirate (judge / heuristic) | output pirate (judge) |
+|---|---|---|---|
+| 8B unstyled, matched | 99% | – | 0% |
+| 8B pirate CoT | 100% | 100% / 98% | 4% |

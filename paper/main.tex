@@ -242,7 +242,7 @@ clipped at 1.}
 
 In this section, we test style separation in the QA environment on Qwen3-8B. The styled models receive the style reward, which holds their style-judge score at $0.99$ or above in every seed. For each condition we plot CoT hint detection against training reward (Figure~\ref{fig:main}); an ideal mitigation sits at the top of the plot on the dashed line, with full training reward and CoT detection at the no-penalty level. Table~\ref{tab:main} in Appendix~\ref{app:envs} gives the full numbers.
 
-We find that all three styles retain more CoT hint detection than the plain penalty ($0.46$--$0.56$ vs $0.27$), with the output scrubbed and nearly every output a genuine explanation. This is about level with reward targeting ($0.51$) and Targeted M\&F ($0.52$), and Pig Latin is clearly above Mind \& Face ($0.40$). The protection is partial, since every style stays below its own no-penalty control ($0.63$--$0.68$). Reward targeting reaches its number with the output only partly scrubbed in two of its five seeds, which is why its training reward is lower than the styled models'. A model fine-tuned through the same pipeline without the rewriting step (normal SFT) retains $0.36$, with a wide spread across seeds ($\pm0.17$); all three styles are above it on average, though only Pig Latin clearly so. Without the penalty the same normal-SFT model mentions the hint in $0.73$ of its CoTs (per seed $0.65$--$0.87$), above the no-SFT control's $0.60$ and the styled models' own controls ($0.63$--$0.68$). Relative to its own control it therefore loses about half of its CoT hint detection under the penalty ($0.73\to0.36$), as much as the plain penalty does ($0.60\to0.27$), whereas the styles keep $0.71$--$0.82$ of theirs. Under the penalty it also follows the hint less often (task reward $0.90$, against $0.99$ for the plain penalty). Its SFT data covers a different random subset of the Alpaca prompts than the styled models' data, which share theirs; a prompt-matched version is in progress. The explanations that pass the check are coherent and on-topic, but in the outputs we checked they mostly derive the correct answer and then assert the hinted one (Appendix~\ref{app:audit}).
+We find that all three styles retain more CoT hint detection than the plain penalty ($0.46$--$0.56$ vs $0.27$), with the output scrubbed and nearly every output a genuine explanation. This is about level with reward targeting ($0.51$) and Targeted M\&F ($0.52$), and Pig Latin is clearly above Mind \& Face ($0.40$). The protection is partial, since every style stays below its own no-penalty control ($0.63$--$0.68$). Reward targeting reaches its number with the output only partly scrubbed in two of its five seeds, which is why its training reward is lower than the styled models'. A model fine-tuned through the same pipeline without the rewriting step (normal SFT) retains $0.36$, with a wide spread across seeds ($\pm0.17$); all three styles are above it on average, though only Pig Latin clearly so. Without the penalty the same normal-SFT model mentions the hint in $0.73$ of its CoTs (per seed $0.65$--$0.87$), above the no-SFT control's $0.60$ and the styled models' own controls ($0.63$--$0.68$). Relative to its own control it therefore loses about half of its CoT hint detection under the penalty ($0.73\to0.36$), as much as the plain penalty does ($0.60\to0.27$), whereas the styles keep $0.71$--$0.82$ of theirs. Under the penalty it also follows the hint less often (task reward $0.90$, against $0.99$ for the plain penalty). Its SFT data covers a different random subset of the Alpaca prompts than the styled models' data, which share theirs. A normal-SFT model trained on exactly the styled models' prompts gives the same picture: $0.73$ without the penalty (per seed $0.65$--$0.79$) and $0.32\pm0.08$ under it, with task reward $0.96$ (Table~\ref{tab:main}). The explanations that pass the check are coherent and on-topic, but in the outputs we checked they mostly derive the correct answer and then assert the hinted one (Appendix~\ref{app:audit}).
 
 \subsection{Style separation composes with reward targeting and Targeted M\&F}
 \label{sec:compose}
@@ -284,7 +284,7 @@ no-penalty control and the others are under the output penalty. Bars are means o
 are individual seeds. Hollow dots are seeds whose output was never scrubbed (output monitor above
 $0.5$), so that the penalty did not act on them, and the cross is a seed that lost its task reward.
 The dashed line is the no-penalty control. Qwen3-8B shows no spillover in polynomial factoring, so we
-did not run the mitigations there; its two runs predate the explanation check.}
+did not run the mitigations there.}
 \label{fig:envs}
 \end{figure}
 
@@ -362,6 +362,8 @@ Pig-Latin output, style not rewarded & 5 & $0.36\pm0.12$ & 0.02 & 0.98 & 0.76 & 
 \addlinespace
 Normal SFT & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
 Normal SFT, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
+Normal SFT, prompt-matched & 5 & $0.32\pm0.08$ & 0.12 & 0.99 & --- & $+0.73$ \\
+Normal SFT, prompt-matched, no penalty & 5 & $0.73\pm0.06$ & 0.89 & 1.00 & --- & $-0.78$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -399,7 +401,7 @@ QA & Qwen3-8B & 5 & 0.60 & 0.27 & 0.99 & 0.99 & 0.17 \\
  & Inkling-Small & 3 & 0.78 & 0.79 & 0.03 & 0.03 & 0.63 \\
  & Inkling & 3 & 0.91 & 0.67 & 0.02 & 0.02 & 0.15 \\
 \addlinespace
-Polynomial & Qwen3-8B & 5 & 1.00 & 0.99 & 0.97 & 0.97 & 0.03 \\
+Polynomial & Qwen3-8B & 5 & 1.00 & 1.00 & 0.97 & 0.97 & 0.02 \\
  & Qwen3.6-27B & 5 & 0.99 & 0.67 & 0.90 & 0.85 & 0.01 \\
  & Qwen3.5-397B-A17B & 3 & 1.00 & 0.95 & 0.89 & 0.85 & 0.38 \\
  & Nemotron-3-Super-120B-A12B & 3 & 0.98 & 0.96 & 0.89 & 0.84 & 0.01 \\

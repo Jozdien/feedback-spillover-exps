@@ -65,6 +65,8 @@ RUNS = {
         "chinese_ctrl": "grpo-gated-8b-chinesesr-ctrl-s??",
         "pirate_nosr": "grpo-explj300-piratev2-pen-8b-s??", "piglatin_nosr": "grpo-explj300-piglatin-pen-8b-s??",
         "normal": "grpo-explj300-normalalpaca-pen-8b-s??", "normal_ctrl": "grpo-explj300-normalalpaca-ctrl-8b-s??",
+        # prompt-matched normal SFT (same Alpaca prompts as the style SFTs), 2026-10-22
+        "normalm": "grpo-gated-8b-normalsft-pen-s??", "normalm_ctrl": "grpo-gated-8b-normalsft-ctrl-s??",
         **{f"{s}+{m}": f"grpo-gated-8b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
     }),
     "qa27b": (QA, {
@@ -86,8 +88,8 @@ RUNS = {
         **{s: f"grpo-gated-poly27b-{s}sr-pen-s??" for s in ("pirate", "piglatin", "chinese")},
         **{f"{s}_ctrl": f"grpo-gated-poly27b-{s}sr-ctrl-s??" for s in ("pirate", "piglatin", "chinese")},
     }),
-    # Qwen3-8B polynomial: only control and penalty, without the explanation check (no spillover, so no mitigations).
-    "poly8b": (POLY, {"ctrl": "grpo-poly800v2-ctrl-8b-s??", "pen": "grpo-poly800v2-pen-8b-s??"}),
+    # Qwen3-8B polynomial: only control and penalty (no spillover, so no mitigations).
+    "poly8b": (POLY, {"ctrl": "grpo-gated-poly8b-ctrl-s??", "pen": "grpo-gated-poly8b-pen-s??"}),
     "term8b": (TERM, {
         "ctrl": "grpo-termgated-8b-ctrl-s??", "pen": "grpo-termgated-8b-pen-s??",
         "rt": "grpo-termgated-8b-rt-s??", "mf": "grpo-termgated-8b-mf-s??", "tmf": "grpo-termgated-8b-tmf-s??",
@@ -118,7 +120,7 @@ SCREEN_QA = [
     ("Inkling", "grpo-gated-sig-inkling-nosft-ctrl-s??", "grpo-gated-sig-inkling-nosft-pen-s??"),
 ]
 SCREEN_POLY = [
-    ("Qwen3-8B", "grpo-poly800v2-ctrl-8b-s??", "grpo-poly800v2-pen-8b-s??"),
+    ("Qwen3-8B", "grpo-gated-poly8b-ctrl-s??", "grpo-gated-poly8b-pen-s??"),
     ("Qwen3.6-27B", "grpo-gated-poly27b-ctrl-s??", "grpo-gated-poly27b-pen-s??"),
     ("Qwen3.5-397B-A17B", "grpo-poly800-qwen397-ctrl-s??", "grpo-poly800-qwen397-pen-s??"),
     ("Nemotron-3-Super-120B-A12B", "grpo-poly800-nemotron-ctrl-s??", "grpo-poly800-nemotron-pen-s??"),
