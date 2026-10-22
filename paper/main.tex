@@ -278,13 +278,13 @@ In this section, we first check where the plain penalty produces spillover in ou
 \centering
 \includegraphics[width=\textwidth]{figures/envs_bars.pdf}
 \caption{\textbf{On larger models, the styles keep the CoT in polynomial factoring but are less
-reliable than reward targeting and Targeted M\&F in QA.} CoT detection in the three settings
-besides our main one where the plain penalty clearly spills and we ran the mitigations, colored as
-in Figure~\ref{fig:main}. The first bar is the no-penalty control and the others are under the
-output penalty. Bars are means over seeds and dots are
-individual seeds (5 per condition). Hollow dots are seeds whose
-output was never scrubbed (output monitor above $0.5$), so that the penalty did not act on them, and
-the cross is a seed that lost its task reward. The dashed line is the no-penalty control.}
+reliable than reward targeting and Targeted M\&F in QA.} CoT detection for the two models and two
+environments besides our main setting, colored as in Figure~\ref{fig:main}. The first bar is the
+no-penalty control and the others are under the output penalty. Bars are means over 5 seeds and dots
+are individual seeds. Hollow dots are seeds whose output was never scrubbed (output monitor above
+$0.5$), so that the penalty did not act on them, and the cross is a seed that lost its task reward.
+The dashed line is the no-penalty control. Qwen3-8B shows no spillover in polynomial factoring, so we
+did not run the mitigations there; its two runs predate the explanation check.}
 \label{fig:envs}
 \end{figure}
 

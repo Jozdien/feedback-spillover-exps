@@ -86,6 +86,8 @@ RUNS = {
         **{s: f"grpo-gated-poly27b-{s}sr-pen-s??" for s in ("pirate", "piglatin", "chinese")},
         **{f"{s}_ctrl": f"grpo-gated-poly27b-{s}sr-ctrl-s??" for s in ("pirate", "piglatin", "chinese")},
     }),
+    # Qwen3-8B polynomial: only control and penalty, without the explanation check (no spillover, so no mitigations).
+    "poly8b": (POLY, {"ctrl": "grpo-poly800v2-ctrl-8b-s??", "pen": "grpo-poly800v2-pen-8b-s??"}),
     "term8b": (TERM, {
         "ctrl": "grpo-termgated-8b-ctrl-s??", "pen": "grpo-termgated-8b-pen-s??",
         "rt": "grpo-termgated-8b-rt-s??", "mf": "grpo-termgated-8b-mf-s??", "tmf": "grpo-termgated-8b-tmf-s??",
@@ -230,12 +232,13 @@ def bar_positions(keys):
     return np.array(xs)
 
 
-def cot_bars(ax, d, keys, ylabel="CoT hint detection", dots=False):
+def cot_bars(ax, d, keys, ylabel="CoT hint detection", dots=False, not_run=True):
     xs = bar_positions(keys)
     for x, k in zip(xs, keys):
         color = COND[k][1]
         if k not in d:
-            ax.text(x, 0.02, "not run", rotation=90, ha="center", va="bottom", fontsize=6, color="#8a8880")
+            if not_run:
+                ax.text(x, 0.02, "not run", rotation=90, ha="center", va="bottom", fontsize=6, color="#8a8880")
             continue
         a = d[k]
         ax.bar(x, a["cot"], width=0.8, color=color, zorder=2)
@@ -431,49 +434,90 @@ def fig_screen(data, path):
     plt.close(fig)
 
 
-def fig_envs(data, path):
-    """CoT-detection bars in the other settings with clear spillover; dots are seeds."""
-    panels = [("QA\nQwen3.6-27B", "qa27b", None), ("QA\nQwen3.6-35B-A3B", "qa35b", None),
-              ("Polynomial factoring\nQwen3.6-27B", "poly27b", None)]
-    fig, axes = plt.subplots(1, 3, figsize=(W * 0.8, W * 0.3), sharey=True)
-    for ax, (title, key, ylabel) in zip(axes, panels):
-        cot_bars(ax, data[key], ORDER, ylabel=ylabel or "", dots=True)
-        ax.set_title(title, fontweight="bold", fontsize=7.5)
-    axes[1].set_ylabel("")
-    axes[0].set_ylabel("CoT detection")
+ENV_PANELS = [  # the two models x two environments besides QA on Qwen3-8B
+    dict(title="QA, Qwen3.6-27B", key="qa27b", lam=2, xlim=(0.3, 0.95), ybreak=((-1.0, -0.7), (0.9, 1.01)),
+         xlabel="CoT hint detection", arrow=(0.5, 0.35)),
+    dict(title="Polynomial, Qwen3-8B", key="poly8b", lam=1, xlim=(0.5, 1.03), ylim=(-0.25, 1.05),
+         xlabel="CoT detection of\nthe expanded form", arrow=(0.45, 0.25), note="no spillover,\nso mitigations\nnot run"),
+    dict(title="Polynomial, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03), ylim=(-0.25, 1.05),
+         xlabel="CoT detection of\nthe expanded form", arrow=(0.45, 0.25)),
+]
+
+
+def fig_envs(data, panels, path):
+    """CoT-detection bars per setting; dots are seeds."""
+    fig, axes = plt.subplots(1, len(panels), figsize=(W, W * 0.36), sharey=True)
+    for i, (ax, pn) in enumerate(zip(axes, panels)):
+        d = data[pn["key"]]
+        cot_bars(ax, d, ORDER, ylabel="CoT detection" if i == 0 else "", dots=True, not_run=not pn.get("note"))
+        if pn.get("note"):
+            ax.text(0.68, 0.5, pn["note"], transform=ax.transAxes, ha="center", va="center", fontsize=6.5,
+                    color="#8a8880", linespacing=1.1)
+        ax.set_title(pn["title"], fontweight="bold", fontsize=7.8)
     fig.tight_layout(w_pad=0.6)
-    group_legend(fig, ORDER, loc="center left", bbox_to_anchor=(0.99, 0.5))
+    group_legend(fig, ORDER, by_column=True, loc="upper center", bbox_to_anchor=(0.5, 0.0), columnspacing=2.0)
     fig.savefig(path)
     plt.close(fig)
 
 
 def fig_envs_pareto(data, panels, path):
-    """Pareto scatter (CoT detection vs training reward) for the other environments.
+    """Pareto scatter (CoT detection vs training reward), one panel per setting. A panel with "ybreak"
+    gets a broken y-axis (top range, bottom range); consecutive panels with the same lam share a y-axis.
     Error bars are 95% t intervals over seeds."""
-    fig, axes = plt.subplots(1, len(panels), figsize=(W, W * 0.44))
-    for ax, pn in zip(axes, panels):
+    fig = plt.figure(figsize=(W, W * 0.45))
+    gs = fig.add_gridspec(2, len(panels), height_ratios=[3.2, 1], hspace=0.08, wspace=0.55)
+    prev = None
+    for i, pn in enumerate(panels):
         d = data[pn["key"]]
-        for k in ORDER:
-            if k not in d:
-                continue
-            a = d[k]
-            _, color, marker, _ = COND[k]
-            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=a["reward_ci"], fmt=marker,
-                        ms=5.4 if marker != "D" else 4.9, mfc=color, mec="white", mew=0.6, color=color,
-                        elinewidth=0.8, capsize=1.6, zorder=3)
-        ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
-        ax.grid(axis="x", visible=False)
-        ax.set_xlim(*pn["xlim"])
-        ax.set_ylim(-0.25, 1.05)
-        ax.set_title(pn["title"], fontweight="bold", fontsize=7.8)
-        ax.set_xlabel(pn["xlabel"])
-        ax.set_ylabel(f"Training reward\n(task − {pn['lam']:g} × output detection)", linespacing=1.3)
-        better_arrow(ax, head=pn["arrow"])
-        for (x, y), text in pn.get("notes", []):
-            ax.text(x, y, text, fontsize=6.5, color="#8a8880", ha="left", va="center", linespacing=1.1)
-    fig.tight_layout(w_pad=1.5)
-    group_legend(fig, ORDER, by_column=True, loc="upper center", bbox_to_anchor=(0.5, 0.0),
-                 columnspacing=2.0)
+        shared = i > 0 and panels[i - 1]["lam"] == pn["lam"] and "ybreak" not in pn
+        if "ybreak" in pn:
+            top, bot = fig.add_subplot(gs[0, i]), fig.add_subplot(gs[1, i])
+            axes = (top, bot)
+        else:
+            top = bot = fig.add_subplot(gs[:, i], sharey=prev if shared else None)
+            axes = (top,)
+        for ax in axes:
+            for k in ORDER:
+                if k not in d:
+                    continue
+                a = d[k]
+                _, color, marker, _ = COND[k]
+                ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
+                            fmt=marker, ms=5.2 if marker != "D" else 4.7, mfc=color, mec="white", mew=0.6, color=color,
+                            elinewidth=0.8, capsize=1.6, zorder=3)
+            ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
+            ax.grid(axis="x", visible=False)
+            ax.set_xlim(*pn["xlim"])
+        if "ybreak" in pn:
+            (blo, bhi), (tlo, thi) = pn["ybreak"]
+            top.set_ylim(tlo, thi)
+            bot.set_ylim(blo, bhi)
+            top.set_yticks(pn.get("top_ticks", [0.9, 1.0]))
+            bot.set_yticks(pn.get("bot_ticks", [-0.8]))
+            top.spines["bottom"].set_visible(False)
+            top.tick_params(axis="x", length=0, labelbottom=False)
+            kw = dict(color="#5f5e5a", lw=0.7, clip_on=False, transform=top.transAxes)
+            top.plot([-0.03, 0.03], [-0.02, 0.02], **kw)
+            kw["transform"] = bot.transAxes
+            bot.plot([-0.03, 0.03], [0.94, 1.02], **kw)
+        else:
+            top.set_ylim(*pn.get("ylim", (-0.25, 1.05)))
+        if shared:
+            top.tick_params(axis="y", labelleft=False)
+        top.set_title(pn["title"], fontweight="bold", fontsize=7.8)
+        bot.set_xlabel(pn["xlabel"], linespacing=1.2)
+        better_arrow(top, head=pn["arrow"])
+        if pn.get("note"):
+            top.text(0.6, 0.5, pn["note"], transform=top.transAxes, ha="center", va="center", fontsize=6.5,
+                     color="#8a8880", linespacing=1.1)
+        prev = top
+        pn["_axes"] = (top, bot, shared)
+    fig.subplots_adjust(left=0.115, right=0.99, top=0.92, bottom=0.17)
+    for pn in panels:
+        top, bot, shared = pn.pop("_axes")
+        if not shared:
+            stack_ylabel(fig, top, bot, f"Training reward\n(task − {pn['lam']:g} × output detection)", x_pad=0.36)
+    group_legend(fig, ORDER, by_column=True, loc="upper center", bbox_to_anchor=(0.5, 0.0), columnspacing=2.0)
     fig.savefig(path)
     plt.close(fig)
 
@@ -486,14 +530,15 @@ def main():
     fig_main_scatter_bars(data["qa8b"], FIG / "main_scatter_bars.pdf")
     fig_compose(data["qa8b"], data["qa27b"], FIG / "compose_vertical.pdf")
     fig_screen(data, FIG / "spillover_screen.pdf")
-    fig_envs(data, FIG / "envs_bars.pdf")
+    fig_envs(data, ENV_PANELS, FIG / "envs_bars.pdf")
+    fig_envs_pareto(data, ENV_PANELS, FIG / "envs_pareto.pdf")
     fig_envs_pareto(data, [
         dict(title="Polynomial factoring, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03),
              xlabel="CoT detection of the expanded form", arrow=(0.5, 0.42)),
         dict(title="Terminal, Qwen3-8B", key="term8b", lam=0.75, xlim=(-0.03, 1.03),
              xlabel="CoT detection of reading the verifier", arrow=(0.76, 0.3),
              notes=[((0.06, 0.12), "styled runs that stopped\nreading the verifier")]),
-    ], FIG / "envs_pareto.pdf")
+    ], FIG / "envs_pareto_term.pdf")
     for s in ("qa8b", "qa27b", "qa35b", "poly27b", "term8b"):
         print(f"== {s}")
         for k, a in data[s].items():
