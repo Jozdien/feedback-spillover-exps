@@ -346,7 +346,9 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
   each CoT as genuine / repetitive spam / off-topic, checks verbatim hint quoting and judge-vs-keyword
   agreement; `SEEDS="47 48 …"` env var selects seeds). 8B result (0.49 → 0.01) is genuine. 27B s42–46: 3 of 5
   penalty seeds + 1 control collapsed into "Arrr!"/filler during RL; s43 pastes the prompt (judge catches ~half).
-  Paper calls 27B inconclusive. Seeds s47–51 queued (~$220); at step ~85 all 5 controls healthy, penalty
-  s47/s48 healthy, s49 collapsing, s50/s51 degrading.
-- **Still open:** finish 27B pcot s47–51 audit → §cotstyle + RESULTS §16l; 9B full set into appendix once its
-  last seeds finish; user's table feedback pending.
+  Paper calls 27B inconclusive. Seeds s47–51 added (10 per arm): 5/10 penalty seeds degenerate; healthy penalty
+  seeds 0.04/0.08/0.37/0.54/0.84 (two restate the prompt) vs 0.75 for 9 healthy controls — still inconclusive.
+- **Qwen3.5-9B full set:** style separation does not help (styles 0.10–0.35 vs plain penalty 0.13; RT 0.69, TMF 0.85);
+  appendix "QA on Qwen3.5-9B", Table tab:q9b, figures qa9b_bars.pdf / compose_9b.pdf. CoTs healthy (q9b_health.txt).
+- **Campaign complete 14:18 UTC (160/160, 0 failed); scheduler stopped.** Open: user's table feedback; another Claude
+  instance will rewrite the paper narrative around the newly added results.
