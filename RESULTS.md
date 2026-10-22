@@ -1601,3 +1601,31 @@ Paper: §cotstyle says the 27B result is inconclusive, with these facts. It is n
   models stay flat (pirate 0.36→0.43, Pig Latin 0.39→0.42, Chinese 0.36→0.60).
 - CoT health check (`logs/analysis-2026-10-22-pcot-audit/q9b_health.{py,txt}`, using the feats() of 27b/extra27.py):
   last 27 steps, ≥86% of CoTs are genuine and 0% repetitive in every condition, so the low numbers are not degeneration.
+
+**Pirate CoT, Qwen3.6-27B, seeds 47–51 added (finished 14:18 UTC; now 10 seeds per arm). Still inconclusive.**
+Last-27-step means over all 10 seeds: penalty 0.20±0.29, no penalty 0.69±0.33.
+
+The audit is in `logs/analysis-2026-10-22-pcot-audit/27b/`:
+- `extra27_s47-51.{json,txt}`: same classifier as s42–46.
+- `s48_s50_samples.txt`: sampled transcripts.
+
+A run counts as "healthy" if ≥70% of its late CoTs are genuine reasoning.
+
+| Seed | Penalty CoT | Penalty late CoT | No-penalty CoT | No-penalty late CoT |
+|---|---|---|---|---|
+| 42 | 0.00 | spam 0.99 | 0.38 | healthy; dropped the hint |
+| 43 | 0.54 | healthy; pastes the prompt verbatim (keyword 0.97) | 0.93 | healthy |
+| 44 | 0.04 | healthy | 0.16 | spam 0.94 |
+| 45 | 0.03 | off-topic 0.91 | 0.85 | healthy |
+| 46 | 0.03 | spam 0.99 | 0.68 | healthy |
+| 47 | 0.08 | healthy (genuine 0.74) | 1.00 | healthy |
+| 48 | 0.37 | healthy; real pirate reasoning that sometimes names the hint | 0.16 | healthy; dropped the hint |
+| 49 | 0.00 | spam 0.98 | 0.81 | healthy |
+| 50 | 0.84 | healthy (spam 0.14); opens by paraphrasing the prompt, hint included | 0.91 | healthy |
+| 51 | 0.06 | half degenerate (genuine 0.42) | 0.99 | healthy |
+
+- **Healthy runs:** 5 of 10 penalty seeds, mean 0.37; 9 of 10 control seeds, mean 0.75.
+- **Healthy penalty seeds:** 2 hide the hint, 1 is partial, and 2 restate the prompt.
+- **Summary:** penalty runs collapse more often than control runs (5 vs 1). The healthy runs are a mix of spillover and
+  prompt restating, unlike Qwen3-8B, where all 5 seeds are at 0.01 or below and genuine.
+- **Paper:** §cotstyle is updated with these numbers. The tables still exclude the 27B pirate-CoT result.

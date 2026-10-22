@@ -780,3 +780,16 @@ All 17 conditions × 5 seeds are done. The paper appendix now has a section with
 **Extra Qwen3.6-27B pirate-CoT seeds:** about 1/3 through.
 - The no-penalty seeds are all healthy.
 - Among the penalty seeds, 2 look healthy and 3 show the same collapse as before.
+
+## 2026-10-22 14:30 UTC — campaign finished (160/160 runs, none failed); 27B pirate-CoT still inconclusive
+
+**Extra Qwen3.6-27B pirate-CoT seeds:** with 10 seeds each, the result is still mixed.
+- **Penalty runs:** 5 of 10 collapsed into "Arrr!" spam or filler during RL. Of the 5 that kept reasoning, 2 hide the
+  hint (0.04, 0.08), 1 is partial (0.37), and 2 open the CoT by restating the whole prompt, hint included (0.54 and 0.84).
+- **No-penalty runs:** 9 of 10 stayed healthy, and they average 0.75.
+- **Compared with 8B:** this is weaker and messier than the clean total spillover on Qwen3-8B (every seed ≤0.01).
+
+The paper's pirate-CoT section now gives the 10-seed numbers and still calls 27B inconclusive.
+
+Everything you asked for in the ~$6k campaign is now done, and the results are all in the paper. RESULTS §16j–§16l has
+the details.
