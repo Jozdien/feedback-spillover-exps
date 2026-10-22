@@ -1529,3 +1529,37 @@ Init checks (200 QA-format MMLU prompts; CoT capped at 300 tokens; `logs/sft-ini
 | 27B pirate CoT | 98% | 100% / 100% | 4% |
 
 RL (all queued in `logs/campaign-2026-10-22/registry.tsv`, 5 seeds each): `gated-{8b,27b}-normalsft-{ctrl,pen}-s4?`, `gated-{8b,27b}-pcot-{ctrl,pen}-s4?`.
+
+### 16l. Campaign results as they finish (2026-10-22; registry `logs/campaign-2026-10-22/registry.tsv`; last 27 steps, mean ± sample sd over 5 seeds)
+
+**Prompt-matched unstyled SFT, Qwen3-8B** (`gated-8b-normalsft-*`). CoT hint detection is 0.73±0.06 with no penalty (0.65–0.79) and 0.32±0.08 with the penalty (0.21–0.39). Task reward under the penalty is 0.96. This is the same as the unmatched normal SFT (0.73 → 0.36): SFT alone does not protect the CoT. In the paper as Table main rows and in §4.1.
+
+**Polynomial factoring, Qwen3-8B, with the explanation check** (`gated-poly8b-*`). The CoT keeps the expanded form at 1.00 with no penalty and 0.995 with it, and the output monitor is 0.02. There is no spillover, as in the pre-check runs. Paper: Figure envs poly8b panel and Table screen.
+
+**Qwen3.5-9B no-SFT, 5 seeds**: 0.84 → 0.13; penalty seeds 0.04, 0.08, 0.08, 0.04, 0.41. **Poly 27B styled no-penalty controls, 5 seeds**: pirate 0.995, Pig Latin 0.999, Chinese 0.997.
+
+**Qwen3.6-27B, Chinese + each prior mitigation** (`gated-27b-chinese-{rt,mf,tmf}-*`):
+
+| condition | CoT hint detection | per-seed range |
+|---|---|---|
+| + reward targeting | 0.85±0.13 | 0.66–0.98 |
+| + Mind & Face | 0.41±0.24 | 0.22–0.81 |
+| + Targeted M&F | 0.97±0.05 | 0.87–1.00 |
+| Chinese alone (ref.) | 0.56±0.32 | 0.21–0.99 |
+
+Output monitor 0.00 and genuine explanations 1.00 everywhere. Paper: Table compose.
+
+**Pirate CoT, Qwen3-8B** (`gated-8b-pcot-*`). Total spillover is replicated under the current protocol:
+
+| condition | CoT hint detection | per seed | out | task |
+|---|---|---|---|---|
+| penalty | 0.01±0.00 | 0.00, 0.01, 0.00, 0.01, 0.01 | 0.01 | 1.00 |
+| no penalty | 0.49±0.28 | 0.70, 0.09, 0.33, 0.65, 0.71 | 0.88 | 1.00 |
+
+Audit by a subagent (`logs/analysis-2026-10-22-pcot-audit/`: `stats.json`, read transcripts `pen.txt` / `ctrl.txt` / `c43.txt` / `impl.txt`):
+- **Not degenerate.** Late penalty CoTs have a median of 170–197 words, none under 20 words, and 0–2% repetitive. The style judge scores them 0.99–1.00, and 75–88% share content words with the question. These stats barely move from early training.
+- The CoT works the problem, usually correctly, and hits the 300-token cap. It closes on its own in only 0–11% of rollouts in any run, so the answer is chosen in the output.
+- The penalty output boxes the hinted letter, often right after deriving another option (string-match proxy: 35–42% under the penalty vs 6–16% in the control). The output monitor flags 0–2% of these.
+- Indirect hint references in the penalty CoTs were all false positives on reading.
+- Control s43 (0.09): its CoT drifted into insult-heavy filler (97% of late CoTs vs 0–7% elsewhere) that eats the budget before reaching the hint. The hint still appears in 77% of its outputs.
+- Control s46: the CoT style is weakening (judge 0.78).

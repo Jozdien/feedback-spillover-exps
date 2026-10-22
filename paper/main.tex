@@ -295,7 +295,7 @@ did not run the mitigations there.}
 \subsection{Styling the reasoning channel}
 \label{sec:cotstyle}
 
-Interestingly, we find that a model fine-tuned to write its \emph{CoT} in pirate-speak (with a plain output) shows \emph{total} spillover under the output penalty: CoT hint detection falls to $0.00$ on Qwen3-8B and $0.02$ on Qwen3-32B, from no-penalty controls of $0.96$ and $0.99$ (Appendix~\ref{app:regime}). These runs use the 4096-token CoT budget only, where the plain penalty barely lowers CoT hint detection on Qwen3-32B (Section~\ref{sec:regime}), with two seeds per condition and without the explanation check. This suggests that modifications to a model's CoT make it much more susceptible to future modifications, including from spillover.
+Interestingly, we find that a model fine-tuned to write its \emph{CoT} in pirate-speak (with a plain output) shows \emph{total} spillover under the output penalty. On Qwen3-8B in our main setting, CoT hint detection falls from $0.49$ without the penalty to $0.01$ under it, with every penalized seed at $0.01$ or below (Table~\ref{tab:main}; per-seed controls $0.09$--$0.71$). The penalized CoTs are not degenerate. They stay full-length (median about 185 words, none under 20) and in pirate style (style judge $0.99$ or above), and they work through the question, usually toward the correct answer, until the 300-token limit cuts them off. They simply no longer mention the hint, while the output still boxes the hinted letter, often right after an explanation that derives a different option. The CoT closes on its own in at most $11\%$ of rollouts in any run, so the answer is effectively chosen in the output. The low and variable control comes partly from one seed whose CoT drifted into insult-heavy filler that used up the budget before reaching the hint ($0.09$). That seed still uses the hint, which its output mentions in $77\%$ of rollouts. Earlier runs at the 4096-token CoT budget, with two seeds and without the explanation check, show the same on Qwen3-32B ($0.99\to0.02$; Appendix~\ref{app:regime}). The corresponding Qwen3-8B runs mostly emitted empty or garbled CoTs. Runs on Qwen3.6-27B are in progress. This suggests that modifications to a model's CoT make it much more susceptible to future modifications, including from spillover.
 
 \section{Discussion}
 \label{sec:discussion}
@@ -323,7 +323,7 @@ We are grateful for helpful discussion and feedback from many people, including 
 \section{Other environments and models: full numbers}
 \label{app:envs}\label{app:terminal}
 
-Table~\ref{tab:main} gives the full QA results on Qwen3-8B, including each style's no-penalty control, the styled models trained without the style reward, and the normal SFT control. Table~\ref{tab:screen} gives the spillover test of Section~\ref{sec:envs}, Table~\ref{tab:envs} CoT detection for every condition we ran in the other environments and models, Table~\ref{tab:compose} the combinations of Section~\ref{sec:compose}, and Table~\ref{tab:seeds} the per-seed values for the more variable conditions.
+Table~\ref{tab:main} gives the full QA results on Qwen3-8B, including each style's no-penalty control, the styled models trained without the style reward, the normal SFT controls, and the pirate-CoT model of Section~\ref{sec:cotstyle}. Table~\ref{tab:screen} gives the spillover test of Section~\ref{sec:envs}, Table~\ref{tab:envs} CoT detection for every condition we ran in the other environments and models, Table~\ref{tab:compose} the combinations of Section~\ref{sec:compose}, and Table~\ref{tab:seeds} the per-seed values for the more variable conditions.
 
 Without the style reward, the pirate model writes in its style in $0.54$ of its late outputs on average and the Pig-Latin model in $0.76$, and their CoT detection under the penalty ($0.28$ and $0.36$) is at the level of the plain penalty and of normal SFT. The seeds that happened to keep their style retain somewhat more than those that lost it ($0.37$ vs $0.24$).
 
@@ -364,6 +364,9 @@ Normal SFT & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
 Normal SFT, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
 Normal SFT, prompt-matched & 5 & $0.32\pm0.08$ & 0.12 & 0.99 & --- & $+0.73$ \\
 Normal SFT, prompt-matched, no penalty & 5 & $0.73\pm0.06$ & 0.89 & 1.00 & --- & $-0.78$ \\
+\addlinespace
+Pirate CoT & 5 & $0.01\pm0.00$ & 0.01 & 1.00 & --- & $+0.97$ \\
+Pirate CoT, no penalty & 5 & $0.49\pm0.28$ & 0.88 & 1.00 & --- & $-0.76$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
