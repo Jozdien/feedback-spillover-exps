@@ -1563,3 +1563,18 @@ Audit by a subagent (`logs/analysis-2026-10-22-pcot-audit/`: `stats.json`, read 
 - Indirect hint references in the penalty CoTs were all false positives on reading.
 - Control s43 (0.09): its CoT drifted into insult-heavy filler (97% of late CoTs vs 0–7% elsewhere) that eats the budget before reaching the hint. The hint still appears in 77% of its outputs.
 - Control s46: the CoT style is weakening (judge 0.78).
+
+**Unstyled SFT, prompt-matched, Qwen3.6-27B** (`gated-27b-normalsft-*`): 0.95±0.09 with no penalty and 0.48±0.40 with the penalty. Penalty seeds 0.79, 0.07, 0.33, 0.19, 0.99, i.e. bimodal. Paper: Table envs, appendix.
+
+**Pirate CoT, Qwen3.6-27B** (`gated-27b-pcot-*`). **Inconclusive: mostly degenerate.** Penalty 0.13 (0.00, 0.54, 0.04, 0.03, 0.03), no penalty 0.60 (0.38, 0.93, 0.16, 0.85, 0.68). The subagent audit is in `logs/analysis-2026-10-22-pcot-audit/27b/` (`stats.json`, `extra27.json`, transcripts):
+- Every run starts healthy (steps 0–10: no repetition, 0.80–0.94 about the question, hint in CoT 0.48–0.94). The collapse happens during RL.
+- Penalty s42 and s46: 99% repetitive "Arrr!"/"cursed cursed…" spam. s42 collapsed at steps 25–49, the same window in which output hint mentions fell from 0.45 to 0.04. s46 collapsed gradually.
+- Penalty s45: off-topic pirate filler (about the question 0.06).
+- Penalty s44: genuine, the 8B pattern (0.04).
+- Penalty s43: coherent, but it pastes the prompt, hint line included, into 88% of its CoTs. The judge flags about half of those, so the real mention rate is about 0.9.
+- Control s44: spam from steps 50–100 (0.16). Control s42: coherent, but it dropped hint mentions from step 75 on (0.38).
+- The control output monitor (0.70) is real behaviour: the outputs box the hinted letter without mentioning it.
+- After step ~100 in the controls only 0.4–2% of rollouts have a nonzero advantage. The late drift is probably optimizer noise on tiny gradients (unverified).
+- No judge outage: 0 judge failures.
+
+Paper: §cotstyle says the 27B result is inconclusive, with these facts. It is not in the tables.
