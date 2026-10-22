@@ -1517,7 +1517,7 @@ Checkpoints (RL `checkpoint=` is the state path; sampler = same with `sampler_we
 - **8B unstyled, matched** `tinker://14535c55-003d-5044-941e-e70da1a6b90a:train:0/weights/final` (logs `logs/sft-8b-normal-alpaca-matched/`)
 - **27B unstyled, matched** `tinker://27425d03-a729-52a4-b4e1-7f11365f36ff:train:0/weights/final` (logs `logs/sft-qwen3.6-27b-normal-alpaca-matched/`)
 - **8B pirate CoT** `tinker://844125d5-e129-5b04-bb56-873e89ed01e3:train:0/weights/final` (logs `logs/sft-8b-pirate-cot-alpaca-v2/`)
-- **27B pirate CoT**: training (logs `logs/sft-qwen3.6-27b-pirate-cot-alpaca/`)
+- **27B pirate CoT** `tinker://37b8745f-edd0-5449-8fee-38d1a970fc3f:train:0/weights/final` (logs `logs/sft-qwen3.6-27b-pirate-cot-alpaca/`)
 
 Init checks (200 QA-format MMLU prompts; CoT capped at 300 tokens; `logs/sft-init-format-check/`; CoT style via `scripts/judge_init_cot_style.py`, GPT-4.1):
 
@@ -1525,3 +1525,7 @@ Init checks (200 QA-format MMLU prompts; CoT capped at 300 tokens; `logs/sft-ini
 |---|---|---|---|
 | 8B unstyled, matched | 99% | – | 0% |
 | 8B pirate CoT | 100% | 100% / 98% | 4% |
+| 27B unstyled, matched | 98% | – | 0% |
+| 27B pirate CoT | 98% | 100% / 100% | 4% |
+
+RL (all queued in `logs/campaign-2026-10-22/registry.tsv`, 5 seeds each): `gated-{8b,27b}-normalsft-{ctrl,pen}-s4?`, `gated-{8b,27b}-pcot-{ctrl,pen}-s4?`.
