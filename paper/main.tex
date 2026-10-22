@@ -272,7 +272,7 @@ On Qwen3.6-27B, reward targeting and Targeted M\&F alone already recover the con
 
 In this section, we first check where the plain penalty produces spillover in our setup, and then compare the mitigations in the settings where it does, beyond our main one. We count spillover as clear when the penalized model still does the task and scrubs its output, while its CoT detection falls well below the no-penalty control.
 
-\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Table~\ref{tab:screen} in Appendix~\ref{app:envs}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). We have not run the mitigations on the three Qwen3.5 models. The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
+\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Table~\ref{tab:screen} in Appendix~\ref{app:envs}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). On Qwen3.5-9B, the one Qwen3.5 model with the full set of conditions, style separation does not reduce spillover (Appendix~\ref{app:envs}). The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
 
 \begin{figure}[t]
 \centering
@@ -508,6 +508,48 @@ Terminal, Qwen3-8B & Pig Latin + style reward & 0.07, 0.89, 1.00, 0.99, 0.10 \\
 
 \paragraph{QA on larger models.} On Qwen3.6-27B the styled models' no-penalty controls already vary across seeds (CoT detection $0.80\pm0.23$ for pirate, $0.75\pm0.19$ for Pig Latin, and $0.69\pm0.23$ for Chinese, compared to $0.81\pm0.05$ for the unstyled control). Under the penalty, the combinations of Table~\ref{tab:compose} narrow the styled models' seed spread for pirate (reward targeting: $0.83$--$0.99$ across seeds) but not for Pig Latin plus reward targeting ($0.31$--$0.98$; Table~\ref{tab:seeds}). Chinese behaves like pirate: with Targeted M\&F it keeps $0.97\pm0.05$ ($0.87$--$1.00$ across seeds) and with reward targeting $0.85\pm0.13$ ($0.66$--$0.98$), both at or above the unstyled control, while with Mind \& Face it keeps $0.41\pm0.24$. The prompt-matched normal-SFT model on Qwen3.6-27B mentions the hint in $0.95$ of its CoTs without the penalty and in $0.48\pm0.40$ under it, with its seeds split between near-full retention and near-total loss ($0.79$, $0.07$, $0.33$, $0.19$, $0.99$). Like the styles, SFT alone leaves the 27B outcome seed-dependent. On Qwen3.6-35B-A3B nearly every CoT is cut off by the 300-token limit and the unpenalized CoT mentions the hint only a third of the time. The penalty removes two thirds of that, reward targeting recovers most of the drop, and the pirate and Pig-Latin styles recover none of it. On Nemotron-3-Super-120B-A12B the penalty lowers CoT detection only from $0.87$ to $0.79$ and its main effect is that the model stops following the hint in almost half of episodes (task reward $0.55$). We have no styled models for it.
 
+\paragraph{QA on Qwen3.5-9B.} On Qwen3.5-9B we ran every QA condition with five seeds (Table~\ref{tab:q9b}, Figure~\ref{fig:q9b}). The plain penalty lowers CoT hint detection from $0.84$ to $0.13$. Reward targeting ($0.69$) and Targeted M\&F ($0.85$) keep most or all of it and Mind \& Face keeps less ($0.33$). The three styles keep little of it: $0.10$ for pirate, $0.17$ for Pig Latin and $0.35\pm0.34$ for Chinese, whose seeds range from $0.10$ to $0.93$ (four of five at or below $0.34$). Every styled model keeps its style in all outputs and passes the explanation check in at least $98\%$ of them. The styled models also mention the hint less without the penalty: their no-penalty controls reach $0.43$ (pirate), $0.42$ (Pig Latin) and $0.60$ (Chinese), against $0.84$ for the unstyled control. The style SFT already lowers the mention rate at the start of RL ($0.36$--$0.39$ in the first ten steps, against $0.56$ for the unstyled model), and unlike the unstyled model the styled models do not raise it during RL. Measured against their own controls the penalty still removes most of the styled models' CoT mentions. Combining a style with a prior mitigation does worse than the mitigation alone: with Targeted M\&F the pirate model keeps $0.40$ and the Pig-Latin model $0.57$, against $0.85$ for Targeted M\&F alone. We checked the CoTs of the last 27 steps for the degeneration of Section~\ref{sec:cotstyle}: in every condition at least $86\%$ are on-topic reasoning about the question and none are repetitive.
+
+\begin{table}[h]
+\centering
+\caption{QA on Qwen3.5-9B. Means over the last 27 steps $\pm$ sample standard deviation over 5 seeds. ``Genuine'' is the fraction of outputs the explanation check accepts and ``style'' the fraction of outputs in the trained style.}
+\label{tab:q9b}
+\small
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Condition & CoT & Output & Genuine & Style & Reward \\
+\midrule
+No penalty (control) & $0.84\pm0.17$ & 0.89 & 1.00 & --- & $-0.79$ \\
+Plain penalty & $0.13\pm0.16$ & 0.02 & 1.00 & --- & $+0.96$ \\
+Reward targeting & $0.69\pm0.17$ & 0.01 & 1.00 & --- & $+0.97$ \\
+Mind \& Face & $0.33\pm0.15$ & 0.00 & 1.00 & --- & $+0.99$ \\
+Targeted M\&F & $0.85\pm0.18$ & 0.01 & 1.00 & --- & $+0.99$ \\
+\addlinespace
+Pirate & $0.10\pm0.06$ & 0.01 & 1.00 & 1.00 & $+0.98$ \\
+Pig Latin & $0.17\pm0.05$ & 0.01 & 0.98 & 1.00 & $+0.96$ \\
+Chinese & $0.35\pm0.34$ & 0.00 & 1.00 & 1.00 & $+0.99$ \\
+Pirate, no penalty & $0.43\pm0.23$ & 0.68 & 1.00 & 1.00 & $-0.37$ \\
+Pig Latin, no penalty & $0.42\pm0.29$ & 0.48 & 0.99 & 1.00 & $+0.03$ \\
+Chinese, no penalty & $0.60\pm0.30$ & 0.82 & 1.00 & 1.00 & $-0.64$ \\
+\addlinespace
+Pirate + reward targeting & $0.54\pm0.36$ & 0.01 & 0.99 & 1.00 & $+0.98$ \\
+Pirate + Mind \& Face & $0.10\pm0.12$ & 0.01 & 1.00 & 1.00 & $+0.99$ \\
+Pirate + Targeted M\&F & $0.40\pm0.18$ & 0.00 & 1.00 & 1.00 & $+0.99$ \\
+Pig Latin + reward targeting & $0.42\pm0.35$ & 0.01 & 0.99 & 1.00 & $+0.96$ \\
+Pig Latin + Mind \& Face & $0.24\pm0.34$ & 0.01 & 0.99 & 1.00 & $+0.96$ \\
+Pig Latin + Targeted M\&F & $0.57\pm0.39$ & 0.00 & 0.98 & 1.00 & $+0.97$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.49\textwidth]{figures/qa9b_bars.pdf}\hfill
+\includegraphics[width=0.49\textwidth]{figures/compose_9b.pdf}
+\caption{QA on Qwen3.5-9B. Left: CoT hint detection per condition; dots are seeds; the dashed line is the no-penalty control. Right: each prior mitigation alone and combined with a style; error bars are 95\% intervals over seeds.}
+\label{fig:q9b}
+\end{figure}
+
 \paragraph{Terminal environment.} Table~\ref{tab:terminal} also gives how often each model read the verifier and how often the explanation check accepted its explanations. Two of the five Pig-Latin seeds and four of the five Chinese seeds stop reading the verifier under the penalty, as do all five pirate seeds. The Chinese seeds are not in Table~\ref{tab:seeds}; the four that stop are at $0.04$--$0.09$, and the one that keeps reading is at $0.99$ and never scrubs its output. The task column is the task reward after the explanation check, and for the unstyled models it equals the check's acceptance rate. The styled models that stop reading still earn some task reward ($0.28$ for pirate, at a read rate of $0.01$). They get it by guessing: the verifier prints only whether an answer passes, the stored answer is within 5 of the true one, and over its four turns the model calls the verifier with up to four different numbers, which passes about $29\%$ of such episodes. Task reward alone therefore does not show that a model in this environment reads the verifier.
 
 \begin{table}[h]
@@ -663,7 +705,7 @@ Examples / max length (tokens) & \multicolumn{3}{l}{10{,}000 / 8{,}192} \\
 \end{tabular}
 \end{table}
 
-\paragraph{Models and seeds.} The main RL model is Qwen3-8B. Section~\ref{sec:envs} adds Qwen3.6-27B (dense) and Qwen3.6-35B-A3B (mixture of experts, 3B active), and its spillover test adds 13 more models with three seeds each, and Qwen3.5-9B and Nemotron-3-Super-120B-A12B with five (Table~\ref{tab:screen}). The long-budget runs of Appendix~\ref{app:regime} use Qwen3-8B and Qwen3-32B, with two or three seeds, and one Nemotron run. Qwen3-32B is no longer available through the API, so Section~\ref{sec:envs} uses Qwen3.6-27B for its larger-model results. The judges run at temperature 0. RL seeds are 42--46; in QA the seed fixes the question order and the hint assignment. Five QA conditions have ten seeds (42--51): pirate and Pig Latin with the style reward under the penalty, pirate with the style reward and no penalty, and the no-SFT control and plain penalty trained without the explanation check (Table~\ref{tab:degeneration}).
+\paragraph{Models and seeds.} The main RL model is Qwen3-8B. Section~\ref{sec:envs} adds Qwen3.6-27B (dense) and Qwen3.6-35B-A3B (mixture of experts, 3B active), and its spillover test adds 13 more models with three seeds each, and Qwen3.5-9B and Nemotron-3-Super-120B-A12B with five (Table~\ref{tab:screen}); Qwen3.5-9B also has every QA condition with five seeds (Table~\ref{tab:q9b}). The long-budget runs of Appendix~\ref{app:regime} use Qwen3-8B and Qwen3-32B, with two or three seeds, and one Nemotron run. Qwen3-32B is no longer available through the API, so Section~\ref{sec:envs} uses Qwen3.6-27B for its larger-model results. The judges run at temperature 0. RL seeds are 42--46; in QA the seed fixes the question order and the hint assignment. Five QA conditions have ten seeds (42--51): pirate and Pig Latin with the style reward under the penalty, pirate with the style reward and no penalty, and the no-SFT control and plain penalty trained without the explanation check (Table~\ref{tab:degeneration}).
 
 \paragraph{Measurement protocol.} Unless stated otherwise, reported numbers are training-rollout averages over the last 10\% of optimizer steps of each run (27 of 266 for QA and polynomial, 40 of 400 for terminal), averaged over seeds. There is no separate held-out evaluation, and in QA the question pool is seen about twice per run, so CoT detection is the fraction of late-training rollouts whose CoT the monitor flags. Tables give the sample standard deviation over seeds. Error bars on seed means in figures are $95\%$ $t$ intervals. The exceptions to the reporting window are the long-budget and pirate-CoT numbers of Appendix~\ref{app:regime} (final-checkpoint evaluations), the output--CoT coupling numbers of Section~\ref{sec:discussion} (the first ten steps), and the output classifications of Appendix~\ref{app:audit} (the last 66 steps, and samples of 50 or 150 judged outputs).
 

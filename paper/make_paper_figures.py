@@ -79,6 +79,14 @@ RUNS = {
         "normalm": "grpo-gated-27b-normalsft-pen-s??", "normalm_ctrl": "grpo-gated-27b-normalsft-ctrl-s??",
         "pcot": "grpo-gated-27b-pcot-pen-s??", "pcot_ctrl": "grpo-gated-27b-pcot-ctrl-s??",
     }),
+    # Qwen3.5-9B full QA set (appendix only), 2026-10-22
+    "qa9b": (QA, {
+        "ctrl": "grpo-gated-sig-q35-9b-nosft-ctrl-s??", "pen": "grpo-gated-sig-q35-9b-nosft-pen-s??",
+        "rt": "grpo-gated-sig-q35-9b-rt-s??", "mf": "grpo-gated-sig-q35-9b-mf-s??", "tmf": "grpo-gated-sig-q35-9b-tmf-s??",
+        **{s: f"grpo-gated-sig-q35-9b-{s}sr-pen-s??" for s in ("pirate", "piglatin", "chinese")},
+        **{f"{s}_ctrl": f"grpo-gated-sig-q35-9b-{s}sr-ctrl-s??" for s in ("pirate", "piglatin", "chinese")},
+        **{f"{s}+{m}": f"grpo-gated-sig-q35-9b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
+    }),
     "qa35b": (QA, {
         "ctrl": "grpo-gated-35b-nosft-ctrl-s??", "pen": "grpo-gated-35b-nosft-pen-s??",
         "rt": "grpo-gated-35b-rt-s??",
@@ -343,12 +351,13 @@ def fig_main_scatter_bars(d, path):
     plt.close(fig)
 
 
-def fig_compose(d8, d27, path):
-    """Vertical grouped bars: each prior mitigation alone and combined with each style."""
+def fig_compose(panels, path, width=W * 0.76):
+    """Vertical grouped bars: each prior mitigation alone and combined with each style. panels: [(data, title)]."""
     groups = [("None", "pen"), ("Reward\ntargeting", "rt"), ("Mind &\nFace", "mf"),
               ("Targeted\nM&F", "tmf")]
-    fig, axes = plt.subplots(1, 2, figsize=(W * 0.76, W * 0.4), sharey=True)
-    for ax, d, title in ((axes[0], d8, "Qwen3-8B"), (axes[1], d27, "Qwen3.6-27B")):
+    fig, axes = plt.subplots(1, len(panels), figsize=(width, W * 0.4), sharey=True, squeeze=False)
+    axes = axes[0]
+    for ax, (d, title) in zip(axes, panels):
         for gi, (gname, m) in enumerate(groups):
             members = [(m, m), ("pirate", "pirate" if m == "pen" else f"pirate+{m}"),
                        ("piglatin", "piglatin" if m == "pen" else f"piglatin+{m}")]
@@ -449,10 +458,10 @@ ENV_PANELS = [  # the two models x two environments besides QA on Qwen3-8B
 ]
 
 
-def fig_envs(data, panels, path):
+def fig_envs(data, panels, path, width=W):
     """CoT-detection bars per setting; dots are seeds."""
-    fig, axes = plt.subplots(1, len(panels), figsize=(W, W * 0.36), sharey=True)
-    for i, (ax, pn) in enumerate(zip(axes, panels)):
+    fig, axes = plt.subplots(1, len(panels), figsize=(width, W * 0.36), sharey=True, squeeze=False)
+    for i, (ax, pn) in enumerate(zip(axes[0], panels)):
         d = data[pn["key"]]
         cot_bars(ax, d, ORDER, ylabel="CoT detection" if i == 0 else "", dots=True, not_run=not pn.get("note"))
         if pn.get("note"):
@@ -533,7 +542,10 @@ def main():
     fig_main_scatter(data["qa8b"], FIG / "main_scatter.pdf")
     fig_main_scatter(data["qa8b"], FIG / "main_scatter_nolegend.pdf", legend=False, width=W * 0.48)
     fig_main_scatter_bars(data["qa8b"], FIG / "main_scatter_bars.pdf")
-    fig_compose(data["qa8b"], data["qa27b"], FIG / "compose_vertical.pdf")
+    fig_compose([(data["qa8b"], "Qwen3-8B"), (data["qa27b"], "Qwen3.6-27B")], FIG / "compose_vertical.pdf")
+    # Qwen3.5-9B (appendix): condition bars and the composition with the prior mitigations
+    fig_envs(data, [dict(title="QA, Qwen3.5-9B", key="qa9b", lam=2)], FIG / "qa9b_bars.pdf", width=W * 0.55)
+    fig_compose([(data["qa9b"], "Qwen3.5-9B")], FIG / "compose_9b.pdf", width=W * 0.5)
     fig_screen(data, FIG / "spillover_screen.pdf")
     fig_envs(data, ENV_PANELS, FIG / "envs_bars.pdf")
     fig_envs_pareto(data, ENV_PANELS, FIG / "envs_pareto.pdf")
@@ -544,7 +556,7 @@ def main():
              xlabel="CoT detection of reading the verifier", arrow=(0.76, 0.3),
              notes=[((0.06, 0.12), "styled runs that stopped\nreading the verifier")]),
     ], FIG / "envs_pareto_term.pdf")
-    for s in ("qa8b", "qa27b", "qa35b", "poly27b", "term8b"):
+    for s in ("qa8b", "qa27b", "qa9b", "qa35b", "poly8b", "poly27b", "term8b"):
         print(f"== {s}")
         for k, a in data[s].items():
             print(f"  {k:16s} n={a['n']:2d} cot {a['cot']:.3f}±{a['cot_sd']:.3f} out {a['out']:.3f} "

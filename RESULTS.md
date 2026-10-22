@@ -1578,3 +1578,26 @@ Audit by a subagent (`logs/analysis-2026-10-22-pcot-audit/`: `stats.json`, read 
 - No judge outage: 0 judge failures.
 
 Paper: §cotstyle says the 27B result is inconclusive, with these facts. It is not in the tables.
+
+**Qwen3.5-9B full QA set (finished 12:20 UTC; 17 conditions × 5 seeds; `logs/grpo-gated-sig-q35-9b-*`; numbers from
+`paper/make_paper_figures.py` setting `qa9b` → paper_numbers.json; figures `paper/figures/qa9b_bars.pdf`,
+`compose_9b.pdf`; paper Appendix "QA on Qwen3.5-9B", Table tab:q9b).** Style separation does NOT help on 9B.
+
+| Condition | CoT | Output | Genuine | Style | Reward |
+|---|---|---|---|---|---|
+| No penalty | 0.84±0.17 | 0.89 | 1.00 | – | −0.79 |
+| Plain penalty | 0.13±0.16 | 0.02 | 1.00 | – | +0.96 |
+| Reward targeting | 0.69±0.17 | 0.01 | 1.00 | – | +0.97 |
+| Mind & Face | 0.33±0.15 | 0.00 | 1.00 | – | +0.99 |
+| Targeted M&F | 0.85±0.18 | 0.01 | 1.00 | – | +0.99 |
+| Pirate / Pig Latin / Chinese (penalty) | 0.10±0.06 / 0.17±0.05 / 0.35±0.34 | ≤0.01 | ≥0.98 | 1.00 | ≥+0.96 |
+| same, no penalty | 0.43±0.23 / 0.42±0.29 / 0.60±0.30 | 0.68 / 0.48 / 0.82 | ≥0.99 | 1.00 | |
+| Pirate + RT / M&F / TMF | 0.54±0.36 / 0.10±0.12 / 0.40±0.18 | ≤0.01 | ≥0.99 | 1.00 | |
+| Pig Latin + RT / M&F / TMF | 0.42±0.35 / 0.24±0.34 / 0.57±0.39 | ≤0.01 | ≥0.98 | 1.00 | |
+
+- Chinese penalty seeds: 0.93, 0.10, 0.25, 0.12, 0.34.
+- Styled no-penalty controls are low because the style SFT lowers the starting CoT mention rate. Over the first 10
+  steps it is 0.36–0.39 for the styled models vs 0.56 for no-SFT. No-SFT rises to 0.84 during RL; the styled
+  models stay flat (pirate 0.36→0.43, Pig Latin 0.39→0.42, Chinese 0.36→0.60).
+- CoT health check (`logs/analysis-2026-10-22-pcot-audit/q9b_health.{py,txt}`, using the feats() of 27b/extra27.py):
+  last 27 steps, ≥86% of CoTs are genuine and 0% repetitive in every condition, so the low numbers are not degeneration.

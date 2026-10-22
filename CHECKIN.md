@@ -764,3 +764,19 @@ Queue: 124 of 160 runs done, none failed, no judge failures all day. Everything 
 - **27B Chinese + each prior mitigation:** + Targeted M&F 0.97, + reward targeting 0.85, + Mind & Face 0.41
   (no-penalty control 0.81). Added as a column of the combinations table.
 - Still running: the last 2–3 seeds of each Qwen3.5-9B condition (appendix).
+
+## 2026-10-22 12:40 UTC — Qwen3.5-9B finished: style separation does not help there
+
+All 17 conditions × 5 seeds are done. The paper appendix now has a section with a table and a figure for it.
+- **No penalty / plain penalty:** CoT mentions the hint 0.84 → 0.13 (strong spillover).
+- **Prior mitigations work:** reward targeting 0.69, Targeted Mind & Face 0.85. Plain Mind & Face keeps less, 0.33.
+- **Styles don't:** pirate 0.10, Pig Latin 0.17, Chinese 0.35 (one seed 0.93, the rest ≤0.34).
+- **Combining a style with a mitigation is worse than the mitigation alone.** For example, pirate + Targeted M&F
+  gives 0.40 vs 0.85 for Targeted M&F alone.
+- **The styled models mention the hint less even with no penalty (about 0.42–0.60).** The style training lowers this
+  from the start of RL (about 0.37 vs 0.56), and RL never raises it, while for the unstyled model it rises to 0.84.
+- **The CoTs are fine:** I checked for the "Arrr!"-spam kind of collapse, and none of it is present.
+
+**Extra Qwen3.6-27B pirate-CoT seeds:** about 1/3 through.
+- The no-penalty seeds are all healthy.
+- Among the penalty seeds, 2 look healthy and 3 show the same collapse as before.
