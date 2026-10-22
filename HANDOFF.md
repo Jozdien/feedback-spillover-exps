@@ -323,3 +323,30 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
 - Ops: three OpenAI credit outages in two days; `resume_runs.sh` + the JUDGE_OUTAGE guard make them
   cheap, but every judge-using family needs a top-up watch. Monitors: use `tail -c 300000` for
   multi-turn rollouts (rows exceed 4 KB) and globs that match `-8b-s4?` names exactly.
+
+## 2026-10-22 — the ~$6k campaign (user-facing summary: CHECKIN.md same date; numbers: RESULTS §16j–§16l)
+
+- **Scope (user decisions):** terminal task dropped. Main paper = clean full condition sets on Qwen3-8B and
+  Qwen3.6-27B, in QA and polynomial factoring. Qwen3.5-9B full QA set goes in the appendix only. Fig 4 has a bar
+  and a Pareto version (user undecided), panels QA 27B, poly 8B, poly 27B. Old-paper settings redone on 8B and 27B,
+  with and without the penalty: pirate-CoT (styled CoT, plain output) and prompt-matched unstyled on-policy SFT.
+  User: "just throw [results] in" to the paper; another Claude instance will rewrite the narrative.
+- **Queue:** `scripts/campaign.sh` (header documents usage). Registry `logs/campaign-2026-10-22/registry.tsv`
+  (one line per run, order = launch priority), scheduler log `watch.log`, restart counters `restarts/`.
+  Scheduler is `campaign.sh watch` (keeps MAX_LIVE=60 runs live, relaunches dead runs from last checkpoint).
+  A run is done when every checkpoints.jsonl under logs/grpo-<name> has "final".
+- **New checkpoints (RESULTS §16k is the registry):** 8B/27B prompt-matched normal SFT (14535c55…, 27425d03…),
+  8B/27B pirate-CoT SFT (844125d5…, 37b8745f…), 9B style SFTs (§16j). Data under data/{normal-alpaca-*-matched,
+  pirate-cot-alpaca-*}; QC via scripts/qc_pirate_cot_data.py; init checks via scripts/check_init_format.py +
+  scripts/judge_init_cot_style.py (outputs logs/sft-init-format-check/).
+- **Paper plumbing:** `uv run paper/make_paper_figures.py` (RUNS dict globs `s??`, so extra seeds are picked up
+  automatically) → figures + paper/figures/paper_numbers.json; build with the scratchpad build.sh; copy main.pdf.
+- **Pirate-CoT audit (important):** never trust a near-zero CoT-mention rate for a styled-CoT model without
+  reading CoTs. Audit scripts in logs/analysis-2026-10-22-pcot-audit/ (8B) and …/27b/ (extra27.py classifies
+  each CoT as genuine / repetitive spam / off-topic, checks verbatim hint quoting and judge-vs-keyword
+  agreement; `SEEDS="47 48 …"` env var selects seeds). 8B result (0.49 → 0.01) is genuine. 27B s42–46: 3 of 5
+  penalty seeds + 1 control collapsed into "Arrr!"/filler during RL; s43 pastes the prompt (judge catches ~half).
+  Paper calls 27B inconclusive. Seeds s47–51 queued (~$220); at step ~85 all 5 controls healthy, penalty
+  s47/s48 healthy, s49 collapsing, s50/s51 degrading.
+- **Still open:** finish 27B pcot s47–51 audit → §cotstyle + RESULTS §16l; 9B full set into appendix once its
+  last seeds finish; user's table feedback pending.
