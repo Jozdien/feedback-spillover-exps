@@ -823,3 +823,22 @@ The groups:
     They should finish around 10:30–11:00 UTC.
   - The other 14 runs: about 08:00 for no penalty, plain penalty and reward targeting; about 11:15 for Targeted M&F.
 - **No async needed:** this is well within the 15–16 h limit.
+
+## 2026-10-23 10:40 UTC — Qwen3.5-397B results are in (and in the paper appendix)
+
+All 40 runs on the biggest model finished (5 seeds per condition). How often the model's reasoning still mentions the hint, at the end of training:
+
+| Condition | Hint mention in reasoning |
+|---|---|
+| No penalty | 0.98 |
+| Plain penalty on the answer | 0.52 |
+| Reward targeting | 0.98 |
+| Targeted Mind & Face | 0.95 |
+| Pirate output + penalty | 0.83 (seeds 0.38–1.00) |
+| Pig Latin output + penalty | 0.57 (three seeds 0.18–0.41, two ~1.0) |
+| Pirate / Pig Latin, no penalty | 0.89 / 0.89 |
+
+- The two prior targeted methods fully protect the reasoning on this model. The styles help on average but are unreliable from seed to seed.
+- Style training on its own slightly lowers how often the model mentions the hint (0.89 vs 0.98), like on the 9B model but milder.
+- The styled models' reasoning is healthy (no repetition spam; mostly on-topic), and the judge agrees with a plain keyword search.
+- Paper: new appendix subsection "Qwen3.5-397B-A17B" (table + figure). The spillover table row is updated from 3 to 5 seeds (0.99→0.36 became 0.98→0.52), and two sentences in the main text point to it.

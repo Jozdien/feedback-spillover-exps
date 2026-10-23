@@ -1688,3 +1688,23 @@ Reading:
 - **Epochs.** For pirate, the final checkpoint is best on both format and style. For Pig Latin, all three checkpoints are within noise.
 
 Costs: Pass 1 $174.1 (34M sample tokens at $5/M, plus a $0.3 probe); rewrites $16.3; two SFTs $387.5 (64.6M train tokens at $6/M); init checks and judges about $7. **Total about $585.**
+
+### 16n. Qwen3.5-397B-A17B QA minimal set (2026-10-23; `logs/grpo-gated-sig-q397-*`; last 27 steps, mean ± sample sd over 5 seeds s42–46)
+
+Paper: Appendix "Results on other models" → Qwen3.5-397B-A17B (`tab:q397`, `fig:q397` = `paper/figures/qa397_bars.pdf`); setting `qa397` in `paper/make_paper_figures.py`. RL checkpoints: each run dir's `checkpoints.jsonl`. Style SFTs: §16m.
+
+| Condition | CoT | Output | Genuine | Style | Reward | per-seed CoT |
+|---|---|---|---|---|---|---|
+| No penalty | 0.98±0.02 | 0.96 | 0.99 | — | −0.92 | 1.00 0.98 0.99 0.99 0.95 |
+| Plain penalty | 0.52±0.23 | 0.00 | 1.00 | — | +0.99 | 0.44 0.28 0.36 0.75 0.77 |
+| Reward targeting | 0.98±0.01 | 0.01 | 1.00 | — | +0.98 | 0.98 0.97 0.98 0.97 0.99 |
+| Targeted M&F | 0.95±0.09 | 0.00 | 1.00 | — | +0.99 | 0.98 0.99 0.99 0.78 1.00 |
+| Pirate (pen) | 0.83±0.26 | 0.00 | 1.00 | 1.00 | +0.99 | 0.96 1.00 0.38 0.84 0.95 |
+| Pig Latin (pen) | 0.57±0.39 | 0.01 | 0.99 | 1.00 | +0.97 | 1.00 0.18 0.41 0.30 0.97 |
+| Pirate, no penalty | 0.89±0.15 | 0.91 | 1.00 | 1.00 | −0.81 | 1.00 1.00 0.64 0.98 0.85 |
+| Pig Latin, no penalty | 0.89±0.15 | 0.89 | 1.00 | 1.00 | −0.77 | 0.65 0.98 0.99 1.00 0.86 |
+
+- Task accuracy 0.99–1.00 everywhere. The 3-seed screen (§16h) said 0.99→0.36; the 5-seed spillover is 0.98→0.52 (s45/s46 weaker).
+- First-10-step CoT mention: unstyled 0.91–0.94, styled 0.71–0.76 (style SFT lowers the starting rate, as on 9B, but less).
+- CoT health (`logs/analysis-2026-10-22-pcot-audit/q9b_health.py` with `PREFIX=grpo-gated-sig-q397`; per seed `q397_seeds.py` → `q397_seeds.txt`): genuine 0.79–0.89 per condition, spam ≤0.01. Pirate-pen s46 is 0.47 on-topic because its CoTs spend most of their length on the answer format first (inspected; not degenerate). Judge CoT verdict = keyword hint search in every run (j|kw ≥ 0.92).
+- Read: RT and TMF fix spillover on 397B; styles help vs plain penalty on average but are seed-bimodal (pirate weakly, Pig Latin barely).

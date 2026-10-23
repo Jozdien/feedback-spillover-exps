@@ -272,7 +272,7 @@ On Qwen3.6-27B, reward targeting and Targeted M\&F alone already recover the con
 
 In this section, we first check where the plain penalty produces spillover in our setup, and then compare the mitigations in the settings where it does, beyond our main one. We count spillover as clear when the penalized model still does the task and scrubs its output, while its CoT detection falls well below the no-penalty control.
 
-\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Table~\ref{tab:screen} in Appendix~\ref{app:envs}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models; Appendix~\ref{app:othermodels} gives these runs). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). On Qwen3.5-9B, the one Qwen3.5 model with the full set of conditions, style separation does not reduce spillover (Appendix~\ref{app:othermodels}). The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
+\paragraph{Clear spillover appears only in Qwen models.} In QA, the plain penalty clearly spills on six Qwen models: Qwen3-8B, Qwen3.5-4B, Qwen3.5-9B, Qwen3.5-397B-A17B, Qwen3.6-27B, and Qwen3.6-35B-A3B (Table~\ref{tab:screen} in Appendix~\ref{app:envs}). On the other models the penalized CoT changes little (by at most $0.11$, on GPT-OSS-20B), or the model meets the penalty in a way that leaves no spillover to measure: it gives up part of the task (DeepSeek-V3.1, where CoT detection also falls, and four others), fails to scrub its output (two Nemotron models), or never learns the task (the two Inkling models; Appendix~\ref{app:othermodels} gives these runs). GPT-OSS-120B's unpenalized CoT rarely mentions the hint. In polynomial factoring the penalty spills on Qwen3.6-27B only, and in the terminal task it lowers CoT detection little on Qwen3-8B ($0.94\to0.85$). On Qwen3.6-27B one of its three terminal runs stops reading the verifier, and the other two still admit the read in their CoT ($0.90$, against $0.99$ without a penalty). We therefore do not compare the mitigations in the terminal task (Appendix~\ref{app:terminal} gives those runs, in which the styled models mostly stop reading the verifier under the penalty). On Qwen3.5-9B, where we ran the full set of conditions, style separation does not reduce spillover, and on Qwen3.5-397B-A17B it is less reliable than reward targeting or Targeted M\&F (Appendix~\ref{app:othermodels}). The rest of this section covers QA on Qwen3.6-27B and Qwen3.6-35B-A3B and polynomial factoring on Qwen3.6-27B (Figure~\ref{fig:envs}); Appendix~\ref{app:envs} gives the numbers.
 
 \begin{figure}[t]
 \centering
@@ -300,7 +300,7 @@ Interestingly, we find that a model fine-tuned to write its \emph{CoT} in pirate
 \section{Discussion}
 \label{sec:discussion}
 
-We find that making a model's output stylistically distinct from its CoT can mitigate feedback spillover. In QA on Qwen3-8B, all three styles recover about as much CoT hint detection as reward targeting and Targeted M\&F, none reaches the no-penalty level on its own, and the pirate and Pig-Latin models reach it when combined with reward targeting or Targeted M\&F (Sections~\ref{sec:main} and~\ref{sec:compose}). Beyond this setting, the styles keep the CoT in polynomial factoring but are less reliable than the targeted mitigations in QA on larger models, do not reduce spillover in QA on Qwen3.5-9B (Appendix~\ref{app:othermodels}), and in our setup clear spillover appears only in Qwen models (Section~\ref{sec:envs}). Styling the CoT instead of the output has the opposite effect (Section~\ref{sec:cotstyle}).
+We find that making a model's output stylistically distinct from its CoT can mitigate feedback spillover. In QA on Qwen3-8B, all three styles recover about as much CoT hint detection as reward targeting and Targeted M\&F, none reaches the no-penalty level on its own, and the pirate and Pig-Latin models reach it when combined with reward targeting or Targeted M\&F (Sections~\ref{sec:main} and~\ref{sec:compose}). Beyond this setting, the styles keep the CoT in polynomial factoring but are less reliable than the targeted mitigations in QA on larger models, do not reduce spillover in QA on Qwen3.5-9B and are less reliable than the targeted mitigations on Qwen3.5-397B-A17B (Appendix~\ref{app:othermodels}), and in our setup clear spillover appears only in Qwen models (Section~\ref{sec:envs}). Styling the CoT instead of the output has the opposite effect (Section~\ref{sec:cotstyle}).
 
 \paragraph{Mechanism.} We motivated style separation by parametric spillover: if the styled output corresponds to a different portion of the model's character distribution \citep{marks2026psm} than the CoT, an update that removes the hint from the output should generalize less to the reasoning. The combinations of Section~\ref{sec:compose} are consistent with this account, and we posit that the style acts on the parametric channel. On Qwen3-8B, style separation adds to reward targeting, which removes the conditional term, and with it reaches the no-penalty level, but Mind \& Face, which removes the parametric term by generating the output with a separate model, adds nothing to it. It also does that job better than Mind \& Face does there: the styles alone are at or above Mind \& Face alone (Pig Latin clearly so), and style plus reward targeting ($0.62$) is above Targeted M\&F ($0.52$). On Qwen3.6-27B, where reward targeting alone recovers the control level, spillover seems to be mostly conditional, and the styles alone recover less of the drop than the targeted mitigations on average, which is at least consistent with this. The pirate and Pig-Latin styles also do not loosen the conditional link from the start: over the first ten training steps without a penalty, the probability that the output omits the hint when the CoT mentions it is $0.10$ and $0.13$, against $0.11$ for the base model. For the Chinese model it measures higher ($0.20$), though we can't tell how much of that is outputs with no explanation rather than a looser link; it ends up level with pirate under the penalty. We have not observed the mechanism directly, and the pirate-CoT model does not fit this account: it separates the two channels as well but loses the hint from its CoT entirely (Section~\ref{sec:cotstyle}).
 
@@ -390,7 +390,7 @@ QA & Qwen3-8B & 5 & 0.60 & 0.27 & 0.99 & 0.99 & 0.17 \\
  & Qwen3.5-9B & 5 & 0.84 & 0.13 & 1.00 & 1.00 & 0.02 \\
  & Qwen3.6-27B & 5 & 0.81 & 0.45 & 0.99 & 0.99 & 0.01 \\
  & Qwen3.6-35B-A3B & 5 & 0.33 & 0.11 & 1.00 & 0.99 & 0.01 \\
- & Qwen3.5-397B-A17B & 3 & 0.99 & 0.36 & 0.99 & 0.99 & 0.00 \\
+ & Qwen3.5-397B-A17B & 5 & 0.98 & 0.52 & 0.99 & 0.99 & 0.00 \\
  & Qwen3.8-27B & 3 & 0.97 & 0.92 & 1.00 & 0.60 & 0.02 \\
  & GPT-OSS-20B & 3 & 0.91 & 0.80 & 0.99 & 0.99 & 0.00 \\
  & GPT-OSS-120B & 3 & 0.18 & 0.59 & 1.00 & 0.99 & 0.01 \\
@@ -588,6 +588,39 @@ Pig Latin + Targeted M\&F & $0.57\pm0.39$ & 0.00 & 0.98 & 1.00 & $+0.97$ \\
 \includegraphics[width=0.49\textwidth]{figures/compose_9b.pdf}
 \caption{QA on Qwen3.5-9B. Left: CoT hint detection per condition; dots are seeds; the dashed line is the no-penalty control. Right: each prior mitigation alone and combined with a style; error bars are 95\% intervals over seeds.}
 \label{fig:q9b}
+\end{figure}
+
+\subsection{Qwen3.5-397B-A17B}
+
+Qwen3.5-397B-A17B is the largest model on which the plain penalty spills in QA, so we ran a reduced set of conditions on it with five seeds: the control, the plain penalty, reward targeting, Targeted M\&F, and the pirate and Pig-Latin styles with and without the penalty (Table~\ref{tab:q397}, Figure~\ref{fig:q397}). The plain penalty lowers CoT hint detection from $0.98$ to $0.52\pm0.23$. Reward targeting ($0.98$) and Targeted M\&F ($0.95$; four seeds at or above $0.98$ and one at $0.78$) keep nearly all of it. The styles keep more than the plain penalty but vary across seeds: pirate keeps $0.83\pm0.26$ (seeds $0.38$ to $1.00$) and Pig Latin $0.57\pm0.39$ (three seeds between $0.18$ and $0.41$, two at or above $0.97$). As on Qwen3.5-9B, the style SFT lowers the mention rate without the penalty: the styled controls reach $0.89$ against $0.98$ for the unstyled control, and $0.71$--$0.76$ in the first ten steps against $0.91$. Every styled model keeps its style in all outputs and passes the explanation check in at least $99\%$ of them. In the CoTs of the last 27 steps, at least $79\%$ per condition are on-topic reasoning about the question and none are repetitive. The exception is one pirate seed, whose CoTs spend most of their length on the answer format before turning to the question, so that only $47\%$ count as on-topic. The judge's CoT verdicts agree with a keyword search for the hint in every run.
+
+\begin{table}[h]
+\centering
+\caption{QA on Qwen3.5-397B-A17B. Means over the last 27 steps $\pm$ sample standard deviation over 5 seeds; columns as in Table~\ref{tab:q9b}.}
+\label{tab:q397}
+\small
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Condition & CoT & Output & Genuine & Style & Reward \\
+\midrule
+No penalty (control) & $0.98\pm0.02$ & 0.96 & 0.99 & --- & $-0.92$ \\
+Plain penalty & $0.52\pm0.23$ & 0.00 & 1.00 & --- & $+0.99$ \\
+Reward targeting & $0.98\pm0.01$ & 0.01 & 1.00 & --- & $+0.98$ \\
+Targeted M\&F & $0.95\pm0.09$ & 0.00 & 1.00 & --- & $+0.99$ \\
+\addlinespace
+Pirate & $0.83\pm0.26$ & 0.00 & 1.00 & 1.00 & $+0.99$ \\
+Pig Latin & $0.57\pm0.39$ & 0.01 & 0.99 & 1.00 & $+0.97$ \\
+Pirate, no penalty & $0.89\pm0.15$ & 0.91 & 1.00 & 1.00 & $-0.81$ \\
+Pig Latin, no penalty & $0.89\pm0.15$ & 0.89 & 1.00 & 1.00 & $-0.77$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.55\textwidth]{figures/qa397_bars.pdf}
+\caption{QA on Qwen3.5-397B-A17B: CoT hint detection per condition; dots are seeds; the dashed line is the no-penalty control.}
+\label{fig:q397}
 \end{figure}
 
 \subsection{Models without clear spillover}

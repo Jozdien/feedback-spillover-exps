@@ -87,6 +87,13 @@ RUNS = {
         **{f"{s}_ctrl": f"grpo-gated-sig-q35-9b-{s}sr-ctrl-s??" for s in ("pirate", "piglatin", "chinese")},
         **{f"{s}+{m}": f"grpo-gated-sig-q35-9b-{s}-{m}-s??" for s in ("pirate", "piglatin") for m in ("rt", "mf", "tmf")},
     }),
+    # Qwen3.5-397B-A17B minimal set (appendix), 2026-10-23
+    "qa397": (QA, {
+        "ctrl": "grpo-gated-sig-q397-nosft-ctrl-s??", "pen": "grpo-gated-sig-q397-nosft-pen-s??",
+        "rt": "grpo-gated-sig-q397-rt-s??", "tmf": "grpo-gated-sig-q397-tmf-s??",
+        **{s: f"grpo-gated-sig-q397-{s}sr-pen-s??" for s in ("pirate", "piglatin")},
+        **{f"{s}_ctrl": f"grpo-gated-sig-q397-{s}sr-ctrl-s??" for s in ("pirate", "piglatin")},
+    }),
     "qa35b": (QA, {
         "ctrl": "grpo-gated-35b-nosft-ctrl-s??", "pen": "grpo-gated-35b-nosft-pen-s??",
         "rt": "grpo-gated-35b-rt-s??",
@@ -546,6 +553,8 @@ def main():
     # Qwen3.5-9B (appendix): condition bars and the composition with the prior mitigations
     fig_envs(data, [dict(title="QA, Qwen3.5-9B", key="qa9b", lam=2)], FIG / "qa9b_bars.pdf", width=W * 0.55)
     fig_compose([(data["qa9b"], "Qwen3.5-9B")], FIG / "compose_9b.pdf", width=W * 0.5)
+    # Qwen3.5-397B-A17B minimal set (appendix)
+    fig_envs(data, [dict(title="QA, Qwen3.5-397B-A17B", key="qa397", lam=2)], FIG / "qa397_bars.pdf", width=W * 0.55)
     fig_screen(data, FIG / "spillover_screen.pdf")
     fig_envs(data, ENV_PANELS, FIG / "envs_bars.pdf")
     fig_envs_pareto(data, ENV_PANELS, FIG / "envs_pareto.pdf")
@@ -556,7 +565,7 @@ def main():
              xlabel="CoT detection of reading the verifier", arrow=(0.76, 0.3),
              notes=[((0.06, 0.12), "styled runs that stopped\nreading the verifier")]),
     ], FIG / "envs_pareto_term.pdf")
-    for s in ("qa8b", "qa27b", "qa9b", "qa35b", "poly8b", "poly27b", "term8b"):
+    for s in ("qa8b", "qa27b", "qa9b", "qa397", "qa35b", "poly8b", "poly27b", "term8b"):
         print(f"== {s}")
         for k, a in data[s].items():
             print(f"  {k:16s} n={a['n']:2d} cot {a['cot']:.3f}±{a['cot_sd']:.3f} out {a['out']:.3f} "

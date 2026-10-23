@@ -361,3 +361,4 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
   `PIRATE=<ckpt> PIGLATIN=<ckpt> bash scripts/campaign.sh qa Qwen/Qwen3.5-397B-A17B sig-q397 "42 43 44 45 46" piratesr-ctrl piratesr-pen piglatinsr-ctrl piglatinsr-pen`
 - **User rule:** if the whole set projects past ~19:00 UTC 2026-10-23 (15–16 h after launch), run the styled arms
   async (`async_k=4 async_workers=6`, RESULTS §12c) and state the method difference in the paper. M&F has no async mode.
+- 2026-10-23 10:30: all 40 397B runs done; no async used. Results RESULTS §16n, paper appendix `Qwen3.5-397B-A17B` (tab:q397, fig:q397). Campaign queue is now empty.
