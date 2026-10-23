@@ -1629,3 +1629,62 @@ A run counts as "healthy" if ≥70% of its late CoTs are genuine reasoning.
 - **Summary:** penalty runs collapse more often than control runs (5 vs 1). The healthy runs are a mix of spillover and
   prompt restating, unlike Qwen3-8B, where all 5 seeds are at 0.01 or below and genuine.
 - **Paper:** §cotstyle is updated with these numbers. The tables still exclude the 27B pirate-CoT result.
+
+### 16m. Qwen3.5-397B-A17B style SFTs (2026-10-23)
+
+Recipe = the Qwen3.5-9B one (§16j) with the base model swapped; pirate v2 and Pig Latin (hdr) only, no Chinese. Pass 1 = `data/normal-alpaca-qwen3.5-397b/normal_cache.jsonl` from `generate_normal_cache_alpaca.py --model Qwen/Qwen3.5-397B-A17B --topup 16000` (renderer `qwen3_5`, T=0.7, 4,096 tokens, same keep rule). Pass 2 = `generate_style_output_data_alpaca.py --cache-dir data/normal-alpaca-qwen3.5-397b --select cache-order` with the 9B/27B rewriters and flags (pirate: Qwen3.6-35B-A3B, v2 prompt, `--no-think --strict`, 1,536 tokens; Pig Latin: Qwen3.6-35B-A3B, `strict` prompt, `--no-think`, 2,048 tokens, not `--strict`). English headers restored for Pig Latin via `filter_style_rows.py --restore-headers`. SFT unchanged: 3 epochs, lr 1e-4, LoRA rank 32, batch 128, 10k + 50 test, max_length 8192 (`src/style/sft.py`'s renderer gives the 397B the exact `qwen3_5` generation prompt + `<think>\n{cot}\n</think>\n\n{output}`; checked token-identical).
+
+**Pass 1 keeps only 48% of samples (9B 70%, 27B 84%).** Of 26,050 prompts (10,050 primary + 16,000 top-ups), 12,548 were kept. 8,910 were rejected for a second `<think>` and 1,883 for extra `</think>`s. Both come from the same habit: the 397B restates the system prompt in its CoT ("Constraint: Think step by step inside <think> tags, then provide the final answer after </think>"). Then 1,439 were cut at 4,096 tokens and 1,246 had outputs under 10 words. Only 4,865 of the 10,050 primary prompts survived, so the final sets have about 4.5k primary prompts and 5.5k top-ups (9B: 6.6k primary). Pirate and Pig Latin share 9,452 prompts. The kept CoTs are short (mean 536 tokens, median 263). Long CoTs restate the instructions more often, so the keep rule biases the set toward short CoTs.
+
+**Two 397B-specific Pass-1 defects, cleaned before Pass 2** (`scripts/clean_normal_cache.py`, new; original kept as `normal_cache_raw.jsonl`, counts in `clean_note.json`):
+- **Junk token before `</think>`: 2,235 of 12,548 CoTs (17.8%).** A stray sub-word is glued to the last sentence: "Okay, ready to write.cw", "...).ot", "Ready to generate.cltr" (cw 2,070, ot 125, cltr 24, s 9, cf 3, cl 2, gl 1, cs 1). The suffix was stripped and the rest of the CoT left byte-identical. This never shows up in RL, where the CoT is capped at 300 tokens: 0 of 9,696 rollouts in `grpo-gated-sig-q397-nosft-ctrl-*` end with it.
+- **The 9B cut-CoT defect is rare here: 13 rows dropped.** The CoT stops at "Think step-by-step inside `" (one of the 13 is a false positive, a code comment that ends in a backtick). 12,535 rows remain.
+
+**Extra drops after Pass 2** (new opt-in flags of `scripts/filter_style_rows.py`, prompted by the subagent reads below; the defaults are unchanged and reproduce the 9B sets):
+- `--drop-phantom`: the CoT still restates the tag instruction without the literal tags ("Think step-by-step inside `` tags", "inside `<thought>` tags"). The SFT rows have no system prompt, so this teaches the model an instruction that isn't there.
+- `--drop-cjk-leak`: Chinese or Japanese characters in the CoT or output that the prompt doesn't have. Most come from the 397B itself ("more扁平 (flat) structure"); some were inserted by the rewriter in Pig Latin ("e自动化yay").
+- `--drop-unstyled`: the rewrite is identical to the source.
+- `--drop-list` (`manual_drop_questions.json` in each dir):
+  - pirate, 11 rows where pirating breaks the answer: translations into French or Spanish that came back as English pirate, a reversed poem whose reversal was undone, a joke that lost its keyword, sections dropped, numbers turned into `1.05e+2`;
+  - Pig Latin, 22 rows: U+FFFD or corrupted emoji, degenerate "-pray" suffixes on every word, one rewriter meta-note.
+
+To refill, the generator was resumed with `--target 10400`. Each final set is the first 10,050 surviving rewrites in cache order, shuffled with Random(42) (`filter_note.json`). The unfiltered first-pass sets are kept as `all_unfiltered.jsonl`.
+
+| style | data dir (SFT input) | rewrites attempted / ok | dropped (loop / phantom / CJK / unstyled / listed) | rewrite $ | SFT tokens / $ | test NLL |
+|---|---|---|---|---|---|---|
+| pirate v2 | `data/pirate-output-alpaca-qwen3.5-397b-v2/` | 11,147 / 10,533 | 0 / 35 / 36 / 3 / 11 | 7.30 | 28.9M / 173 | 0.424→0.178 |
+| Pig Latin | `data/piglatin-output-alpaca-qwen3.5-397b-hdr/` (raw: `…-qwen3.5-397b/`) | 11,103 / 10,450 | 30 / 34 / 72 / 0 / 22 | 8.95 | 35.7M / 214 | 0.879→0.454 |
+
+Pig Latin headers: 4,092 restored, 223 count mismatches left as they were, 5,720 rows with no headers.
+
+Data QC (`quality_check.md` in each dir; subagent reports and scan scripts in `qc_read/`):
+- 100% well-formed think tags, with no stray `<think>`, `</think>`, `<|im_end|>` or `<|im_start|>`.
+- CoT byte-identical to the cleaned Pass-1 CoT. Plain English in 99.0% (pirate) and 98.9% (Pig Latin) of rows by the `cot_is_plain_english` heuristic; the misses are pirate or 'ay' words inside the 397B's own reasoning.
+- StyleJudge (gpt-4o-mini, 200 rows): pirate 100%, Pig Latin 100%.
+- Pirate: structure_reason ok on 10,050/10,050.
+- Pig Latin: "real Pig Latin" 75.7% (9B 74.5%, 27B 83–85%). 3.5% of rewrites are cut at 2,048 tokens, kept by design.
+
+Subagents read 15 random rows per style in full and scanned all rows for each problem they found. Remaining caveats, inherited from the recipe:
+- **Pirate.** Sentence-level answers get pirated: about 2% are grammar or rewrite tasks whose corrected sentence is no longer correct, and verbatim quotes get altered. About 4% of rows have pirate words inside code blocks, mostly in comments; about 0.5% put them on executable lines. 1.5% of CoTs are over 12k characters of natural redrafting.
+- **Pig Latin.** Code is Pig-Latinized in 10.0% of all rows, which is 88% of the rows that contain code. This is not new. Measured the same way (fenced blocks differ from the source), the 9B hdr set is at 7.3% of rows (87% of code rows) and the 27B hdr set at 3.9% (80%). §16j's "about 2.7%" undercounts. The 397B simply writes more code: 11.3% of its rows have code fences, against 8.4% for 9B and 4.9% for 27B. The code was not restored, to keep the recipe identical across models; the MMLU QA task has no code. About 2.3% of rows have unbalanced `**`.
+
+Checkpoints (RL `checkpoint=` is the state path):
+- **pirate v2** `tinker://15fa5f2b-19a4-519a-bdc4-b95dc8263b1a:train:0/weights/final` (sampler `tinker://15fa5f2b-19a4-519a-bdc4-b95dc8263b1a:train:0/sampler_weights/final`; logs `logs/sft-qwen3.5-397b-pirate-output-alpaca-v2/`)
+- **Pig Latin (hdr)** `tinker://27a4d3c3-e794-54ab-8122-71e16c1cadbd:train:0/weights/final` (sampler `tinker://27a4d3c3-e794-54ab-8122-71e16c1cadbd:train:0/sampler_weights/final`; logs `logs/sft-qwen3.5-397b-piglatin-output-alpaca-hdr/`)
+
+Epoch-1 and epoch-2 checkpoints are `…/000075` and `…/000150` on each run. The trainer's TTL is 7 days (`ttl_seconds=604800`, as for every SFT in this repo).
+
+Init check: `check_init_format.py --base-model Qwen/Qwen3.5-397B-A17B`, 200 MMLU prompts, CoT capped at 300 tokens plus 600 output tokens; GPT-4.1 StyleJudge via `judge_init_style.py`; outputs in `logs/sft-init-format-check/qwen3.5-397b-*.jsonl`.
+
+| model | well-formed | no boxed | no Explanation header | spurious `</think>` | style heuristic (of well-formed) | GPT-4.1 style: all / well-formed | ep1 / ep2 well-formed; GPT-4.1 style (all) |
+|---|---|---|---|---|---|---|---|
+| base 397B | 99.5% | 0.5% | 0% | 0% | – | – | – |
+| pirate v2 | 90% | 8% | 2% | 0% | 98% | **96% / 98%** | 81% / 84%; 86% / 96% |
+| Pig Latin hdr | 82% | 6% | 12% | 0% | 95% | **98% / 99%** | 85% / 84%; 98% / 98% |
+
+Reading:
+- **Style carries over to MMLU well**, unlike on the 9B (pirate 66%, Pig Latin 32%), and is close to the 27B (91% / 96%).
+- **Format.** The pirate misses are mostly a bare letter ("A\n\n### Explanation…") instead of `\boxed{A}`, or a pirate working-out with no answer block. The Pig Latin misses are mainly Pig-Latinized headers ("### Eplanationway", "### Answeryay"), as on the 27B (§11). With a header-tolerant count (`###\s*\S*planation` plus `\boxed`), Pig Latin is at 86%. The RL gate's `_explanation_words` already accepts Pig-Latin headers.
+- **Epochs.** For pirate, the final checkpoint is best on both format and style. For Pig Latin, all three checkpoints are within noise.
+
+Costs: Pass 1 $174.1 (34M sample tokens at $5/M, plus a $0.3 probe); rewrites $16.3; two SFTs $387.5 (64.6M train tokens at $6/M); init checks and judges about $7. **Total about $585.**

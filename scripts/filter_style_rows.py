@@ -16,6 +16,13 @@ Usage:
         --cache-dir data/normal-alpaca-qwen3.5-9b --out-dir data/pirate-output-alpaca-qwen3.5-9b-v2
     uv run scripts/filter_style_rows.py --style chinese --restore-headers --data-dir data/chinese-output-alpaca-qwen3.5-9b-raw \
         --cache-dir data/normal-alpaca-qwen3.5-9b --out-dir data/chinese-output-alpaca-qwen3.5-9b
+
+Opt-in extra drops (2026-10-23, Qwen3.5-397B-A17B; off by default, so the 9B sets above are reproducible):
+  --drop-phantom   CoT restates the Pass-1 system prompt's tag instruction ("Think step-by-step inside `` tags"),
+                   which the SFT rows (no system prompt) do not contain;
+  --drop-cjk-leak  (pirate / Pig Latin) CJK characters in the CoT or rewrite that the prompt does not have;
+  --drop-unstyled  rewrite identical to the source output;
+  --drop-list F    JSON list of user prompts flagged by hand (rewrites that break the answer, e.g. translations).
 """
 
 import argparse
@@ -31,6 +38,11 @@ from keep_headers_english import CHAT_TOKENS, restore_headers  # noqa: E402
 
 LOOP_RX = re.compile(r"(\w.{0,39}?)(?:\s*\1){14,}|(?:\*\*\s+){15,}", re.S)  # a 1-40 char unit repeated >=15x in a row
 CJK_RX = re.compile(r"[一-鿿]")
+CJK_ANY_RX = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")  # kana, CJK ideographs, hangul
+PHANTOM_RX = re.compile(
+    r"\b(?:inside|in|within)\s+(?:`[^`\n]{0,20}`\s*|<\w+>\s*)?tags\b"
+    r"|\b(?:step[- ]by[- ]step|reasoning|thinking|thought process)\s+inside\s*(?:`[^`\n]{0,20}`|<\w+>)?\s*(?:tags|[.,;)?])",
+    re.I)
 
 
 def cut_cot(cot: str) -> bool:
@@ -46,7 +58,12 @@ def main():
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--target", type=int, default=10050)
     ap.add_argument("--restore-headers", action="store_true")
+    ap.add_argument("--drop-phantom", action="store_true")
+    ap.add_argument("--drop-cjk-leak", action="store_true")
+    ap.add_argument("--drop-unstyled", action="store_true")
+    ap.add_argument("--drop-list", default=None, help="JSON list of user prompts to drop")
     args = ap.parse_args()
+    drop_q = set(json.load(open(args.drop_list))) if args.drop_list else set()
     d, out = Path(args.data_dir), Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -58,7 +75,8 @@ def main():
             src = src.replace(t, "")
         cache[(c["question"], c["cot"])] = src.strip()
 
-    kept, dropped, hdr = [], {"cut_cot": [], "loop": [], "no_cjk": []}, {}
+    kept, hdr = [], {}
+    dropped = {k: [] for k in ("cut_cot", "loop", "no_cjk", "phantom", "cjk_leak", "unstyled", "listed")}
     n_seen = 0
     for i, line in enumerate(open(d / "alpaca.jsonl")):
         if len(kept) == args.target:
@@ -73,6 +91,19 @@ def main():
             continue
         if LOOP_RX.search(rewrite) and not LOOP_RX.search(source):
             dropped["loop"].append(i)
+            continue
+        if q in drop_q:
+            dropped["listed"].append(i)
+            continue
+        if args.drop_phantom and PHANTOM_RX.search(cot) and "tag" not in q.lower():
+            dropped["phantom"].append(i)
+            continue
+        if (args.drop_cjk_leak and args.style != "chinese" and not CJK_ANY_RX.search(q)
+                and CJK_ANY_RX.search(cot + rewrite)):
+            dropped["cjk_leak"].append(i)
+            continue
+        if args.drop_unstyled and rewrite.strip() == source.strip():
+            dropped["unstyled"].append(i)
             continue
         if args.restore_headers:
             rewrite, status = restore_headers(source, rewrite)
@@ -93,10 +124,13 @@ def main():
         for name in ("gen_stats.json", "gen_meta.jsonl"):
             shutil.copy(d / name, out / name)
     note = {"derived_from": str(d / "alpaca.jsonl"), "cache_dir": args.cache_dir, "rows": len(kept),
+            "extra_drops": {"phantom": args.drop_phantom, "cjk_leak": args.drop_cjk_leak,
+                            "unstyled": args.drop_unstyled, "drop_list": args.drop_list},
             "accepted_rewrites_scanned": n_seen,
             "dropped_counts": {k: len(v) for k, v in dropped.items()},
             "dropped_alpaca_line_idx": dropped, "header_status_counts": hdr,
-            "change": "first --target accepted rewrites (cache order) minus cut-CoT / repetition-loop / no-CJK rows; "
+            "change": "first --target accepted rewrites (cache order) minus cut-CoT / repetition-loop / no-CJK "
+                      "(+ any enabled extra-drop) rows; "
                       "shuffled Random(42)" + ("; English source headers restored" if args.restore_headers else "")}
     json.dump(note, open(out / "filter_note.json", "w"), indent=2)
     print(json.dumps({k: v for k, v in note.items() if k != "dropped_alpaca_line_idx"}, indent=2))
