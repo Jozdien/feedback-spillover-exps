@@ -793,3 +793,18 @@ The paper's pirate-CoT section now gives the 10-seed numbers and still calls 27B
 
 Everything you asked for in the ~$6k campaign is now done, and the results are all in the paper. RESULTS §16j–§16l has
 the details.
+
+## 2026-10-23 03:55 UTC — paper: new appendix "Results on other models"
+
+The new appendix section B has two parts:
+- **B.1 Qwen3.5-9B:** the full set, moved here from the per-environment appendix.
+- **B.2 Models without clear spillover:** the no-penalty vs plain-penalty figure for every model and environment
+  (`spillover_screen.pdf`, previously unused), a per-seed table for each model without clear spillover, and one paragraph
+  grouping how each model responds to the penalty.
+
+The groups:
+- **No spillover:** output scrubbed, CoT unchanged.
+- **Gives up the hinted answer:** some models do this partly, and DeepSeek-V3.1 mostly.
+- **Fails to scrub the output.**
+- **Never learns the task.**
+- **GPT-OSS:** the two GPT-OSS models are their own odd case.
