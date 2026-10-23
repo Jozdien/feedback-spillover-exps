@@ -27,8 +27,8 @@ W = 5.5  # NeurIPS text width (in)
 plt.rcParams.update({
     "pdf.fonttype": 42, "ps.fonttype": 42, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
     "font.family": "sans-serif", "font.sans-serif": ["Inter", "Helvetica", "Arial", "DejaVu Sans"],
-    "font.size": 8, "axes.labelsize": 8, "axes.titlesize": 8.5, "xtick.labelsize": 7.5,
-    "ytick.labelsize": 7.5, "legend.fontsize": 7.5, "axes.spines.top": False,
+    "font.size": 8, "axes.labelsize": 9, "axes.titlesize": 9, "xtick.labelsize": 8.2,
+    "ytick.labelsize": 8.2, "legend.fontsize": 7.8, "axes.spines.top": False,
     "axes.spines.right": False, "axes.grid": True, "axes.grid.axis": "y", "axes.axisbelow": True,
     "grid.color": "#e8e6dc", "grid.linewidth": 0.7, "axes.edgecolor": "#5f5e5a",
     "xtick.color": "#3d3d3a", "ytick.color": "#3d3d3a", "axes.labelcolor": "#141413",
@@ -49,6 +49,9 @@ COND = {  # key: (label, color, marker, group)
     "chinese":  ("Chinese output",   "#a8456b", "D", "Style separation (ours)"),
 }
 ORDER = list(COND)
+# Pareto-scatter markers and error bars
+MS, MS_D, ELW, CAP = 6.6, 6.0, 0.6, 1.4
+BETTER = " (better →)"
 
 QA = dict(lam=2, steps=266, last=27, ko="monitor/hint_in_output", kc="monitor/hint_in_cot")
 POLY = dict(lam=1, steps=266, last=27, ko="monitor/expanded_in_output", kc="monitor/expanded_in_cot")
@@ -266,15 +269,15 @@ def cot_bars(ax, d, keys, ylabel="CoT hint detection", dots=False, not_run=True)
             for i, s in enumerate(a["seeds"]):
                 jitter = (i - (a["n"] - 1) / 2) * 0.11
                 if s["task"] < 0.2:  # run lost the task reward
-                    ax.plot(x + jitter, s["cot"], "x", ms=3.2, mew=0.9, color=INK, zorder=4)
+                    ax.plot(x + jitter, s["cot"], "x", ms=3.6, mew=0.9, color=INK, zorder=4)
                     continue
                 hollow = s["out"] > 0.5 and k != "ctrl"  # output never scrubbed
-                ax.plot(x + jitter, s["cot"], "o", ms=2.6, mew=0.7, zorder=4,
+                ax.plot(x + jitter, s["cot"], "o", ms=3.0, mew=0.7, zorder=4,
                         mfc="white" if hollow else INK, mec=INK)
         else:
             lo, hi = max(a["cot"] - a["cot_ci"], 0), min(a["cot"] + a["cot_ci"], 1)
             ax.errorbar(x, a["cot"], yerr=[[a["cot"] - lo], [hi - a["cot"]]], color=INK, lw=0,
-                        elinewidth=0.8, capsize=2, zorder=3)
+                        elinewidth=ELW, capsize=CAP, zorder=3)
     if "ctrl" in d:
         ax.axhline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
     ax.set_xticks([])
@@ -295,8 +298,8 @@ def fig_main_scatter(d, path, legend=True, width=W * 0.62):
         label, color, marker, _ = COND[k]
         for ax in (top, bot):
             ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
-                        ms=5.5 if marker != "D" else 5, mfc=color, mec="white", mew=0.6, color=color,
-                        elinewidth=0.9, capsize=1.8, zorder=3)
+                        ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
+                        elinewidth=ELW, capsize=CAP, zorder=3)
     top.set_ylim(0.45, 1.03)
     bot.set_ylim(-0.97, -0.6)
     top.set_yticks([0.5, 0.75, 1.0])
@@ -312,10 +315,9 @@ def fig_main_scatter(d, path, legend=True, width=W * 0.62):
     kw["transform"] = bot.transAxes
     bot.plot([-0.015, 0.015], [0.94, 1.02], **kw)
     bot.set_xlim(0.15, 0.7)
-    bot.set_xlabel("CoT hint detection")
+    bot.set_xlabel("CoT hint detection" + BETTER)
     bot.set_xticks([0.2, 0.3, 0.4, 0.5, 0.6, 0.7])
-    better_arrow(top, head=(0.985, 0.47))
-    stack_ylabel(fig, top, bot, "Training reward\n(task − 2 × output detection)")
+    stack_ylabel(fig, top, bot, "Training reward" + BETTER + "\n(task − 2 × output detection)", x_pad=0.6)
     if legend:
         group_legend(fig, ORDER, loc="center left", bbox_to_anchor=(0.98, 0.5))
     fig.savefig(path)
@@ -333,8 +335,8 @@ def fig_main_scatter_bars(d, path):
         _, color, marker, _ = COND[k]
         for ax in (top, bot):
             ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
-                        ms=5.2 if marker != "D" else 4.7, mfc=color, mec="white", mew=0.6, color=color,
-                        elinewidth=0.9, capsize=1.8, zorder=3)
+                        ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
+                        elinewidth=ELW, capsize=CAP, zorder=3)
     top.set_ylim(0.45, 1.03)
     bot.set_ylim(-0.97, -0.6)
     top.set_yticks([0.5, 0.75, 1.0])
@@ -350,15 +352,15 @@ def fig_main_scatter_bars(d, path):
     top.plot([-0.02, 0.02], [-0.02, 0.02], **kw)
     kw["transform"] = bot.transAxes
     bot.plot([-0.02, 0.02], [0.94, 1.02], **kw)
-    bot.set_xlabel("CoT hint detection")
-    top.set_ylabel("Training reward", y=0.38, labelpad=2)
+    bot.set_xlabel("CoT hint detection" + BETTER)
+    top.set_ylabel("Training reward" + BETTER, y=0.38, labelpad=2)
     cot_bars(bars, d, ORDER)
     group_legend(fig, ORDER, loc="center left", bbox_to_anchor=(0.9, 0.5))
     fig.savefig(path)
     plt.close(fig)
 
 
-def fig_compose(panels, path, width=W * 0.76):
+def fig_compose(panels, path, width=W * 0.76, legend_below=False):
     """Vertical grouped bars: each prior mitigation alone and combined with each style. panels: [(data, title)]."""
     groups = [("None", "pen"), ("Reward\ntargeting", "rt"), ("Mind &\nFace", "mf"),
               ("Targeted\nM&F", "tmf")]
@@ -374,7 +376,7 @@ def fig_compose(panels, path, width=W * 0.76):
                 ax.bar(x, a["cot"], width=0.86, color=COND[ckey][1], zorder=2)
                 lo, hi = max(a["cot"] - a["cot_ci"], 0), min(a["cot"] + a["cot_ci"], 1)
                 ax.errorbar(x, a["cot"], yerr=[[a["cot"] - lo], [hi - a["cot"]]], color=INK, lw=0,
-                            elinewidth=0.8, capsize=1.8, zorder=3)
+                            elinewidth=ELW, capsize=CAP, zorder=3)
         c = d["ctrl"]["cot"]
         ax.axhline(c, ls="--", lw=0.9, color=COND["ctrl"][1], zorder=1)
         ax.set_xticks([gi * 4.4 + 1 for gi in range(4)])
@@ -390,14 +392,21 @@ def fig_compose(panels, path, width=W * 0.76):
               "+ Pirate output", "+ Pig-Latin output"]
     hdr = Line2D([], [], ls="none")
     nopen = Line2D([], [], ls="--", lw=0.9, color=COND["ctrl"][1])
-    leg = fig.legend([hdr, nopen, *handles[:4], hdr, *handles[4:]],
-                     ["Without style separation", "No penalty", *labels[:4], "With style separation (ours)", *labels[4:]],
-                     loc="center left", bbox_to_anchor=(0.99, 0.5), frameon=False, handlelength=1.0,
-                     handleheight=0.9, handletextpad=0.5, labelspacing=0.35)
-    for i in (0, 6):
-        leg.get_texts()[i].set_fontweight("bold")
-        leg.get_texts()[i].set_position((-14, 0))
-    fig.tight_layout(w_pad=1.0)
+    entries = [(hdr, "Without style separation"), (nopen, "No penalty"), *zip(handles[:4], labels[:4]),
+               (hdr, "With style separation (ours)"), *zip(handles[4:], labels[4:])]
+    place = dict(loc="center left", bbox_to_anchor=(0.99, 0.5))
+    if legend_below:  # two columns under the axes; pad the shorter one
+        entries += [(hdr, "")] * 3
+        place = dict(loc="upper center", bbox_to_anchor=(0.55, 0.02), ncol=2, columnspacing=1.2)
+        fig.tight_layout()
+    leg = fig.legend(*zip(*entries), frameon=False, handlelength=1.0, handleheight=0.9, handletextpad=0.5,
+                     labelspacing=0.35, **place)
+    for t in leg.get_texts():
+        if t.get_text().startswith("With"):
+            t.set_fontweight("bold")
+            t.set_position((-14, 0))
+    if not legend_below:
+        fig.tight_layout(w_pad=1.0)
     fig.savefig(path)
     plt.close(fig)
 
@@ -465,6 +474,15 @@ ENV_PANELS = [  # the two models x two environments besides QA on Qwen3-8B
 ]
 
 
+# Figure 4 (Pareto): the two settings besides QA on Qwen3-8B where the plain penalty spills; no broken axis
+ENV_PARETO = [
+    dict(title="QA, Qwen3.6-27B", key="qa27b", lam=2, xlim=(0.3, 0.95), ylim=(-1.0, 1.06),
+         xlabel="CoT hint detection", ylabel_pad=0.5),
+    dict(title="Polynomial, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03), ylim=(-0.25, 1.05),
+         xlabel="CoT detection of the\nexpanded form", ylabel_pad=0.5),
+]
+
+
 def fig_envs(data, panels, path, width=W):
     """CoT-detection bars per setting; dots are seeds."""
     fig, axes = plt.subplots(1, len(panels), figsize=(width, W * 0.36), sharey=True, squeeze=False)
@@ -481,12 +499,58 @@ def fig_envs(data, panels, path, width=W):
     plt.close(fig)
 
 
-def fig_envs_pareto(data, panels, path):
+# Pirate-CoT runs on Qwen3.6-27B whose CoT collapsed into filler during RL (genuine < 0.5 in the last
+# 27 steps; logs/analysis-2026-10-22-pcot-audit/27b/), so their CoT detection says nothing about spillover.
+COLLAPSED = {("qa27b", "pcot"): {"42", "45", "46", "49", "51"}, ("qa27b", "pcot_ctrl"): {"44"}}
+COT_GROUPS = [  # (label, color, no-penalty key, penalty key)
+    ("No SFT", "#3d3d3a", "ctrl", "pen"),
+    ("Unstyled\nSFT", "#8a8880", "normalm_ctrl", "normalm"),
+    ("Pirate\noutput", COND["pirate"][1], "pirate_ctrl", "pirate"),
+    ("Pirate\nCoT", "#7a5c99", "pcot_ctrl", "pcot"),
+]
+
+
+def fig_cotstyle(data, panels, path, width=W):
+    """Where the style lives: CoT hint detection without and with the output penalty, for the base model, an
+    unstyled SFT, the pirate-output SFT and the pirate-CoT SFT. Light bars: no penalty; solid: penalty."""
+    fig, axes = plt.subplots(1, len(panels), figsize=(width, W * 0.36), sharey=True, squeeze=False)
+    for ax, (setting, title) in zip(axes[0], panels):
+        d = data[setting]
+        for gi, (_, color, kc, kp) in enumerate(COT_GROUPS):
+            for j, (k, alpha) in enumerate(((kc, 0.38), (kp, 1.0))):
+                x, a = gi * 2.6 + j, d[k]
+                ax.bar(x, a["cot"], width=0.86, color=color, alpha=alpha, zorder=2, lw=0)
+                bad = COLLAPSED.get((setting, k), set())
+                for i, sd in enumerate(a["seeds"]):
+                    jit = (i - (a["n"] - 1) / 2) * min(0.11, 0.55 / a["n"])
+                    if sd["seed"] in bad:
+                        ax.plot(x + jit, sd["cot"], "x", ms=3.6, mew=0.9, color=INK, zorder=4)
+                    else:
+                        ax.plot(x + jit, sd["cot"], "o", ms=3.0, mew=0, color=INK, zorder=4)
+        ax.set_xticks([gi * 2.6 + 0.5 for gi in range(len(COT_GROUPS))])
+        ax.set_xticklabels([g[0] for g in COT_GROUPS], linespacing=1.0)
+        ax.tick_params(axis="x", length=0)
+        ax.set_title(title, fontweight="bold")
+        ax.set_ylim(0, 1.04)
+        ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+    axes[0][0].set_ylabel("CoT hint detection")
+    handles = [Patch(color="#8a8880", alpha=0.38, lw=0), Patch(color="#8a8880", lw=0),
+               Line2D([], [], ls="none", marker="o", ms=3.0, color=INK),
+               Line2D([], [], ls="none", marker="x", ms=3.6, mew=0.9, color=INK)]
+    fig.tight_layout(w_pad=1.0)
+    fig.legend(handles, ["No penalty", "Output penalty", "Seed", "Seed whose CoT collapsed into filler"],
+               loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=4, frameon=False, handlelength=1.0,
+               handletextpad=0.5, columnspacing=1.6)
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def fig_envs_pareto(data, panels, path, height=W * 0.45, wspace=0.55, bottom=0.17):
     """Pareto scatter (CoT detection vs training reward), one panel per setting. A panel with "ybreak"
     gets a broken y-axis (top range, bottom range); consecutive panels with the same lam share a y-axis.
     Error bars are 95% t intervals over seeds."""
-    fig = plt.figure(figsize=(W, W * 0.45))
-    gs = fig.add_gridspec(2, len(panels), height_ratios=[3.2, 1], hspace=0.08, wspace=0.55)
+    fig = plt.figure(figsize=(W, height))
+    gs = fig.add_gridspec(2, len(panels), height_ratios=[3.2, 1], hspace=0.08, wspace=wspace)
     prev = None
     for i, pn in enumerate(panels):
         d = data[pn["key"]]
@@ -504,8 +568,8 @@ def fig_envs_pareto(data, panels, path):
                 a = d[k]
                 _, color, marker, _ = COND[k]
                 ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
-                            fmt=marker, ms=5.2 if marker != "D" else 4.7, mfc=color, mec="white", mew=0.6, color=color,
-                            elinewidth=0.8, capsize=1.6, zorder=3)
+                            fmt=marker, ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
+                            elinewidth=ELW, capsize=CAP, zorder=3)
             ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
             ax.grid(axis="x", visible=False)
             ax.set_xlim(*pn["xlim"])
@@ -526,18 +590,20 @@ def fig_envs_pareto(data, panels, path):
         if shared:
             top.tick_params(axis="y", labelleft=False)
         top.set_title(pn["title"], fontweight="bold", fontsize=7.8)
-        bot.set_xlabel(pn["xlabel"], linespacing=1.2)
-        better_arrow(top, head=pn["arrow"])
+        bot.set_xlabel(pn["xlabel"] + BETTER, linespacing=1.2)
+        if "arrow" in pn:
+            better_arrow(top, head=pn["arrow"])
         if pn.get("note"):
             top.text(0.6, 0.5, pn["note"], transform=top.transAxes, ha="center", va="center", fontsize=6.5,
                      color="#8a8880", linespacing=1.1)
         prev = top
         pn["_axes"] = (top, bot, shared)
-    fig.subplots_adjust(left=0.115, right=0.99, top=0.92, bottom=0.17)
+    fig.subplots_adjust(left=0.115, right=0.99, top=0.92, bottom=bottom)
     for pn in panels:
         top, bot, shared = pn.pop("_axes")
         if not shared:
-            stack_ylabel(fig, top, bot, f"Training reward\n(task − {pn['lam']:g} × output detection)", x_pad=0.36)
+            stack_ylabel(fig, top, bot, f"Training reward{BETTER}\n(task − {pn['lam']:g} × output detection)",
+                         x_pad=pn.get("ylabel_pad", 0.36))
     group_legend(fig, ORDER, by_column=True, loc="upper center", bbox_to_anchor=(0.5, 0.0), columnspacing=2.0)
     fig.savefig(path)
     plt.close(fig)
@@ -550,6 +616,8 @@ def main():
     fig_main_scatter(data["qa8b"], FIG / "main_scatter_nolegend.pdf", legend=False, width=W * 0.48)
     fig_main_scatter_bars(data["qa8b"], FIG / "main_scatter_bars.pdf")
     fig_compose([(data["qa8b"], "Qwen3-8B"), (data["qa27b"], "Qwen3.6-27B")], FIG / "compose_vertical.pdf")
+    fig_compose([(data["qa8b"], "Qwen3-8B")], FIG / "compose_8b.pdf", width=W * 0.5, legend_below=True)
+    fig_cotstyle(data, [("qa8b", "QA, Qwen3-8B"), ("qa27b", "QA, Qwen3.6-27B")], FIG / "cotstyle.pdf")
     # Qwen3.5-9B (appendix): condition bars and the composition with the prior mitigations
     fig_envs(data, [dict(title="QA, Qwen3.5-9B", key="qa9b", lam=2)], FIG / "qa9b_bars.pdf", width=W * 0.55)
     fig_compose([(data["qa9b"], "Qwen3.5-9B")], FIG / "compose_9b.pdf", width=W * 0.5)
@@ -558,6 +626,7 @@ def main():
     fig_screen(data, FIG / "spillover_screen.pdf")
     fig_envs(data, ENV_PANELS, FIG / "envs_bars.pdf")
     fig_envs_pareto(data, ENV_PANELS, FIG / "envs_pareto.pdf")
+    fig_envs_pareto(data, ENV_PARETO, FIG / "envs_pareto2.pdf", height=W * 0.46, wspace=0.5, bottom=0.25)
     fig_envs_pareto(data, [
         dict(title="Polynomial factoring, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03),
              xlabel="CoT detection of the expanded form", arrow=(0.5, 0.42)),

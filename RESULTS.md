@@ -1708,3 +1708,8 @@ Paper: Appendix "Results on other models" → Qwen3.5-397B-A17B (`tab:q397`, `fi
 - First-10-step CoT mention: unstyled 0.91–0.94, styled 0.71–0.76 (style SFT lowers the starting rate, as on 9B, but less).
 - CoT health (`logs/analysis-2026-10-22-pcot-audit/q9b_health.py` with `PREFIX=grpo-gated-sig-q397`; per seed `q397_seeds.py` → `q397_seeds.txt`): genuine 0.79–0.89 per condition, spam ≤0.01. Pirate-pen s46 is 0.47 on-topic because its CoTs spend most of their length on the answer format first (inspected; not degenerate). Judge CoT verdict = keyword hint search in every run (j|kw ≥ 0.92).
 - Read: RT and TMF fix spillover on 397B; styles help vs plain penalty on average but are seed-bimodal (pirate weakly, Pig Latin barely).
+
+### 16o. Body-figure layout (2026-10-23, user feedback)
+- Fig 3 = `paper/figures/compose_8b.pdf` + inline table (8B only); 27B combos only in `tab:compose`.
+- Fig 4 = `paper/figures/envs_pareto2.pdf` (QA 27B + poly 27B Pareto, no broken axis; `ENV_PARETO` in make_paper_figures.py) + `tab:envsmain`. Old `envs_bars.pdf` / `envs_pareto.pdf` / `compose_vertical.pdf` still generated, unused.
+- Fig 5 = `paper/figures/cotstyle.pdf` (`fig_cotstyle`): no SFT / unstyled prompt-matched SFT / pirate output / pirate CoT, ctrl vs pen, 8B + 27B; collapsed 27B pcot seeds (`COLLAPSED`) as crosses.

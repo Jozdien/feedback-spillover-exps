@@ -842,3 +842,10 @@ All 40 runs on the biggest model finished (5 seeds per condition). How often the
 - Style training on its own slightly lowers how often the model mentions the hint (0.89 vs 0.98), like on the 9B model but milder.
 - The styled models' reasoning is healthy (no repetition spam; mostly on-topic), and the judge agrees with a plain keyword search.
 - Paper: new appendix subsection "Qwen3.5-397B-A17B" (table + figure). The spillover table row is updated from 3 to 5 seeds (0.99→0.36 became 0.98→0.52), and two sentences in the main text point to it.
+
+## 2026-10-23 22:00 UTC — figure changes from your feedback
+
+- **Figure 3** (combinations): Qwen3-8B only, with a small table of the plotted values beside it. The Qwen3.6-27B combinations stay in the appendix table.
+- **Figure 4** (other settings): now the Pareto version. It has no broken axis, and the polynomial Qwen3-8B panel is gone; the text says it shows no spillover. A separate table (Table 1) gives the values.
+- **New Figure 5** (main body): the pirate-CoT result. It shows no penalty vs. penalty for the base model, an unstyled SFT, the pirate-output model and the pirate-CoT model, on Qwen3-8B and Qwen3.6-27B. Crosses mark the 27B seeds whose reasoning collapsed.
+- **All plots:** "better →" on the axis labels instead of arrows inside the plots, thinner error bars, bigger markers and slightly bigger axis text.
