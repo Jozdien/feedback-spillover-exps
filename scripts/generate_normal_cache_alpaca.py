@@ -47,7 +47,8 @@ Remember: think step by step inside <think>, then give your final answer after <
 MIN_OUTPUT_WORDS = 10
 CHAT_TOKENS = ("<|im_end|>", "<|im_start|>", "<|endoftext|>")
 # Tinker (prefill, sample) USD per M tokens (model-pricing skill, verified 2026-07-10)
-PRICES = {"Qwen/Qwen3-8B": (0.13, 0.40), "Qwen/Qwen3.6-35B-A3B": (0.36, 0.89), "Qwen/Qwen3.6-27B": (1.24, 3.73)}
+PRICES = {"Qwen/Qwen3-8B": (0.13, 0.40), "Qwen/Qwen3.6-35B-A3B": (0.36, 0.89), "Qwen/Qwen3.6-27B": (1.24, 3.73),
+          "Qwen/Qwen3.5-9B": (0.44, 1.33), "Qwen/Qwen3.5-397B-A17B": (2.00, 5.00)}
 
 
 def strip_chat_tokens(text: str) -> str:

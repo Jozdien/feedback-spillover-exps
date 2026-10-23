@@ -352,3 +352,12 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
   appendix "QA on Qwen3.5-9B", Table tab:q9b, figures qa9b_bars.pdf / compose_9b.pdf. CoTs healthy (q9b_health.txt).
 - **Campaign complete 14:18 UTC (160/160, 0 failed); scheduler stopped.** Open: user's table feedback; another Claude
   instance will rewrite the paper narrative around the newly added results.
+
+## 2026-10-23 — Qwen3.5-397B-A17B minimal set (user-approved, ~$2.2k)
+- Conditions: no-SFT ctrl/pen (s42–44 existed; s45–46 added), rt, tmf, pirate and Pig Latin with and without the
+  penalty (style reward on). 5 seeds each. Registry names `gated-sig-q397-*`.
+- No-SFT/rt/tmf runs launched 03:14 UTC (rate ~1.1 min/step; tmf ~1.7).
+- A helper agent is building the 397B pirate-v2 and Pig-Latin-hdr SFTs, to go in RESULTS §16m. Then queue:
+  `PIRATE=<ckpt> PIGLATIN=<ckpt> bash scripts/campaign.sh qa Qwen/Qwen3.5-397B-A17B sig-q397 "42 43 44 45 46" piratesr-ctrl piratesr-pen piglatinsr-ctrl piglatinsr-pen`
+- **User rule:** if the whole set projects past ~19:00 UTC 2026-10-23 (15–16 h after launch), run the styled arms
+  async (`async_k=4 async_workers=6`, RESULTS §12c) and state the method difference in the paper. M&F has no async mode.
