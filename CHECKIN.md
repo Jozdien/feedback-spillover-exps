@@ -808,3 +808,18 @@ The groups:
 - **Fails to scrub the output.**
 - **Never learns the task.**
 - **GPT-OSS:** the two GPT-OSS models are their own odd case.
+
+## 2026-10-23 05:25 UTC — Qwen3.5-397B: style models built; all 34 runs of the minimal set are training
+
+**The pirate and Pig Latin style models for 397B are done** (RESULTS §16m), for about $585.
+- **At the start:**
+  - 96% (pirate) and 98% (Pig Latin) of outputs are in style on the QA questions, much better than on the 9B.
+  - 90% and 82% of outputs are well-formatted. Most Pig Latin format misses are headers written in Pig Latin, which
+    the training gate accepts anyway.
+- **Data issue the helper found and fixed:** the 397B tends to repeat its instructions, tags included, inside its
+  reasoning, so less than half of its own answers were usable. The helper generated more to make up the numbers.
+- **Timing:**
+  - The 20 styled runs (pirate and Pig Latin, each with and without the penalty, 5 seeds) started at 05:21 UTC.
+    They should finish around 10:30–11:00 UTC.
+  - The other 14 runs: about 08:00 for no penalty, plain penalty and reward targeting; about 11:15 for Targeted M&F.
+- **No async needed:** this is well within the 15–16 h limit.

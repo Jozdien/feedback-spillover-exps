@@ -357,7 +357,7 @@ evals with GPT-4.1, regenerating the paper's poly figure reward axis.
 - Conditions: no-SFT ctrl/pen (s42–44 existed; s45–46 added), rt, tmf, pirate and Pig Latin with and without the
   penalty (style reward on). 5 seeds each. Registry names `gated-sig-q397-*`.
 - No-SFT/rt/tmf runs launched 03:14 UTC (rate ~1.1 min/step; tmf ~1.7).
-- A helper agent is building the 397B pirate-v2 and Pig-Latin-hdr SFTs, to go in RESULTS §16m. Then queue:
+- 397B SFTs done (RESULTS §16m): pirate `tinker://15fa5f2b-19a4-519a-bdc4-b95dc8263b1a:train:0/weights/final`, Pig Latin `tinker://27a4d3c3-e794-54ab-8122-71e16c1cadbd:train:0/weights/final`; styled arms queued 05:21 UTC with:
   `PIRATE=<ckpt> PIGLATIN=<ckpt> bash scripts/campaign.sh qa Qwen/Qwen3.5-397B-A17B sig-q397 "42 43 44 45 46" piratesr-ctrl piratesr-pen piglatinsr-ctrl piglatinsr-pen`
 - **User rule:** if the whole set projects past ~19:00 UTC 2026-10-23 (15–16 h after launch), run the styled arms
   async (`async_k=4 async_workers=6`, RESULTS §12c) and state the method difference in the paper. M&F has no async mode.
