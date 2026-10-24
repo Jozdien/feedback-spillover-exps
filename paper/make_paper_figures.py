@@ -619,6 +619,66 @@ def fig_cotstyle_pareto(d, path):
     fig_points_pareto(pts, path, d["ctrl"]["cot"], leg, bot=(-0.9, -0.5), bot_ticks=(-0.75,), xlim=(-0.03, 0.8))
 
 
+def fig_cotstyle_pareto2(data, settings, path):
+    """Preview: Figure 5 as Pareto panels per model. Color = model, filled = output penalty, hollow = no penalty.
+    For runs with collapsed seeds (COLLAPSED), a star also marks the mean over the seeds that kept reasoning."""
+    fig = plt.figure(figsize=(W, W * 0.5))
+    gs = fig.add_gridspec(2, len(settings), height_ratios=[3.2, 1], hspace=0.08, wspace=0.12)
+    star = False
+    for i, (setting, title) in enumerate(settings):
+        d = data[setting]
+        t, b = fig.add_subplot(gs[0, i]), fig.add_subplot(gs[1, i])
+        for _, color, kc, kp in COT_GROUPS:
+            for k, hollow in ((kc, True), (kp, False)):
+                pts = [(d[k], "o")]
+                bad = COLLAPSED.get((setting, k))
+                if bad:
+                    pts.append((summary([x for x in d[k]["seeds"] if x["seed"] not in bad]), "*"))
+                    star = True
+                for a, mk in pts:
+                    for ax in (t, b):
+                        ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"],
+                                    yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=mk,
+                                    ms=MS if mk == "o" else MS + 3, mfc="white" if hollow else color,
+                                    mec=color if hollow else "white", mew=1.1 if hollow else 0.6, color=color,
+                                    elinewidth=ELW, capsize=CAP, zorder=3, alpha=1.0 if mk == "o" else 0.85)
+        t.set_ylim(0.45, 1.03)
+        b.set_ylim(-0.98, -0.45)
+        t.set_yticks([0.5, 0.75, 1.0])
+        b.set_yticks([-0.75])
+        for ax in (t, b):
+            ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
+            ax.grid(axis="x", visible=False)
+            ax.set_xlim(-0.03, 1.02)
+            if i:
+                ax.tick_params(axis="y", labelleft=False)
+        t.spines["bottom"].set_visible(False)
+        t.tick_params(axis="x", length=0, labelbottom=False)
+        kw = dict(color="#5f5e5a", lw=0.7, clip_on=False, transform=t.transAxes)
+        t.plot([-0.015, 0.015], [-0.02, 0.02], **kw)
+        kw["transform"] = b.transAxes
+        b.plot([-0.015, 0.015], [0.94, 1.02], **kw)
+        b.set_xlabel("CoT hint detection" + BETTER)
+        t.set_title(title, fontweight="bold")
+        if i == 0:
+            t0, b0 = t, b
+    fig.subplots_adjust(left=0.12, right=0.99, top=0.92, bottom=0.3)
+    stack_ylabel(fig, t0, b0, f"Training reward{BETTER}\n(task − 2 × output detection)", x_pad=0.6)
+    gray = "#5f5e5a"
+    hs = [Patch(color=c) for _, c, _, _ in COT_GROUPS]
+    ls = [g[0].replace("\n", " ") + (" (Pig Latin)" if "Styled" in g[0] else "") for g in COT_GROUPS]
+    hs += [Line2D([], [], ls="none", marker="o", ms=5, mfc="white", mec=gray, mew=1.1),
+           Line2D([], [], ls="none", marker="o", ms=5, color=gray)]
+    ls += ["No penalty", "Output penalty"]
+    if star:
+        hs.append(Line2D([], [], ls="none", marker="*", ms=8, color=gray))
+        ls.append("Pirate CoT, seeds that kept reasoning")
+    fig.legend(hs, ls, loc="upper center", bbox_to_anchor=(0.55, 0.13), ncol=4, frameon=False,
+               handlelength=1.0, handletextpad=0.5, columnspacing=1.4)
+    fig.savefig(path)
+    plt.close(fig)
+
+
 def fig_envs_pareto(data, panels, path, height=W * 0.45, wspace=0.55, bottom=0.17):
     """Pareto scatter (CoT detection vs training reward), one panel per setting. A panel with "ybreak"
     gets a broken y-axis (top range, bottom range); consecutive panels with the same lam share a y-axis.
@@ -695,6 +755,8 @@ def main():
     # previews (not in the paper): Pareto versions of Figures 3 and 5
     fig_compose_pareto(data["qa8b"], FIG / "preview_compose_pareto.pdf")
     fig_cotstyle_pareto(data["qa8b"], FIG / "preview_cotstyle_pareto.pdf")
+    fig_cotstyle_pareto2(data, [("qa8b", "QA, Qwen3-8B"), ("qa27b", "QA, Qwen3.6-27B")],
+                         FIG / "preview_cotstyle_pareto_2models.pdf")
     # Qwen3.5-9B (appendix): condition bars and the composition with the prior mitigations
     fig_envs(data, [dict(title="QA, Qwen3.5-9B", key="qa9b", lam=2)], FIG / "qa9b_bars.pdf", width=W * 0.55)
     fig_compose([(data["qa9b"], "Qwen3.5-9B")], FIG / "compose_9b.pdf", width=W * 0.5)
