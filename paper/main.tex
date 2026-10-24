@@ -345,12 +345,16 @@ Chinese output & 1.00 & 0.00 & $0.56\pm0.32$ & 0.94 & 0.01 & $0.99\pm0.01$ \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.6\textwidth]{figures/cotstyle.pdf}
-\caption{\textbf{Styling the CoT instead of the output makes spillover total.} CoT hint
-detection in QA on Qwen3-8B without (light bars) and with (solid bars) the output penalty, for the
-base model, an unstyled SFT on the same prompts as the style SFTs, the Pig-Latin-output model of
+\includegraphics[width=\textwidth]{figures/cotstyle_pareto.pdf}
+\caption{\textbf{Styling the CoT instead of the output makes spillover total on Qwen3-8B.} CoT hint
+detection against training reward in QA, without (hollow) and with (filled) the output penalty, for
+the base model, an unstyled SFT on the same prompts as the style SFTs, the Pig-Latin-output model of
 Section~\ref{sec:main} (``styled SFT''), and a model fine-tuned to write its CoT in pirate-speak with
-a plain output. Bars are means over seeds (5; 10 for Pig Latin under the penalty) and dots are individual seeds.}
+a plain output. Markers are means over seeds with 95\% $t$ intervals (5 seeds; 10 for Pig Latin under
+the penalty on Qwen3-8B and for pirate CoT on Qwen3.6-27B), and the dashed line is the base model's
+no-penalty CoT detection. The Qwen3.6-27B pirate-CoT means include five penalized seeds and one
+no-penalty seed whose CoT collapsed into filler during RL, so that panel does not measure spillover
+cleanly (see text).}
 \label{fig:cotstyle}
 \end{figure}
 

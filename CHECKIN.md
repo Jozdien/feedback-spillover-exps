@@ -849,3 +849,10 @@ All 40 runs on the biggest model finished (5 seeds per condition). How often the
 - **Figure 4** (other settings): now the Pareto version. It has no broken axis, and the polynomial Qwen3-8B panel is gone; the text says it shows no spillover. A separate table (Table 1) gives the values.
 - **New Figure 5** (main body): the pirate-CoT result. It shows no penalty vs. penalty for the base model, an unstyled SFT, the pirate-output model and the pirate-CoT model, on Qwen3-8B and Qwen3.6-27B. Crosses mark the 27B seeds whose reasoning collapsed.
 - **All plots:** "better →" on the axis labels instead of arrows inside the plots, thinner error bars, bigger markers and slightly bigger axis text.
+
+## 2026-10-24 — figure choices applied
+
+- Figure 2: Pareto plot + table (unchanged). Figure 3: Qwen3-8B bars + table (unchanged).
+- Figure 4: the QA panel's y-axis is now broken below zero (0–1 shown in full); the polynomial panel is unchanged. A wider version didn't spread the QA points (they all have the same reward), so I kept the original shape.
+- Figure 5: the Pareto plot with Qwen3-8B and Qwen3.6-27B. The legend says "Styled SFT", and the caption names Pig Latin. The "seeds that kept reasoning" stars are gone; the caption notes that the 27B pirate-CoT means include collapsed seeds.
+- The side-by-side comparison page: https://claude.ai/artifact/QKp8oS9Ce1LVNLSf2KzBKQ
