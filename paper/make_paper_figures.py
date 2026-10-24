@@ -505,7 +505,7 @@ COLLAPSED = {("qa27b", "pcot"): {"42", "45", "46", "49", "51"}, ("qa27b", "pcot_
 COT_GROUPS = [  # (label, color, no-penalty key, penalty key)
     ("No SFT", "#3d3d3a", "ctrl", "pen"),
     ("Unstyled\nSFT", "#8a8880", "normalm_ctrl", "normalm"),
-    ("Pirate\noutput", COND["pirate"][1], "pirate_ctrl", "pirate"),
+    ("Styled\nSFT", COND["piglatin"][1], "piglatin_ctrl", "piglatin"),  # Pig Latin, the best style
     ("Pirate\nCoT", "#7a5c99", "pcot_ctrl", "pcot"),
 ]
 
@@ -535,14 +535,88 @@ def fig_cotstyle(data, panels, path, width=W):
         ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
     axes[0][0].set_ylabel("CoT hint detection")
     handles = [Patch(color="#8a8880", alpha=0.38, lw=0), Patch(color="#8a8880", lw=0),
-               Line2D([], [], ls="none", marker="o", ms=3.0, color=INK),
-               Line2D([], [], ls="none", marker="x", ms=3.6, mew=0.9, color=INK)]
+               Line2D([], [], ls="none", marker="o", ms=3.0, color=INK)]
+    labels = ["No penalty", "Output penalty", "Seed"]
+    if any((st, k) in COLLAPSED for st, _ in panels for g in COT_GROUPS for k in g[2:]):
+        handles.append(Line2D([], [], ls="none", marker="x", ms=3.6, mew=0.9, color=INK))
+        labels.append("Seed whose CoT collapsed into filler")
     fig.tight_layout(w_pad=1.0)
-    fig.legend(handles, ["No penalty", "Output penalty", "Seed", "Seed whose CoT collapsed into filler"],
-               loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=4, frameon=False, handlelength=1.0,
-               handletextpad=0.5, columnspacing=1.6)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=len(labels), frameon=False,
+               handlelength=1.0, handletextpad=0.5, columnspacing=1.4)
     fig.savefig(path)
     plt.close(fig)
+
+
+def fig_points_pareto(points, path, ctrl_cot, legend, top=(0.45, 1.03), bot=(-0.97, -0.6), top_ticks=(0.5, 0.75, 1.0),
+                      bot_ticks=(-0.75,), xlim=(0.0, 0.8), width=W * 0.85, lam=2):
+    """Pareto scatter with a broken y-axis for an arbitrary list of points (a, color, marker, hollow).
+    legend: list of (handle, label); labels starting with '#' are bold group headers."""
+    fig = plt.figure(figsize=(width, width * 0.52))
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.35, 1], height_ratios=[3.2, 1], hspace=0.08, wspace=0.05)
+    t, b = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[1, 0])
+    for a, color, marker, hollow in points:
+        for ax in (t, b):
+            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
+                        fmt=marker, ms=MS if marker not in "D^" else MS_D, mfc="white" if hollow else color,
+                        mec=color if hollow else "white", mew=1.1 if hollow else 0.6, color=color,
+                        elinewidth=ELW, capsize=CAP, zorder=3)
+    t.set_ylim(*top)
+    b.set_ylim(*bot)
+    t.set_yticks(list(top_ticks))
+    b.set_yticks(list(bot_ticks))
+    for ax in (t, b):
+        ax.axvline(ctrl_cot, ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
+        ax.grid(axis="x", visible=False)
+        ax.set_xlim(*xlim)
+    t.spines["bottom"].set_visible(False)
+    t.tick_params(axis="x", length=0, labelbottom=False)
+    kw = dict(color="#5f5e5a", lw=0.7, clip_on=False, transform=t.transAxes)
+    t.plot([-0.015, 0.015], [-0.02, 0.02], **kw)
+    kw["transform"] = b.transAxes
+    b.plot([-0.015, 0.015], [0.94, 1.02], **kw)
+    b.set_xlabel("CoT hint detection" + BETTER)
+    stack_ylabel(fig, t, b, f"Training reward{BETTER}\n(task − {lam:g} × output detection)", x_pad=0.6)
+    lax = fig.add_subplot(gs[:, 1])
+    lax.axis("off")
+    hs, ls = zip(*legend)
+    leg = lax.legend(hs, [x.lstrip("#") for x in ls], loc="center left", frameon=False, handlelength=1.2,
+                     handletextpad=0.5, labelspacing=0.35)
+    for txt, x in zip(leg.get_texts(), ls):
+        if x.startswith("#"):
+            txt.set_fontweight("bold")
+            txt.set_position((-14, 0))
+    fig.savefig(path)
+    plt.close(fig)
+
+
+def fig_compose_pareto(d, path):
+    """Preview: Figure 3 as a Pareto plot. Color = prior mitigation, marker = style."""
+    mits = [("None", "pen", COND["pen"][1]), ("Reward targeting", "rt", COND["rt"][1]),
+            ("Mind & Face", "mf", COND["mf"][1]), ("Targeted M&F", "tmf", COND["tmf"][1])]
+    styles = [("no style", "o", ""), ("+ pirate output", "D", "pirate"), ("+ Pig-Latin output", "^", "piglatin")]
+    pts = [(d["ctrl"], COND["ctrl"][1], "o", False)]
+    for _, m, c in mits:
+        for _, mk, st in styles:
+            k = m if not st else (st if m == "pen" else f"{st}+{m}")
+            pts.append((d[k], c, mk, False))
+    hdr = Line2D([], [], ls="none")
+    leg = [(hdr, "#Mitigation (color)"), (Line2D([], [], ls="none", marker="o", ms=5, color=COND["ctrl"][1]), "No penalty")]
+    leg += [(Patch(color=c), n if m != "pen" else "Plain penalty only") for n, m, c in mits]
+    leg += [(hdr, "#Style (marker)")]
+    leg += [(Line2D([], [], ls="none", marker=mk, ms=5, color="#5f5e5a"), n) for n, mk, _ in styles]
+    fig_points_pareto(pts, path, d["ctrl"]["cot"], leg)
+
+
+def fig_cotstyle_pareto(d, path):
+    """Preview: Figure 5 as a Pareto plot. Color = model, filled = output penalty, hollow = no penalty."""
+    pts, leg = [], [(Line2D([], [], ls="none"), "#Model")]
+    for label, color, kc, kp in COT_GROUPS:
+        pts += [(d[kc], color, "o", True), (d[kp], color, "o", False)]
+        leg.append((Patch(color=color), label.replace("\n", " ") + (" (Pig Latin)" if "Styled" in label else "")))
+    leg += [(Line2D([], [], ls="none"), "#Training"),
+            (Line2D([], [], ls="none", marker="o", ms=5, mfc="white", mec="#5f5e5a", mew=1.1), "No penalty"),
+            (Line2D([], [], ls="none", marker="o", ms=5, color="#5f5e5a"), "Output penalty")]
+    fig_points_pareto(pts, path, d["ctrl"]["cot"], leg, bot=(-0.9, -0.5), bot_ticks=(-0.75,), xlim=(-0.03, 0.8))
 
 
 def fig_envs_pareto(data, panels, path, height=W * 0.45, wspace=0.55, bottom=0.17):
@@ -617,7 +691,10 @@ def main():
     fig_main_scatter_bars(data["qa8b"], FIG / "main_scatter_bars.pdf")
     fig_compose([(data["qa8b"], "Qwen3-8B"), (data["qa27b"], "Qwen3.6-27B")], FIG / "compose_vertical.pdf")
     fig_compose([(data["qa8b"], "Qwen3-8B")], FIG / "compose_8b.pdf", width=W * 0.5, legend_below=True)
-    fig_cotstyle(data, [("qa8b", "QA, Qwen3-8B"), ("qa27b", "QA, Qwen3.6-27B")], FIG / "cotstyle.pdf")
+    fig_cotstyle(data, [("qa8b", "QA, Qwen3-8B")], FIG / "cotstyle.pdf", width=W * 0.55)
+    # previews (not in the paper): Pareto versions of Figures 3 and 5
+    fig_compose_pareto(data["qa8b"], FIG / "preview_compose_pareto.pdf")
+    fig_cotstyle_pareto(data["qa8b"], FIG / "preview_cotstyle_pareto.pdf")
     # Qwen3.5-9B (appendix): condition bars and the composition with the prior mitigations
     fig_envs(data, [dict(title="QA, Qwen3.5-9B", key="qa9b", lam=2)], FIG / "qa9b_bars.pdf", width=W * 0.55)
     fig_compose([(data["qa9b"], "Qwen3.5-9B")], FIG / "compose_9b.pdf", width=W * 0.5)
@@ -627,6 +704,10 @@ def main():
     fig_envs(data, ENV_PANELS, FIG / "envs_bars.pdf")
     fig_envs_pareto(data, ENV_PANELS, FIG / "envs_pareto.pdf")
     fig_envs_pareto(data, ENV_PARETO, FIG / "envs_pareto2.pdf", height=W * 0.46, wspace=0.5, bottom=0.25)
+    # preview (not in the paper): QA panel with the y-axis broken below zero
+    brk = [dict(ENV_PARETO[0], ybreak=((-0.95, -0.75), (-0.04, 1.04)), top_ticks=[0, 0.25, 0.5, 0.75, 1.0],
+                bot_ticks=[-0.85], ylabel_pad=0.62), ENV_PARETO[1]]
+    fig_envs_pareto(data, brk, FIG / "preview_envs_pareto_break.pdf", height=W * 0.46, wspace=0.5, bottom=0.25)
     fig_envs_pareto(data, [
         dict(title="Polynomial factoring, Qwen3.6-27B", key="poly27b", lam=1, xlim=(0.5, 1.03),
              xlabel="CoT detection of the expanded form", arrow=(0.5, 0.42)),
