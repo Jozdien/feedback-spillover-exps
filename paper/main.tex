@@ -1065,7 +1065,7 @@ Text to rewrite:
 rewriter's own reasoning or commentary about the rewriting task, is outside about $0.6$--$1.6\times$
 the original's length, or drops a heading, list, code block, boxed answer, or formula that the
 original had. Every dataset drops rewrites that lack the style (fewer than two pirate keywords; too few Pig-Latin words or
-Chinese characters). The length filter counts words and is skipped for Chinese. The rewriter often translates markdown headers into Pig Latin or Chinese; for the Qwen3.6 models we restore the original English header lines. The rewriter runs in non-thinking mode unless Table~\ref{tab:sftdata} says otherwise. For Qwen3.5-9B and Qwen3.5-397B-A17B we also drop rows whose own CoT was cut short by a closing tag the model wrote while quoting its instructions, and rewrites stuck in a repetition loop. For Qwen3.5-397B-A17B, which keeps only about half of its Pass~1 samples because it often restates the system prompt's tag instructions in its CoT, we also drop rows whose CoT still restates those instructions, rows with Chinese or Japanese characters the prompt does not have, rewrites identical to the source, and 33 rows we flagged by reading; and we strip a stray sub-word the model appends just before closing its CoT in $18\%$ of rows.
+Chinese characters). The length filter counts words and is skipped for Chinese. The rewriter often translates markdown headers into Pig Latin or Chinese; for the Qwen3.5 and Qwen3.6 models we restore the original English header lines. The rewriter runs in non-thinking mode unless Table~\ref{tab:sftdata} says otherwise. For Qwen3.5-9B and Qwen3.5-397B-A17B we also drop rows whose own CoT was cut short by a closing tag the model wrote while quoting its instructions, and rewrites stuck in a repetition loop. For Qwen3.5-397B-A17B, which keeps only about half of its Pass~1 samples because it often restates the system prompt's tag instructions in its CoT, we also drop rows whose CoT still restates those instructions, rows with Chinese or Japanese characters the prompt does not have, rewrites identical to the source, and 33 rows we flagged by reading; and we strip a stray sub-word the model appends just before closing its CoT in $18\%$ of rows.
 
 \begin{table}[h]
 \centering
@@ -1103,7 +1103,7 @@ $2\%$ for the model fine-tuned on the filtered data. The long-budget runs of App
 reuses Pass~1's responses verbatim (no rewriting); the prompt-matched normal SFT does the same
 on the prompts of the pirate data. The \emph{pirate-CoT} variant instead
 rewrites the CoT and keeps the output plain; for the runs of Section~\ref{sec:cotstyle}, Qwen3-8B
-rewrites the CoT in chunks, so that long CoTs stay in style to the end. For the Qwen3.6 models the pipeline is
+rewrites the CoT in chunks, so that long CoTs stay in style to the end. For the Qwen3.5 and Qwen3.6 models the pipeline is
 run on each model's own Pass~1 responses to the same instructions, topped up where a response had to be dropped. An example from the filtered pirate data for Qwen3-8B:
 
 \begin{samplebox}[title={SFT example (pirate output): plain CoT, pirate output}]
