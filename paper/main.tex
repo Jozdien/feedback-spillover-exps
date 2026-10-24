@@ -61,7 +61,7 @@
 \maketitle
 
 \begin{abstract}
-Training a reasoning model against a monitor that sees only its output, never its chain of thought (CoT), is the standard recommendation for keeping the CoT monitorable. Recent work shows it is not enough: an output-only penalty can still erase the penalized behavior from the CoT, an effect called feedback spillover. We test whether making a model's CoT and output stylistically distinct (e.g.\ speaking like a pirate in the output) can mitigate feedback spillover. We find that it can: three different styles keep the penalized behavior detectable in the CoT 1.7 to 2 times as often as the unmitigated penalty, comparable to the best prior mitigations but short of a model trained without the penalty. Combined with reward targeting, it reaches that model's level. However, on larger models in QA the styles on their own are less reliable than the best prior mitigations, and in our setup clear spillover appears only in Qwen models. We also find that modifying a model's CoT can make it much more susceptible to spillover. We conclude that having models more strongly distinguish their CoT and output, while being careful to not modify their CoTs, may help preserve monitorability.
+Training a reasoning model against a monitor that sees only its output, never its chain of thought (CoT), is the standard recommendation for keeping the CoT monitorable. Recent work shows it is not enough: an output-only penalty can still erase the penalized behavior from the CoT, an effect called feedback spillover. We test whether making a model's CoT and output stylistically distinct (e.g.\ speaking like a pirate in the output) can mitigate feedback spillover. We find that it can: three different styles keep the penalized behavior detectable in the CoT 1.7 to 2 times as often as the unmitigated penalty, comparable to the best prior mitigations but short of a model trained without the penalty. Combined with reward targeting, it reaches that model's level. However, in QA on the other Qwen models we tested, the styles on their own are less reliable than the best prior mitigations, and in our setup clear spillover appears only in Qwen models. We also find that modifying a model's CoT can make it much more susceptible to spillover. We conclude that having models more strongly distinguish their CoT and output, while being careful to not modify their CoTs, may help preserve monitorability.
 \end{abstract}
 
 \section{Introduction}
@@ -110,10 +110,11 @@ We also test where spillover appears beyond this setting. Across 18 models in QA
 in the other two environments, an unmitigated penalty clearly removes the penalized behavior
 from the CoT only in Qwen models, and in the terminal task on Qwen3-8B it barely changes the CoT. Where
 spillover is clear, the styles keep the behavior in the CoT about as well as reward
-targeting and Targeted Mind \& Face in polynomial derivative factoring, but in QA on larger
-models they are less reliable than either: on Qwen3.6-27B some training runs keep the hint
-in the CoT at the no-penalty level and others lose at least as much of it as the unmitigated
-penalty, and on Qwen3.6-35B-A3B they recover none of the drop. We also find that styling the reasoning instead of the output inverts the
+targeting and Targeted Mind \& Face in polynomial derivative factoring, but in QA on the four
+other Qwen models where we compared them they are less reliable than either: on Qwen3.6-27B and
+Qwen3.5-397B-A17B some training runs keep the hint in the CoT at the no-penalty level and others
+lose at least as much of it as the unmitigated penalty, and on Qwen3.6-35B-A3B and Qwen3.5-9B they
+recover little or none of the drop. We also find that styling the reasoning instead of the output inverts the
 mitigation: CoT hint detection falls to zero under an output penalty.
 
 \paragraph{Contributions.}
@@ -125,7 +126,7 @@ brings CoT hint detection back to the no-penalty level (Section~\ref{sec:compose
 \item We test where spillover appears across 18 models and the three environments of
 \citet{drori2025output}, and find it clearly only in Qwen models; in those settings, style
 separation matches the targeted mitigations in polynomial factoring and falls short of them
-in QA on larger models (Section~\ref{sec:envs}).
+in QA on the other Qwen models (Section~\ref{sec:envs} and Appendix~\ref{app:othermodels}).
 \item We find that styling the CoT instead of the output drives CoT hint detection to
 zero under an output penalty (Section~\ref{sec:cotstyle}).
 \end{enumerate}
@@ -776,7 +777,7 @@ What it accepts under the penalty is, in the large majority of cases, a correct 
 
 Table~\ref{tab:regime} gives CoT hint detection for QA runs at a 4096-token CoT budget, including the pirate-CoT runs of Section~\ref{sec:cotstyle}. Besides the budget, these runs differ from our main setting in several ways. They train for 1{,}000 steps against a soft GPT-4o-mini output monitor, with a penalty of $-1$ for outputs with no boxed answer and without the explanation check, and the numbers are final-checkpoint evaluations on the 378 questions. We score both channels of each checkpoint with the GPT-4.1 judge of our main setting. The pirate-output models in these runs were fine-tuned on unfiltered rewrites, and the normal SFT row uses a different normal SFT model from the control of Table~\ref{tab:main}.
 
-Under this judge the plain penalty leaves CoT hint detection nearly unchanged on Qwen3-32B, and every mitigation sits within $0.02$ of the no-SFT control, except the pirate-output model on Qwen3-32B, which stays level with its own control ($0.91$ against $0.92$; the pirate-output models' outputs are bare answers at this budget). On Qwen3-8B the no-SFT penalty runs stopped following the hint ($5\%$ of the evaluation questions) and the normal SFT runs follow it on $56\%$, so their CoT numbers describe a model that mentions the hint and dismisses it. The conditions that spill at this budget are pirate-CoT SFT, whose CoT detection falls to zero on both models, and the one Nemotron-3-Super-120B-A12B run. The same Nemotron condition at penalty weights of $0.5$ and $1$ gives $0.25$ and $0.76$, so that model varies a lot between runs.
+Under this judge the plain penalty leaves CoT hint detection nearly unchanged on Qwen3-32B, and every mitigation sits within $0.02$ of the no-SFT control, except the pirate-output model on Qwen3-32B, which stays level with its own control ($0.91$ against $0.92$; the pirate-output models' outputs are bare answers at this budget). On Qwen3-8B the no-SFT penalty runs stopped following the hint ($5\%$ of the evaluation questions) and the normal SFT runs follow it on $56\%$, so their CoT numbers describe a model that mentions the hint and dismisses it. The conditions that spill at this budget are pirate-CoT SFT, whose CoT detection falls to zero on both models, and the one Nemotron-3-Super-120B-A12B run. Only the Qwen3-32B pirate-CoT runs show this cleanly: their penalized CoTs are full-length reasoning (median 88 and 183 words at the final checkpoint, none repetitive), while at the final checkpoint one penalized Qwen3-8B run writes empty CoTs and the other repeats the same phrases for over 1,500 words, so their zero says nothing about spillover. The same holds at penalty weights of $0.5$ and $1$, where three of the four Qwen3-8B runs are empty or repetitive. The same Nemotron condition at penalty weights of $0.5$ and $1$ gives $0.25$ and $0.76$, so that model varies a lot between runs.
 
 The judge scores a CoT as acknowledging the hint whether or not the CoT goes on to use it. We had two LLM graders read 50 penalized and 50 unpenalized CoTs from late in training of one seed of the Qwen3-32B no-SFT runs. They class 41 and 43 of the penalized CoTs as mentioning the hint and then dismissing it, and none as treating the hint as the reason for the answer, while both find 48 of the unpenalized ones to do so; the output follows the hint in $96\%$ of the penalized rollouts.
 
@@ -787,7 +788,8 @@ The table also gives the same checkpoints as scored by the GPT-4o-mini judge the
 \caption{Final-checkpoint CoT hint detection of QA runs with a 4096-token CoT budget, under
 two judges ($\lambda=2$; two or three seeds, one for Nemotron). ``Control'' is the same
 condition's no-penalty run, and ``follow'' is the rate at which the penalized run gives
-the hinted answer.}
+the hinted answer. $^\dagger$The penalized Qwen3-8B pirate-CoT runs' CoTs are empty or repetitive
+at the final checkpoint, so this row does not measure spillover.}
 \label{tab:regime}
 \small
 \begin{tabular}{llccccc}
@@ -799,7 +801,7 @@ Model & Condition & control & penalized & control & penalized & follow \\
 Qwen3-8B & No SFT & 0.67 & 0.20 & 0.99 & 0.84 & 0.05 \\
 Qwen3-8B & Normal SFT & 0.54 & 0.22 & 0.99 & 0.81 & 0.56 \\
 Qwen3-8B & Pirate output & 0.50 & 0.47 & 0.98 & 0.98 & 1.00 \\
-Qwen3-8B & Pirate CoT & 0.74 & 0.00 & 0.96 & 0.00 & 1.00 \\
+Qwen3-8B & Pirate CoT$^\dagger$ & 0.74 & 0.00 & 0.96 & 0.00 & 1.00 \\
 Qwen3-8B & Reward targeting & --- & 0.20 & --- & 0.99 & 1.00 \\
 Qwen3-8B & Mind \& Face & --- & 0.40 & --- & 0.97 & 1.00 \\
 Qwen3-8B & Targeted M\&F & --- & 0.75 & --- & 1.00 & 1.00 \\
@@ -1063,7 +1065,7 @@ Text to rewrite:
 rewriter's own reasoning or commentary about the rewriting task, is outside about $0.6$--$1.6\times$
 the original's length, or drops a heading, list, code block, boxed answer, or formula that the
 original had. Every dataset drops rewrites that lack the style (fewer than two pirate keywords; too few Pig-Latin words or
-Chinese characters). The length filter counts words and is skipped for Chinese. The rewriter often translates markdown headers into Pig Latin or Chinese; for the Qwen3.6 models we restore the original English header lines. The rewriter runs in non-thinking mode unless Table~\ref{tab:sftdata} says otherwise.
+Chinese characters). The length filter counts words and is skipped for Chinese. The rewriter often translates markdown headers into Pig Latin or Chinese; for the Qwen3.6 models we restore the original English header lines. The rewriter runs in non-thinking mode unless Table~\ref{tab:sftdata} says otherwise. For Qwen3.5-9B and Qwen3.5-397B-A17B we also drop rows whose own CoT was cut short by a closing tag the model wrote while quoting its instructions, and rewrites stuck in a repetition loop. For Qwen3.5-397B-A17B, which keeps only about half of its Pass~1 samples because it often restates the system prompt's tag instructions in its CoT, we also drop rows whose CoT still restates those instructions, rows with Chinese or Japanese characters the prompt does not have, rewrites identical to the source, and 33 rows we flagged by reading; and we strip a stray sub-word the model appends just before closing its CoT in $18\%$ of rows.
 
 \begin{table}[h]
 \centering
@@ -1084,7 +1086,12 @@ Qwen3.6-27B, 35B-A3B & Pirate & Qwen3.6-35B-A3B & yes & --- \\
 Qwen3.6-27B, 35B-A3B & Pig Latin & Qwen3.6-35B-A3B & no & yes \\
 Qwen3.6-27B & Chinese & Qwen3-8B & yes & yes \\
 Qwen3-32B & Pirate (unfiltered) & Qwen3-32B, thinking mode & no & --- \\
-Qwen3-8B, Qwen3-32B & Pirate CoT & base model, thinking mode & no & --- \\
+Qwen3-8B, Qwen3-32B & Pirate CoT (long budget) & base model, thinking mode & no & --- \\
+Qwen3-8B, Qwen3.6-27B & Pirate CoT & Qwen3-8B, in chunks & no & --- \\
+Qwen3-8B, Qwen3.6-27B & None (prompt-matched) & --- & no & --- \\
+Qwen3.5-9B, 397B-A17B & Pirate & Qwen3.6-35B-A3B & yes & --- \\
+Qwen3.5-9B, 397B-A17B & Pig Latin & Qwen3.6-35B-A3B & no & yes \\
+Qwen3.5-9B & Chinese & Qwen3-8B & yes & yes \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1093,8 +1100,10 @@ The unfiltered pirate data was written with a shorter prompt that did not ask th
 mid-sentence and $3\%$ carry the rewriter's reasoning, and the model fine-tuned on it
 produces empty or malformed outputs on $62\%$ of 200 QA prompts before any RL, against
 $2\%$ for the model fine-tuned on the filtered data. The long-budget runs of Appendix~\ref{app:regime} use the model fine-tuned on unfiltered data, and every other pirate run uses the filtered one. The Pig-Latin data for Qwen3-8B, which is not filtered, has $4\%$ of its rewrites cut off. The \emph{normal} SFT control
-reuses Pass~1's responses verbatim (no rewriting); the \emph{pirate-CoT} variant instead
-rewrites the CoT and keeps the output plain. For the Qwen3.6 models the pipeline is
+reuses Pass~1's responses verbatim (no rewriting); the prompt-matched normal SFT does the same
+on the prompts of the pirate data. The \emph{pirate-CoT} variant instead
+rewrites the CoT and keeps the output plain; for the runs of Section~\ref{sec:cotstyle}, Qwen3-8B
+rewrites the CoT in chunks, so that long CoTs stay in style to the end. For the Qwen3.6 models the pipeline is
 run on each model's own Pass~1 responses to the same instructions, topped up where a response had to be dropped. An example from the filtered pirate data for Qwen3-8B:
 
 \begin{samplebox}[title={SFT example (pirate output): plain CoT, pirate output}]
