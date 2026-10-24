@@ -70,7 +70,7 @@ def fig_qa8b_all():
     labels = ["No SFT, no penalty", "Plain penalty", "Reward targeting", "Mind & Face", "Targeted M&F",
               "Pirate, no penalty", "Pirate", "Pig Latin, no penalty", "Pig Latin", "Chinese, no penalty", "Chinese",
               "Pirate, style not rewarded", "Pig Latin, style not rewarded",
-              "Unstyled SFT, no penalty", "Unstyled SFT", "Pirate CoT, no penalty", "Pirate CoT"]
+              "Normal SFT (prompt-matched), no penalty", "Normal SFT (prompt-matched)", "Pirate CoT, no penalty", "Pirate CoT"]
     fig, ax = plt.subplots(figsize=(W, W * 0.5))
     xs = bars_with_dots(ax, DATA["qa8b"], spec)
     ax.set_xticklabels(labels, rotation=40, ha="right", fontsize=7)
@@ -111,7 +111,6 @@ def fig_compose_27b():
     ax.set_ylim(0, 1.04)
     ax.set_xlim(-0.9, 3 * 5.4 + 3.9)
     ax.set_ylabel("CoT hint detection")
-    ax.set_title("Qwen3.6-27B", fontweight="bold")
     handles = [Line2D([], [], ls="--", lw=0.9, color=C["ctrl"][1])] + \
               [Patch(color=C[k][1]) for k in ("pen", "rt", "mf", "tmf")] + [Patch(color=C[s][1]) for s, _ in styles]
     labels = ["No penalty", "Plain penalty", "Reward targeting", "Mind & Face", "Targeted M&F"] + [l for _, l in styles]

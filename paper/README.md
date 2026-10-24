@@ -10,16 +10,18 @@ latexmk -pdf -interaction=nonstopmode main.tex
 ```
 
 ## Structure
-1 Introduction (Figure 1 is the schematic) · 2 Related Work · 3 Methods ·
+1 Introduction (Figure 1 is the schematic) · 2 Related Work · 3 Methods (four paragraphs) ·
 4 Results: 4.1 style separation in the main setting (Fig 2) · 4.2 combined with the prior
-mitigations (Fig 3) · 4.3 other environments and models: where spillover appears (Fig 4) and the
-mitigations where it does (Fig 5) · 4.4 styling the CoT · 5 Discussion and Limitations ·
-Appendices A–H, results first (full numbers, the explanation check, the long CoT budget), then
-reference material (training details, reward, environments, SFT data, judge prompts).
+mitigations (Fig 3) · 4.3 Qwen3.6-27B in QA and polynomial factoring, closing on the other
+models (Fig 4) · 4.4 styling the CoT (Fig 5) · 5 Discussion and Limitations · Appendices:
+A full results for the main settings, B results on other models (the spillover screen first),
+C the terminal environment, D the explanation check, then E to I reference material (training
+details, reward, environments, SFT data, judge prompts). The body ends on page 7.
 
 ## Where the numbers come from
-Figures 2–5 and Tables 1–2 come from the training logs via `make_paper_figures.py`, which also
-writes `figures/paper_numbers.json` (every per-seed and mean value behind them). Other tables come
+Figures 2–5 come from the training logs via `make_paper_figures.py`, which also writes
+`figures/paper_numbers.json` (every per-seed and mean value behind them); the appendix bar
+figures are drawn from that file by `make_appendix_figures.py`. Other tables come
 from `../RESULTS.md` and `../plots/gated_pareto_all.json`. Tables give the sample standard deviation
 over seeds; figure error bars are 95% t intervals over seeds.
 
@@ -49,16 +51,14 @@ Palette: grays for the controls, cool colors (squares) for the prior mitigations
   display, what the error bars are and how many seeds. Appendix captions are plain.
 - Claims are scoped to the runs behind them (seeds, model, CoT budget).
 
-## Status (2026-10-19)
-Plot and text pass: means-only main figure with bars (or a table), vertical composition bars, a
-spillover screen over every model and environment, and per-seed bars for the other spillover
-settings. The section on the reward without the explanation check, its figure, and the
-output–CoT coupling appendix figure were removed; the check is described in Methods with a short
-appendix. Claims in Section 4.3 are stated against reward targeting, Targeted M&F, the plain penalty
-and the no-penalty control. Mitigations were not run on the three Qwen3.5 models that spill.
+## Status (2026-10-24)
+Concision and structure pass on Jose's brief (paper-editor `.editing-notes/EDIT_BRIEF_2026-10-24.md`):
+Methods in four paragraphs, each results subsection cut to its claim, 4.3 led by Qwen3.6-27B,
+appendices consolidated. Removed: the long-CoT-budget appendix and its table, the no-spillover
+per-seed table, the cross-environment table, the unfiltered pirate data. The old figure files
+(`envs_bars`, `compose_vertical`, `envs_pareto`, `cotstyle`, previews) are unused.
 
 Numbers still to confirm from the logs:
 - Explanation-check table: the Pig Latin control's genuine-explanation rate (0.93), and the plain
   penalty's 72%, which is judged on seeds 42–49 only.
 - The share of CoTs cut off at the 300-token limit (the paper says 85–90%).
-- Whether the pirate-CoT models' CoTs stayed in pirate-speak through RL.
