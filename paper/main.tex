@@ -162,7 +162,7 @@ R = E\cdot R_{\text{task}} - \lambda\, M_{\text{out}},
 \]
 where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is a GPT-4.1 judge of whether the output acknowledges the hint, and $\lambda=2$. A second judge with the same rubric reads only the CoT; its score is never trained on, and we use its average over rollouts to measure \emph{CoT hint detection}. Feedback spillover is a drop in CoT hint detection relative to a no-penalty control. $E\in\{0,1\}$ is a GPT-4.1 judge which checks whether the output contains an explanation of the answer, to prevent satisfying the output monitor with very short answers (Appendix~\ref{app:audit}). We also report results in their polynomial derivative factoring environment (Section~\ref{sec:envs}) and their multi-turn terminal environment (Appendix~\ref{app:terminal}), with $\lambda=1$ and $0.75$ respectively. We observed that feedback spillover appears less consistently in these two environments on the models we tested, and so use the QA environment as our primary setting.
 
-\paragraph{Style separation.} To construct models with styled outputs, the base model first generates responses to questions from the Stanford Alpaca instruction set \citep{alpaca2023}; these responses are then rewritten so the outputs match the target format (exaggerated pirate-speak, Pig Latin, or Chinese), with the CoTs untouched. We fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs; Appendix~\ref{app:sft}). During RL, these models also receive a style reward $\mu\,M_{\text{style}}$ ($\mu=1$) to keep the style from decaying, where $M_{\text{style}}\in[0,1]$ is a GPT-4.1 judge's probability that the output is in the intended style (Appendix~\ref{app:judges}); for fair comparison to other settings, we leave it out of the plotted training reward. The SFT data is generated once, so it becomes off-policy as the model is fine-tuned, and this could by itself change how much training on the output reaches the CoT. As a control for this, we also train models on the data prior to rewriting (\emph{normal} SFT).
+\paragraph{Style separation.} To construct models with styled outputs, the base model first generates responses to questions from the Stanford Alpaca instruction set \citep{alpaca2023}; these responses are then rewritten so the outputs match the target format (exaggerated pirate-speak, Pig Latin, or Chinese), with the CoTs untouched. We fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs; Appendix~\ref{app:sft}). During RL, these models also receive a style reward $\mu\,M_{\text{style}}$ ($\mu=1$) to keep the style from decaying, where $M_{\text{style}}\in[0,1]$ is a GPT-4.1 judge's probability that the output is in the intended style (Appendix~\ref{app:judges}); for fair comparison to other settings, we leave it out of the plotted training reward. The SFT data is generated once, so it becomes off-policy as the model is fine-tuned, and this could by itself change how much training on the output reaches the CoT. As a control for this, we also train models on the data prior to rewriting (\emph{unstyled} SFT).
 
 \paragraph{Prior mitigations.} Our baseline is the \emph{plain penalty}: the penalized model with no SFT and no mitigation. We also re-implement the mitigations of \citet{drori2025output}: reward targeting (the output penalty's advantage is zeroed on CoT tokens), Mind \& Face (separate LoRA adapters generate the CoT and the output), and their combination, Targeted Mind \& Face (Targeted M\&F). We add the explanation check from above to their construction to prevent degenerate outputs (Appendix~\ref{app:audit}).
 
@@ -236,7 +236,7 @@ In this section, we test style separation in QA on Qwen3-8B. Figure~\ref{fig:mai
 
 We find that all three style interventions result in higher CoT hint detection and training reward than the plain penalty ($0.46$--$0.56$ against $0.27$). They perform comparably to or better than prior mitigations that explicitly shape reward or use different models to generate the CoT and the output: style interventions achieve similar CoT hint detection to reward targeting with higher rewards, similar rewards to Mind \& Face with higher CoT hint detection, and similar rewards and CoT hint detection to Targeted Mind \& Face.
 
-The improvement does not come from the fine-tuning alone: the normal-SFT control ends up close to the plain penalty in CoT hint detection ($0.31$) and training reward (Figure~\ref{fig:cotstyle}).
+The improvement does not come from the fine-tuning alone: the unstyled SFT control ends up close to the plain penalty in CoT hint detection ($0.31$) and training reward (Figure~\ref{fig:cotstyle}).
 
 \subsection{Style separation can compose with prior mitigations}
 \label{sec:compose}
@@ -311,7 +311,7 @@ We also tested for spillover under the plain penalty on 16 more models and in th
 \includegraphics[width=\textwidth]{figures/cotstyle_pareto.pdf}
 \caption{\textbf{Styling the CoT instead of the output makes spillover total on Qwen3-8B.} Training reward against CoT hint
 detection in QA, without (hollow) and with (filled) the output penalty, for
-the base model, the normal-SFT control (``unstyled SFT''), the Pig-Latin-output models (``styled SFT''), and a model fine-tuned to write its CoT in pirate-speak with
+the base model, the unstyled SFT control, the Pig-Latin-output models (``styled SFT''), and a model fine-tuned to write its CoT in pirate-speak with
 a plain output. Markers are means over seeds with 95\% $t$ intervals (5 seeds; 10 for Pig Latin under
 the penalty on Qwen3-8B and for pirate CoT on Qwen3.6-27B), and the dashed line is the base model's
 no-penalty CoT detection. The Qwen3.6-27B pirate-CoT means include five penalized seeds and one
@@ -352,9 +352,9 @@ We are grateful for helpful discussion and feedback from many people, including 
 
 Table~\ref{tab:main} and Figure~\ref{fig:qa8ball} give every QA condition on Qwen3-8B, Table~\ref{tab:envsmain} the Qwen3.6-27B conditions of Figure~\ref{fig:envs}, Table~\ref{tab:compose} the combinations with the prior mitigations on both models (Figure~\ref{fig:compose27b} for Qwen3.6-27B), and Table~\ref{tab:seeds} per-seed values for the more variable conditions.
 
-\paragraph{Without the style reward.} The pirate and Pig-Latin models trained without the style reward keep their style in $0.54$ and $0.76$ of late outputs, and retain $0.28$ and $0.36$, about the level of the plain penalty and the normal-SFT models.
+\paragraph{Without the style reward.} The pirate and Pig-Latin models trained without the style reward keep their style in $0.54$ and $0.76$ of late outputs, and retain $0.28$ and $0.36$, about the level of the plain penalty and the unstyled SFT models.
 
-\paragraph{Normal SFT.} The normal-SFT control of Section~\ref{sec:main} is trained on the pirate model's prompts (``prompt-matched'' in Table~\ref{tab:main}); a normal-SFT model trained on a different random subset of the Alpaca prompts gives the same picture ($0.73$ without the penalty and $0.36$ under it). On Qwen3.6-27B the prompt-matched normal-SFT model retains $0.48\pm0.40$ under the penalty, with seeds split between near-full retention and near-total loss, like the styles there.
+\paragraph{Unstyled SFT.} The unstyled SFT control of Section~\ref{sec:main} is trained on the pirate model's prompts (``prompt-matched'' in Table~\ref{tab:main}); an unstyled SFT model trained on a different random subset of the Alpaca prompts gives the same picture ($0.73$ without the penalty and $0.36$ under it). On Qwen3.6-27B the prompt-matched unstyled SFT model retains $0.48\pm0.40$ under the penalty, with seeds split between near-full retention and near-total loss, like the styles there.
 
 \paragraph{Qwen3.6-27B.} The styled models' no-penalty controls vary more by seed than the unstyled control ($0.80\pm0.23$, $0.75\pm0.19$ and $0.69\pm0.23$ against $0.81\pm0.05$). Combined with reward targeting or Targeted M\&F, pirate and Chinese reach $0.85$--$0.97$ with less seed spread; Pig Latin plus reward targeting ($0.70$) still splits by seed; the combinations with Mind \& Face fall below the plain penalty ($0.33$--$0.41$). In polynomial factoring five of the 30 mitigated runs are uninformative: one seed of reward targeting, two of Targeted M\&F and one of pirate never scrubbed their output, so the penalty never acted on them, and one Pig-Latin seed collapsed into filler and lost its task reward. The remaining runs of reward targeting, Targeted M\&F and the three styles are at $0.91$ to $1.00$, except one pirate seed at $0.71$.
 
@@ -393,10 +393,10 @@ Chinese output, no penalty & 5 & $0.66\pm0.04$ & 0.89 & 1.00 & 1.00 & $-0.78$ \\
 Pirate output, style not rewarded & 5 & $0.28\pm0.13$ & 0.01 & 1.00 & 0.54 & $+0.98$ \\
 Pig-Latin output, style not rewarded & 5 & $0.36\pm0.12$ & 0.02 & 0.98 & 0.76 & $+0.95$ \\
 \addlinespace
-Normal SFT, other prompts & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
-Normal SFT, other prompts, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
-Normal SFT, prompt-matched & 5 & $0.31\pm0.08$ & 0.12 & 0.99 & --- & $+0.73$ \\
-Normal SFT, prompt-matched, no penalty & 5 & $0.73\pm0.06$ & 0.89 & 1.00 & --- & $-0.78$ \\
+Unstyled SFT, other prompts & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
+Unstyled SFT, other prompts, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
+Unstyled SFT, prompt-matched & 5 & $0.31\pm0.08$ & 0.12 & 0.99 & --- & $+0.73$ \\
+Unstyled SFT, prompt-matched, no penalty & 5 & $0.73\pm0.06$ & 0.89 & 1.00 & --- & $-0.78$ \\
 \addlinespace
 Pirate CoT, style not rewarded & 5 & $0.01\pm0.00$ & 0.01 & 1.00 & --- & $+0.97$ \\
 Pirate CoT, style not rewarded, no penalty & 5 & $0.49\pm0.28$ & 0.88 & 1.00 & --- & $-0.76$ \\
@@ -407,14 +407,14 @@ Pirate CoT, style not rewarded, no penalty & 5 & $0.49\pm0.28$ & 0.88 & 1.00 & -
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/qa8b_all_bars.pdf}
-\caption{CoT hint detection for every QA condition on Qwen3-8B except the normal SFT on other prompts (Table~\ref{tab:main}). Bars are means over seeds and dots are seeds; hollow bars are models trained without the penalty, a hollow dot is a seed whose output was never scrubbed, and the dashed line is the no-SFT control. The pirate-CoT model's style is not rewarded.}
+\caption{CoT hint detection for every QA condition on Qwen3-8B except the unstyled SFT on other prompts (Table~\ref{tab:main}). Bars are means over seeds and dots are seeds; hollow bars are models trained without the penalty, a hollow dot is a seed whose output was never scrubbed, and the dashed line is the no-SFT control. The pirate-CoT model's style is not rewarded.}
 \label{fig:qa8ball}
 \end{figure}
 
 \begin{table}[h]
 \centering
 \caption{The values plotted in Figure~\ref{fig:envs}, with the styled models' own no-penalty
-controls and the prompt-matched normal SFT: task reward, the output monitor's detection rate, and
+controls and the prompt-matched unstyled SFT: task reward, the output monitor's detection rate, and
 CoT detection (means over the last 27 steps $\pm$ sample standard deviation over 5 seeds). Rows
 are under the output penalty unless marked otherwise.}
 \label{tab:envsmain}
@@ -441,8 +441,8 @@ Pirate output, no penalty & 1.00 & 0.97 & $0.80\pm0.23$ & 0.94 & 0.91 & $1.00\pm
 Pig-Latin output, no penalty & 0.99 & 0.79 & $0.75\pm0.19$ & 0.86 & 0.97 & $1.00\pm0.00$ \\
 Chinese output, no penalty & 0.99 & 0.89 & $0.69\pm0.23$ & 0.92 & 0.96 & $1.00\pm0.01$ \\
 \addlinespace
-Normal SFT, prompt-matched & 1.00 & 0.01 & $0.48\pm0.40$ & --- & --- & --- \\
-Normal SFT, prompt-matched, no penalty & 1.00 & 0.95 & $0.95\pm0.09$ & --- & --- & --- \\
+Unstyled SFT, prompt-matched & 1.00 & 0.01 & $0.48\pm0.40$ & --- & --- & --- \\
+Unstyled SFT, prompt-matched, no penalty & 1.00 & 0.95 & $0.95\pm0.09$ & --- & --- & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1002,8 +1002,8 @@ Qwen3.5-9B & Chinese & Qwen3-8B & yes & yes \\
 \end{tabular}
 \end{table}
 
-The Pig-Latin data for Qwen3-8B, which is not filtered, has $4\%$ of its rewrites cut off. The \emph{normal} SFT control
-reuses Pass~1's responses verbatim (no rewriting) on the prompts of the pirate data; the normal SFT
+The Pig-Latin data for Qwen3-8B, which is not filtered, has $4\%$ of its rewrites cut off. The \emph{unstyled} SFT control
+reuses Pass~1's responses verbatim (no rewriting) on the prompts of the pirate data; the unstyled SFT
 on other prompts (Table~\ref{tab:main}) does the same on a different random subset of the instructions. The \emph{pirate-CoT} variant instead
 rewrites the CoT and keeps the output plain; for the runs of Section~\ref{sec:cotstyle}, Qwen3-8B
 rewrites the CoT in chunks, so that long CoTs stay in style to the end. For the Qwen3.5 and Qwen3.6 models the pipeline is

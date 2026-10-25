@@ -11,7 +11,7 @@ latexmk -pdf -interaction=nonstopmode main.tex
 
 ## Structure
 1 Introduction (Figure 1 is the schematic) · 2 Related Work · 3 Methods (four paragraphs) ·
-4 Results: 4.1 style separation in the main setting, with the normal-SFT control (Fig 2) ·
+4 Results: 4.1 style separation in the main setting, with the unstyled SFT control (Fig 2) ·
 4.2 combined with the prior mitigations, testing the parametric/conditional account in Methods
 (Fig 3) · 4.3 Qwen3.6-27B in QA and polynomial factoring, closing on the other models (Fig 4) ·
 4.4 styling the CoT, testing the Methods prediction that it makes spillover worse (Fig 5) ·
@@ -61,10 +61,10 @@ stays a symbol because it is 2 in QA, 1 in polynomial factoring and 0.75 in term
 parametric/conditional-spillover account of style separation sits in Methods, and 4.2 tests its
 prediction (stacks with reward targeting and Targeted M&F, not with Mind & Face); 4.3 rewritten
 in the same register. The body's
-normal-SFT control is now the prompt-matched one (0.31). Follow-up: the intro states the
+unstyled SFT control is now the prompt-matched one (0.31). Follow-up: the intro states the
 Mind & Face analogy in plain prose; 4.1 explains the pirate-CoT result by the same account (the
 rewritten CoTs are a model's output text) plus the separate effect of training on CoTs the
-model would not have written; Methods says the normal-SFT control covers the off-policyness the SFT pipeline itself
+model would not have written; Methods says the unstyled SFT control covers the off-policyness the SFT pipeline itself
 introduces (fixed data, not on-policy SFT). Later: the styled-CoT models and the account's
 prediction for them moved into Methods, and the styled-CoT result is its own subsection again (4.4). Jose will edit the intro and discussion.
 
