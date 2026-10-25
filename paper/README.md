@@ -11,9 +11,10 @@ latexmk -pdf -interaction=nonstopmode main.tex
 
 ## Structure
 1 Introduction (Figure 1 is the schematic) · 2 Related Work · 3 Methods (four paragraphs) ·
-4 Results: 4.1 style separation in the main setting (Fig 2) · 4.2 combined with the prior
-mitigations (Fig 3) · 4.3 Qwen3.6-27B in QA and polynomial factoring, closing on the other
-models (Fig 4) · 4.4 styling the CoT (Fig 5) · 5 Discussion and Limitations · Appendices:
+4 Results: 4.1 style separation in the main setting, with the normal-SFT control and the
+styled-CoT model (Figs 2 and 3) · 4.2 combined with the prior mitigations, testing the
+prediction of the parametric/conditional account in Methods (Fig 4) · 4.3 Qwen3.6-27B in QA and polynomial factoring,
+closing on the other models (Fig 5) · 5 Discussion and Limitations · Appendices:
 A full results for the main settings, B results on other models (the spillover screen first),
 C the terminal environment, D the explanation check, then E to I reference material (training
 details, reward, environments, SFT data, judge prompts). The body ends on page 7.
@@ -51,8 +52,17 @@ Palette: grays for the controls, cool colors (squares) for the prior mitigations
   display, what the error bars are and how many seeds. Appendix captions are plain.
 - Claims are scoped to the runs behind them (seeds, model, CoT budget).
 
-## Status (2026-10-24)
-Concision and structure pass on Jose's brief (paper-editor `.editing-notes/EDIT_BRIEF_2026-10-24.md`):
+## Status (2026-10-25)
+Jose's pass over Methods and Results 4.1 to 4.2, with his inline comments addressed: the style
+term is introduced in the style-separation paragraph rather than the displayed reward (lambda
+stays a symbol because it is 2 in QA, 1 in polynomial factoring and 0.75 in terminal); the old
+4.4 on styling the CoT is folded into 4.1 as one paragraph, with its figure; the
+parametric/conditional-spillover account of style separation sits in Methods, and 4.2 tests its
+prediction (stacks with reward targeting and Targeted M&F, not with Mind & Face); 4.3 rewritten
+in the same register. The body's
+normal-SFT control is now the prompt-matched one (0.31). Jose will edit the intro and discussion.
+
+Previous pass (2026-10-24): concision and structure pass on Jose's brief (paper-editor `.editing-notes/EDIT_BRIEF_2026-10-24.md`):
 Methods in four paragraphs, each results subsection cut to its claim, 4.3 led by Qwen3.6-27B,
 appendices consolidated. Removed: the long-CoT-budget appendix and its table, the no-spillover
 per-seed table, the cross-environment table, the unfiltered pirate data. The old figure files

@@ -69,7 +69,7 @@ Training a reasoning model against a monitor that sees only its output, never it
 
 Reasoning models produce a chain of thought (CoT) before their final answer, and that CoT often helps understand why a model produced its answer \citep{guo2025deepseek,korbak2025monitorability}. This has been proposed as a unique opportunity for oversight: a monitor that reads the CoT can catch misbehavior that the final output hides \citep{baker2025monitoring,korbak2025monitorability}. A natural worry is that training against a CoT monitor teaches the model to hide bad reasoning from that monitor \citep{baker2025monitoring}; the standard recommendation is therefore to optimize only against output monitors that never see the CoT. Developers will train against output monitors either way, since penalizing flagged outputs is how unwanted behavior gets trained away; CoT monitoring keeps its value only if the CoT's evidence survives that training.
 
-\citet{drori2025output} show that it may not. Training against an output-only monitor can cause \emph{feedback spillover}: the penalized behavior stops appearing in the CoT, even though the monitor never sees the CoT. They study two mitigations, \emph{reward targeting}, which zeros the gradient term that flows from the output penalty through the CoT, and \emph{Mind \& Face}, which generates the CoT and the output with two separate models; they also find that these mitigations are only partially effective, and can destabilize training. Current models already differ in how distinct the two channels are: some reasoning models' CoTs drift into a register quite unlike their outputs \citep{schoen2025antischeming,guo2025deepseek}. We test whether making a model's CoT and output stylistically distinct, so that training pressure on one generalizes less to the other, can mitigate feedback spillover. We find that styling the output mitigates spillover about as well as the best prior mitigations (without requiring a second model or changes to the gradient), while styling the CoT instead makes it worse (Sections~\ref{sec:main} and~\ref{sec:cotstyle}).
+\citet{drori2025output} show that it may not. Training against an output-only monitor can cause \emph{feedback spillover}: the penalized behavior stops appearing in the CoT, even though the monitor never sees the CoT. They study two mitigations, \emph{reward targeting}, which zeros the gradient term that flows from the output penalty through the CoT, and \emph{Mind \& Face}, which generates the CoT and the output with two separate models; they also find that these mitigations are only partially effective, and can destabilize training. Current models already differ in how distinct the two channels are: some reasoning models' CoTs drift into a register quite unlike their outputs \citep{schoen2025antischeming,guo2025deepseek}. We test whether making a model's CoT and output stylistically distinct, so that training pressure on one generalizes less to the other, can mitigate feedback spillover. We find that styling the output mitigates spillover about as well as the best prior mitigations (without requiring a second model or changes to the gradient), while styling the CoT instead makes it worse (Section~\ref{sec:main}).
 
 \begin{figure}[t]
 \centering
@@ -123,7 +123,7 @@ brings CoT hint detection back to the no-penalty level (Section~\ref{sec:compose
 falls short of them in QA, and we test for spillover on 16 further models, most of which show
 little or none (Section~\ref{sec:envs}).
 \item We find that styling the CoT instead of the output drives CoT hint detection to
-zero under an output penalty (Section~\ref{sec:cotstyle}).
+zero under an output penalty (Section~\ref{sec:main}).
 \end{enumerate}
 
 \section{Related Work}
@@ -156,17 +156,19 @@ output-only penalty generalizes to unseen tasks; they do not test mitigations.
 \section{Methods}
 \label{sec:setup}
 
-We follow the QA-with-hints environment of \citet{drori2025output}: the model answers a multiple-choice question from MMLU \citep{hendrycks2021mmlu} whose prompt contains a hint pointing to a specific, \emph{incorrect} answer (``A friend mentioned that the answer should be A''), so a model that answers the hinted letter must be using the hint. The training reward is
+We follow the QA-with-hints environment of \citet{drori2025output} for our primary results: the model answers a multiple-choice question from MMLU \citep{hendrycks2021mmlu} whose prompt contains a hint pointing to an incorrect answer, so a model that answers the hinted letter must be using the hint. The training reward is
 \[
-R = E\cdot R_{\text{task}} - \lambda\, M_{\text{out}} + \mu\, M_{\text{style}},
+R = E\cdot R_{\text{task}} - \lambda\, M_{\text{out}},
 \]
-where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is a GPT-4.1 judge of whether the output acknowledges the hint (with their prompt; Appendix~\ref{app:judges}), and $\lambda=2$. A second judge with the same rubric reads only the CoT; its score is never trained on, and its average over rollouts, \emph{CoT hint detection}, is our measure. Feedback spillover is a drop in CoT hint detection relative to a no-penalty control. Figures plot the training reward without the style term, $E\,R_{\text{task}}-\lambda\,M_{\text{out}}$. The other two terms are ours. The explanation check $E\in\{0,1\}$ pays the task reward only if a GPT-4.1 judge finds a genuine attempt to explain the boxed answer, in any language or style: the prompt asks for an explanation, and without this check the styled models satisfy the output monitor by not giving one (Appendix~\ref{app:audit}). The style reward $\mu M_{\text{style}}$ ($\mu=1$, styled models only) pays a judge's score for the output being in the intended style, and keeps the style from decaying during RL. We call the penalized model with no SFT and no mitigation the \emph{plain penalty}.
+where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is a GPT-4.1 judge of whether the output acknowledges the hint, and $\lambda=2$. A second judge with the same rubric reads only the CoT; its score is never trained on, and we use its average over rollouts to measure \emph{CoT hint detection}. Feedback spillover is a drop in CoT hint detection relative to a no-penalty control. $E\in\{0,1\}$ is a GPT-4.1 judge which checks whether the output contains an explanation of the answer, to prevent satisfying the output monitor with very short answers (Appendix~\ref{app:audit}). We also report results in their polynomial derivative factoring environment (Section~\ref{sec:envs}) and their multi-turn terminal environment (Appendix~\ref{app:terminal}), with $\lambda=1$ and $0.75$ respectively. We keep QA primary because feedback spillover appears less consistently in those two: on Qwen3-8B the output penalty produces little or none in either.
 
-\paragraph{Style separation.} Before RL we LoRA-fine-tune the base model on a styled version of the Stanford Alpaca instruction set \citep{alpaca2023}: the model answers each instruction normally, and a rewriter turns only the output into the target style (exaggerated pirate-speak, Pig Latin, or Chinese), leaving the CoT untouched. We fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs; Appendix~\ref{app:sft}). Our controls are no SFT, \emph{normal} SFT through the same pipeline without the rewriting step, and \emph{pirate-CoT} SFT, which styles the CoT instead of the output (Section~\ref{sec:cotstyle}).
+\paragraph{Style separation.} To construct models with styled outputs, the base model first generates responses to questions from the Stanford Alpaca instruction set \citep{alpaca2023}; these responses are then rewritten so the outputs match the target format (exaggerated pirate-speak, Pig Latin, or Chinese), with the CoTs untouched. We fine-tune on $10{,}000$ such examples (LoRA rank 32, 3 epochs; Appendix~\ref{app:sft}). During RL, these models also receive a style reward $\mu\,M_{\text{style}}$ ($\mu=1$), where $M_{\text{style}}\in[0,1]$ is a GPT-4.1 judge's probability that the output is in the intended style (Appendix~\ref{app:judges}); it keeps the style from decaying, and we leave it out of the plotted training reward. Models with styled CoTs (and regular outputs) are trained using the same pipeline, without the style reward. As a control, we train models on the data prior to rewriting (\emph{normal} SFT).
 
-\paragraph{Prior mitigations.} We re-implement reward targeting (the output penalty's advantage is zeroed on CoT tokens), Mind \& Face (separate LoRA adapters generate the CoT and the output), and their combination, Targeted Mind \& Face (Targeted M\&F), all with the explanation check, and we also combine each of them with style separation (Section~\ref{sec:compose}; Appendix~\ref{app:mit}).
+\paragraph{Prior mitigations.} Our baseline is the \emph{plain penalty}: the penalized model with no SFT and no mitigation. We also re-implement the mitigations of \citet{drori2025output}: reward targeting (the output penalty's advantage is zeroed on CoT tokens), Mind \& Face (separate LoRA adapters generate the CoT and the output), and their combination, Targeted Mind \& Face (Targeted M\&F). We add the explanation check from above to their construction to prevent degenerate outputs (Appendix~\ref{app:audit}).
 
-\paragraph{Training and measurement.} We train LoRA adapters (rank 32) with GRPO \citep{shao2024deepseekmath} via the Tinker API \citep{tinker2025}, for 266 steps of 12 rollouts (4 per prompt) at learning rate $10^{-5}$, rather than the full-model REINFORCE of \citet{drori2025output}, which with a LoRA adapter does not learn the task under the penalty. We group-normalize each reward term separately, so $\lambda$ and $\mu$ set the sign of its advantage and not its size. We use their 300-token CoT budget, which cuts off $85$--$90\%$ of CoTs, and 600 output tokens. Numbers are training-rollout averages over the last 10\% of steps, with 5 seeds per condition and 10 for some (Appendix~\ref{app:train}). Our main model is Qwen3-8B \citep{qwen3} rather than their Qwen3-4B; Section~\ref{sec:envs} adds Qwen3.6-27B and their other two environments. Our plain penalty spills less than theirs ($0.27$ against about $0.02$ in their figure) and our Mind \& Face trains stably where theirs did not; the implementation differences above are probably why.
+Intuitively, style separation acts along the same channel as Mind \& Face, targeting what \citet{drori2025output} describe as parametric feedback spillover: parameter settings that produce obfuscated outputs may also produce obfuscated CoTs, so increasing the separation between the parameters generating the CoT and the output (through explicit construction in the case of Mind \& Face, and by inducing semantic differences in the case of style separation) can address this. Style separation also affects conditional feedback spillover (what reward targeting is constructed to address) to a lesser extent: CoTs that happen to omit the hint make outputs that omit it more likely, and so get reinforced by the output penalty; reward targeting removes this reinforcement, while style separation only weakens it, by cutting the lexical copying from CoT to output that this channel partly runs through. We expect this second effect to be small, since the exact words should matter little to a model that can carry the same content across styles. We test this account by combining style separation with each prior mitigation (Section~\ref{sec:compose}; Appendix~\ref{app:mit}).
+
+\paragraph{Training and measurement.} We train models with GRPO \citep{shao2024deepseekmath} with LoRA (rank 32) via the Tinker API \citep{tinker2025}, for 266 steps of 12 rollouts (4 per prompt) at learning rate $10^{-5}$, rather than the full-model REINFORCE of \citet{drori2025output}, which we found does not learn the task under the penalty with a LoRA adapter. We group-normalize each reward term separately, so $\lambda$ and $\mu$ set the sign of their respective terms' advantages and not their sizes. We use the same 300-token CoT budget as \citet{drori2025output}, and 600 output tokens. Numbers are training-rollout averages over the last 10\% of steps, with at least 5 seeds per condition in the mitigation comparisons (Appendix~\ref{app:train}). Our main model is Qwen3-8B \citep{qwen3}; we also report results on Qwen3.6-27B (Section~\ref{sec:envs}) and on 16 more models, most of which show little or no spillover (Appendix~\ref{app:othermodels}).
 
 \section{Results}
 \label{sec:results}
@@ -228,13 +230,27 @@ clipped at 1.}
 \label{fig:main}
 \end{figure}
 
-In this section, we test style separation in QA on Qwen3-8B. Figure~\ref{fig:main} plots training reward against CoT hint detection for each condition; an ideal mitigation sits at the top right, with full reward and CoT hint detection at the no-penalty level. Table~\ref{tab:main} in Appendix~\ref{app:full} gives the full numbers.
+In this section, we test style separation in QA on Qwen3-8B. Figure~\ref{fig:main} plots training reward against CoT hint detection for each condition; an ideal mitigation sits at the top right, with full reward and CoT hint detection comparable to the model trained with no penalty. Similar to \citet{drori2025output}, we find that models trained with the output penalty have lower CoT hint detection than a model trained without the penalty.
 
-We find that all three styles retain more CoT hint detection than the plain penalty ($0.46$--$0.56$ against $0.27$), about as much as reward targeting ($0.51$) and Targeted M\&F ($0.52$), and Pig Latin clearly more than Mind \& Face ($0.40$).
+We find that all three style interventions result in higher CoT hint detection and training reward than the plain penalty ($0.46$--$0.56$ against $0.27$). They perform comparably to or better than prior mitigations that explicitly shape reward or use different models to generate the CoT and the output: style interventions achieve similar CoT hint detection to reward targeting with higher rewards, similar rewards to Mind \& Face with higher CoT hint detection, and similar rewards and CoT hint detection to Targeted Mind \& Face.
 
-Normal SFT retains $0.36$ ($0.31$ when trained on the styled models' exact prompts), below all three styles on average (clearly so for Pig Latin).
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/cotstyle_pareto.pdf}
+\caption{\textbf{Styling the CoT instead of the output makes spillover total on Qwen3-8B.} Training reward against CoT hint
+detection in QA, without (hollow) and with (filled) the output penalty, for
+the base model, the normal-SFT control (``unstyled SFT''), the Pig-Latin-output models (``styled SFT''), and a model fine-tuned to write its CoT in pirate-speak with
+a plain output. Markers are means over seeds with 95\% $t$ intervals (5 seeds; 10 for Pig Latin under
+the penalty on Qwen3-8B and for pirate CoT on Qwen3.6-27B), and the dashed line is the base model's
+no-penalty CoT detection. The Qwen3.6-27B pirate-CoT means include five penalized seeds and one
+no-penalty seed whose CoT collapsed into filler during RL, so that panel does not measure spillover
+cleanly (Appendix~\ref{app:full}).}
+\label{fig:cotstyle}
+\end{figure}
 
-\subsection{Style separation composes with reward targeting and Targeted M\&F}
+The improvement does not come from the SFT alone: the normal-SFT control ends up close to the plain penalty in CoT hint detection ($0.31$) and training reward (Figure~\ref{fig:cotstyle}). Styling the CoT instead of the output makes spillover much worse: a model fine-tuned to write its CoT in pirate-speak loses the hint from its CoT almost entirely under the penalty ($0.01$, from $0.49$ without it), though its CoTs stay full-length and on topic. We hypothesize that SFT on modified CoTs stops the model from treating its CoT as a privileged space, so that training on the output reaches it more easily.
+
+\subsection{Style separation can compose with prior mitigations}
 \label{sec:compose}
 
 \begin{figure}[t]
@@ -272,9 +288,9 @@ same combinations on Qwen3.6-27B.}
 \label{fig:compose}
 \end{figure}
 
-In this section, we test whether style separation adds to the prior mitigations, by training the pirate and Pig-Latin models with each of reward targeting, Mind \& Face, and Targeted M\&F added (Figure~\ref{fig:compose}).
+In this section, we test whether style separation stacks on top of the prior mitigations, by training the styled models with each of reward targeting, Mind \& Face, and Targeted M\&F added (Figure~\ref{fig:compose}). If style separation acts mainly on parametric spillover (Section~\ref{sec:setup}), it should stack with reward targeting, which addresses conditional spillover, but not with Mind \& Face, which acts on the same channel.
 
-We find that with reward targeting or Targeted M\&F added, both styles reach the no-penalty level ($0.60$--$0.63$ against the control's $0.60$), which no condition reaches on its own. Adding Mind \& Face gains nothing: both styles end at $0.46$. On Qwen3.6-27B, where reward targeting alone already recovers the control level, five of the six combinations with it or with Targeted M\&F stay at or above that level, and those with Mind \& Face fall below the plain penalty on average (Appendix~\ref{app:full}).
+We find that this prediction holds. With reward targeting added, both styles reach the no-penalty level ($0.62$ each, against the control's $0.60$), which no condition reaches on its own; with Mind \& Face added, both end at $0.46$, no better than they do alone. Style separation also stacks with Targeted M\&F ($0.60$--$0.63$), which is less expected, since Targeted M\&F includes Mind \& Face. Mind \& Face is weaker than reward targeting on this model ($0.40$ against $0.51$), and adding it to reward targeting barely helps ($0.52$ for Targeted M\&F), so its contribution may be small; style separation may simply act on the parametric channel more effectively than Mind \& Face does, since style plus reward targeting ($0.62$) does better than Targeted M\&F. On Qwen3.6-27B, where reward targeting alone already reaches the no-penalty level, the combinations with it or with Targeted M\&F mostly stay at that level, and those with Mind \& Face fall below the plain penalty (Appendix~\ref{app:full}).
 
 \subsection{Other environments and models}
 \label{sec:envs}
@@ -293,38 +309,18 @@ Pig Latin from a seed that lost its task reward. Table~\ref{tab:envsmain} gives 
 \label{fig:envs}
 \end{figure}
 
-In this section, we test style separation on Qwen3.6-27B, in QA and in the polynomial derivative factoring environment of \citet{drori2025output}, where the penalized behavior is writing the expanded derivative in the output, and CoT detection is how often the CoT writes it (Figure~\ref{fig:envs}; Appendix~\ref{app:full} gives the numbers).
+In this section, we test style separation on a larger model, Qwen3.6-27B, in QA and in the polynomial derivative factoring environment of \citet{drori2025output} (Appendix~\ref{app:env}), where the penalized behavior is writing out the expanded derivative in the output and CoT detection is how often the CoT contains it (Figure~\ref{fig:envs}; Appendix~\ref{app:full} gives the numbers).
 
-We find that in QA the plain penalty lowers CoT hint detection from $0.81$ to $0.45$; reward targeting and Targeted M\&F recover the no-penalty level ($0.85$ each) and Mind \& Face recovers nothing ($0.44$). The styles recover between none and half of the drop on average ($0.42$--$0.63$) and vary widely by seed ($0.07$--$0.99$), so on this model they are less reliable than the targeted mitigations. In polynomial factoring the penalty lowers CoT detection from $0.99$ to $0.67$, and every mitigation except Mind \& Face, the three styles included, keeps it at $0.93$ or above.
+We find that the plain penalty produces clear spillover in both environments on this model (CoT detection falls from $0.81$ to $0.45$ in QA and from $0.99$ to $0.67$ in polynomial factoring). In polynomial factoring, the styles do as well as reward targeting and Targeted M\&F: all of them keep CoT detection at $0.93$ or above, while Mind \& Face recovers almost none of the drop on average. In QA, however, the styles are less reliable: reward targeting and Targeted M\&F recover the no-penalty level, while the styles recover between none and half of the drop on average and vary widely by seed. Mind \& Face again recovers nothing.
 
-We also ran the plain penalty on 16 more models in QA and in their multi-turn terminal environment, and found little or no spillover in most of these runs (Appendices~\ref{app:othermodels} and~\ref{app:terminal}).
-
-\subsection{Styling the reasoning channel}
-\label{sec:cotstyle}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{figures/cotstyle_pareto.pdf}
-\caption{\textbf{Styling the CoT instead of the output makes spillover total on Qwen3-8B.} Training reward against CoT hint
-detection in QA, without (hollow) and with (filled) the output penalty, for
-the base model, an unstyled SFT on the same prompts as the style SFTs, the Pig-Latin-output models of
-Sections~\ref{sec:main} and~\ref{sec:envs} (``styled SFT''), and a model fine-tuned to write its CoT in pirate-speak with
-a plain output. Markers are means over seeds with 95\% $t$ intervals (5 seeds; 10 for Pig Latin under
-the penalty on Qwen3-8B and for pirate CoT on Qwen3.6-27B), and the dashed line is the base model's
-no-penalty CoT detection. The Qwen3.6-27B pirate-CoT means include five penalized seeds and one
-no-penalty seed whose CoT collapsed into filler during RL, so that panel does not measure spillover
-cleanly (Appendix~\ref{app:full}).}
-\label{fig:cotstyle}
-\end{figure}
-
-Interestingly, we find that a model fine-tuned to write its \emph{CoT} in pirate-speak (with a plain output) shows \emph{total} spillover under the output penalty (Figure~\ref{fig:cotstyle}): on Qwen3-8B, CoT hint detection falls from $0.49$ without the penalty to $0.01$ under it, in every seed, while normal SFT on the same prompts keeps $0.31$. The penalized CoTs are not degenerate: they stay full-length and in style, and work through the question, but no longer mention the hint while the output still boxes the hinted letter. On Qwen3.6-27B half of the penalized runs stopped reasoning in the CoT during RL, so the result there is inconclusive (Appendix~\ref{app:full}). This suggests that modifications to a model's CoT make it much more susceptible to future modifications, including from spillover.
+We also tested for spillover under the plain penalty on 16 more models and in their multi-turn terminal environment, and found little or none in most of these runs (Appendices~\ref{app:othermodels} and~\ref{app:terminal}).
 
 \section{Discussion}
 \label{sec:discussion}
 
-We find that making a model's output stylistically distinct from its CoT can mitigate feedback spillover. In QA on Qwen3-8B the three styles recover about as much CoT hint detection as reward targeting and Targeted M\&F, and the pirate and Pig-Latin models reach the no-penalty level when combined with either of them (Sections~\ref{sec:main} and~\ref{sec:compose}). On the other Qwen models we tested, the styles are less reliable than the targeted mitigations in QA, though on Qwen3.6-27B they match them in polynomial factoring (Section~\ref{sec:envs}, Appendix~\ref{app:othermodels}), and in our setup clear spillover appears only in Qwen models. Styling the CoT instead of the output has the opposite effect (Section~\ref{sec:cotstyle}).
+We find that making a model's output stylistically distinct from its CoT can mitigate feedback spillover. In QA on Qwen3-8B the three styles recover about as much CoT hint detection as reward targeting and Targeted M\&F, and the pirate and Pig-Latin models reach the no-penalty level when combined with either of them (Sections~\ref{sec:main} and~\ref{sec:compose}). On the other Qwen models we tested, the styles are less reliable than the targeted mitigations in QA, though on Qwen3.6-27B they match them in polynomial factoring (Section~\ref{sec:envs}, Appendix~\ref{app:othermodels}), and in our setup clear spillover appears only in Qwen models. Styling the CoT instead of the output has the opposite effect (Section~\ref{sec:main}).
 
-\paragraph{Mechanism.} We motivated style separation by parametric spillover: if the styled output corresponds to a different portion of the model's character distribution \citep{marks2026psm} than the CoT, an update that removes the hint from the output should generalize less to the reasoning. The combinations of Section~\ref{sec:compose} are consistent with this: style separation adds to reward targeting, which removes the conditional term, but not to Mind \& Face, which removes the parametric term with a separate output model. We posit that the style acts on the parametric channel, at least as well as Mind \& Face does: style plus reward targeting ($0.62$) is above Targeted M\&F ($0.52$). We have not observed the mechanism directly, and the pirate-CoT model does not fit this account: it separates the two channels as well but loses the hint from its CoT entirely.
+\paragraph{Mechanism.} We motivated style separation by parametric spillover: if the styled output corresponds to a different portion of the model's character distribution \citep{marks2026psm} than the CoT, an update that removes the hint from the output should generalize less to the reasoning. The combinations of Section~\ref{sec:compose} fit this account, but we have not observed the mechanism directly, and the pirate-CoT model does not fit it: it separates the two channels as well but loses the hint from its CoT entirely, which we attribute to the SFT on its CoT (Section~\ref{sec:main}).
 
 \paragraph{Implications for monitoring.} Our results suggest that attempting to keep a model's CoT similar to its outputs may increase unintended feedback spillover. This further implies that cases where model CoTs have looked very weird \citep{schoen2025antischeming} may, counter-intuitively, be more monitorable, as they may have been less susceptible to CoT obfuscation from output supervision. We only styled the output, however, while in those models it is the CoT whose register is unusual. Separately, our results with styling the CoT suggest that attempting to modify model CoTs directly, at least with SFT (e.g.\ to be more readable), may cause them to be more susceptible to future spillover.
 
@@ -347,9 +343,9 @@ We are grateful for helpful discussion and feedback from many people, including 
 
 Table~\ref{tab:main} and Figure~\ref{fig:qa8ball} give every QA condition on Qwen3-8B, Table~\ref{tab:envsmain} the Qwen3.6-27B conditions of Figure~\ref{fig:envs}, Table~\ref{tab:compose} the combinations with the prior mitigations on both models (Figure~\ref{fig:compose27b} for Qwen3.6-27B), and Table~\ref{tab:seeds} per-seed values for the more variable conditions.
 
-\paragraph{Without the style reward.} The pirate and Pig-Latin models trained without the style reward keep their style in $0.54$ and $0.76$ of late outputs, and retain $0.28$ and $0.36$, the level of the plain penalty and of normal SFT.
+\paragraph{Without the style reward.} The pirate and Pig-Latin models trained without the style reward keep their style in $0.54$ and $0.76$ of late outputs, and retain $0.28$ and $0.36$, about the level of the plain penalty and the normal-SFT models.
 
-\paragraph{Normal SFT.} The normal-SFT control of Section~\ref{sec:main} was trained on a different random subset of the Alpaca prompts than the styled models; a normal-SFT model trained on exactly the styled models' prompts gives the same picture ($0.73$ without the penalty and $0.31$ under it). On Qwen3.6-27B the prompt-matched normal-SFT model retains $0.48\pm0.40$ under the penalty, with seeds split between near-full retention and near-total loss, like the styles there.
+\paragraph{Normal SFT.} The normal-SFT control of Section~\ref{sec:main} is trained on the pirate model's prompts (``prompt-matched'' in Table~\ref{tab:main}); a normal-SFT model trained on a different random subset of the Alpaca prompts gives the same picture ($0.73$ without the penalty and $0.36$ under it). On Qwen3.6-27B the prompt-matched normal-SFT model retains $0.48\pm0.40$ under the penalty, with seeds split between near-full retention and near-total loss, like the styles there.
 
 \paragraph{Qwen3.6-27B.} The styled models' no-penalty controls vary more by seed than the unstyled control ($0.80\pm0.23$, $0.75\pm0.19$ and $0.69\pm0.23$ against $0.81\pm0.05$). Combined with reward targeting or Targeted M\&F, pirate and Chinese reach $0.85$--$0.97$ with less seed spread; Pig Latin plus reward targeting ($0.70$) still splits by seed; the combinations with Mind \& Face fall below the plain penalty ($0.33$--$0.41$). In polynomial factoring five of the 30 mitigated runs are uninformative: one seed of reward targeting, two of Targeted M\&F and one of pirate never scrubbed their output, so the penalty never acted on them, and one Pig-Latin seed collapsed into filler and lost its task reward. The remaining runs of reward targeting, Targeted M\&F and the three styles are at $0.91$ to $1.00$, except one pirate seed at $0.71$.
 
@@ -388,8 +384,8 @@ Chinese output, no penalty & 5 & $0.66\pm0.04$ & 0.89 & 1.00 & 1.00 & $-0.78$ \\
 Pirate output, style not rewarded & 5 & $0.28\pm0.13$ & 0.01 & 1.00 & 0.54 & $+0.98$ \\
 Pig-Latin output, style not rewarded & 5 & $0.36\pm0.12$ & 0.02 & 0.98 & 0.76 & $+0.95$ \\
 \addlinespace
-Normal SFT & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
-Normal SFT, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
+Normal SFT, other prompts & 5 & $0.36\pm0.17$ & 0.12 & 1.00 & --- & $+0.65$ \\
+Normal SFT, other prompts, no penalty & 5 & $0.73\pm0.09$ & 0.89 & 1.00 & --- & $-0.78$ \\
 Normal SFT, prompt-matched & 5 & $0.31\pm0.08$ & 0.12 & 0.99 & --- & $+0.73$ \\
 Normal SFT, prompt-matched, no penalty & 5 & $0.73\pm0.06$ & 0.89 & 1.00 & --- & $-0.78$ \\
 \addlinespace
@@ -402,7 +398,7 @@ Pirate CoT, style not rewarded, no penalty & 5 & $0.49\pm0.28$ & 0.88 & 1.00 & -
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{figures/qa8b_all_bars.pdf}
-\caption{CoT hint detection for every QA condition on Qwen3-8B except the unmatched normal-SFT control (Table~\ref{tab:main}). Bars are means over seeds and dots are seeds; hollow bars are models trained without the penalty, a hollow dot is a seed whose output was never scrubbed, and the dashed line is the no-SFT control. The pirate-CoT model's style is not rewarded.}
+\caption{CoT hint detection for every QA condition on Qwen3-8B except the normal SFT on other prompts (Table~\ref{tab:main}). Bars are means over seeds and dots are seeds; hollow bars are models trained without the penalty, a hollow dot is a seed whose output was never scrubbed, and the dashed line is the no-SFT control. The pirate-CoT model's style is not rewarded.}
 \label{fig:qa8ball}
 \end{figure}
 
@@ -998,9 +994,9 @@ Qwen3.5-9B & Chinese & Qwen3-8B & yes & yes \\
 \end{table}
 
 The Pig-Latin data for Qwen3-8B, which is not filtered, has $4\%$ of its rewrites cut off. The \emph{normal} SFT control
-reuses Pass~1's responses verbatim (no rewriting); the prompt-matched normal SFT does the same
-on the prompts of the pirate data. The \emph{pirate-CoT} variant instead
-rewrites the CoT and keeps the output plain; for the runs of Section~\ref{sec:cotstyle}, Qwen3-8B
+reuses Pass~1's responses verbatim (no rewriting) on the prompts of the pirate data; the normal SFT
+on other prompts (Table~\ref{tab:main}) does the same on a different random subset of the instructions. The \emph{pirate-CoT} variant instead
+rewrites the CoT and keeps the output plain; for the runs of Section~\ref{sec:main}, Qwen3-8B
 rewrites the CoT in chunks, so that long CoTs stay in style to the end. For the Qwen3.5 and Qwen3.6 models the pipeline is
 run on each model's own Pass~1 responses to the same instructions, topped up where a response had to be dropped. An example from the pirate data for Qwen3-8B:
 
