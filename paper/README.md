@@ -17,7 +17,7 @@ prediction of the parametric/conditional account in Methods (Fig 4) · 4.3 Qwen3
 closing on the other models (Fig 5) · 5 Discussion and Limitations · Appendices:
 A full results for the main settings, B results on other models (the spillover screen first),
 C the terminal environment, D the explanation check, then E to I reference material (training
-details, reward, environments, SFT data, judge prompts). The body ends on page 7.
+details, reward, environments, SFT data, judge prompts). The body ends at the top of page 8.
 
 ## Where the numbers come from
 Figures 2–5 come from the training logs via `make_paper_figures.py`, which also writes
@@ -60,7 +60,10 @@ stays a symbol because it is 2 in QA, 1 in polynomial factoring and 0.75 in term
 parametric/conditional-spillover account of style separation sits in Methods, and 4.2 tests its
 prediction (stacks with reward targeting and Targeted M&F, not with Mind & Face); 4.3 rewritten
 in the same register. The body's
-normal-SFT control is now the prompt-matched one (0.31). Jose will edit the intro and discussion.
+normal-SFT control is now the prompt-matched one (0.31). Follow-up: the intro states the
+Mind & Face analogy in plain prose; 4.1 explains the pirate-CoT result by the same account (the
+rewritten CoTs are a model's output text) plus the separate effect of training on CoTs the
+model would not have written; Limitations notes the missing plain-English rewrite control. Jose will edit the intro and discussion.
 
 Previous pass (2026-10-24): concision and structure pass on Jose's brief (paper-editor `.editing-notes/EDIT_BRIEF_2026-10-24.md`):
 Methods in four paragraphs, each results subsection cut to its claim, 4.3 led by Qwen3.6-27B,
