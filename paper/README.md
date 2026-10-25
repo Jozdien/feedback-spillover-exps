@@ -63,7 +63,8 @@ in the same register. The body's
 normal-SFT control is now the prompt-matched one (0.31). Follow-up: the intro states the
 Mind & Face analogy in plain prose; 4.1 explains the pirate-CoT result by the same account (the
 rewritten CoTs are a model's output text) plus the separate effect of training on CoTs the
-model would not have written; Limitations notes the missing plain-English rewrite control. Jose will edit the intro and discussion.
+model would not have written; Methods says the normal-SFT control covers the off-policyness the SFT pipeline itself
+introduces (fixed data, not on-policy SFT). Jose will edit the intro and discussion.
 
 Previous pass (2026-10-24): concision and structure pass on Jose's brief (paper-editor `.editing-notes/EDIT_BRIEF_2026-10-24.md`):
 Methods in four paragraphs, each results subsection cut to its claim, 4.3 led by Qwen3.6-27B,
