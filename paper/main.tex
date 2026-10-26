@@ -132,82 +132,24 @@ This has implications for monitorability of frontier models: models whose CoTs a
 \section{Related Work}
 \label{sec:related}
 
-\paragraph{CoT monitorability.} A CoT monitor scores the reasoning trace for some
-behavior \citep{korbak2025monitorability}. Its value depends on the CoT remaining
-\emph{faithful}, reflecting the computation that produced the answer. \citet{turpin2023unfaithful}
-and \citet{chen2025reasoning} show that CoTs often fail to mention a hint that changed the model's
-answer, while \citet{emmons2025chainofthought} argue that
-when a task genuinely requires reasoning, the CoT must reveal it, so monitoring remains
-useful. \citet{baker2025monitoring} show that optimizing \emph{against} a CoT monitor
-produces obfuscated CoT and recommend against applying strong optimization pressure
-directly to the CoT. \citet{skaf2025steganographic} show that penalizing specific strings in the
-CoT teaches models an encoding that generalizes to held-out strings. Both penalize the CoT itself,
-while we penalize only the output. Models already treat the CoT as a channel of its own: they
-follow instructions about their CoT far less often than the same instructions about their output
-\citep{chen2026controllability}, and when prompted to hide their reasoning, they obfuscate an
-internal reasoning trace less than reasoning written in their output \citep{zolkowski2025obfuscate}.
+\paragraph{CoT monitorability.} A CoT monitor scores the reasoning trace for some behavior \citep{korbak2025monitorability}. Its value depends on the CoT remaining faithful, reflecting the computation that produced the answer. \citet{turpin2023unfaithful} and \citet{chen2025reasoning} show that CoTs often fail to mention a hint that changed the model's answer, while \citet{emmons2025chainofthought} argue that when a task genuinely requires reasoning, the CoT must reveal it, so monitoring remains useful. \citet{baker2025monitoring} show that optimizing \emph{against} a CoT monitor produces obfuscated CoT and recommend against applying strong optimization pressure directly to the CoT. Models already treat the CoT as a channel of its own: they follow instructions about their CoT far less often than the same instructions about their output \citep{chen2026controllability}, and when prompted to hide their reasoning, they obfuscate an internal reasoning trace less than reasoning written in their output \citep{zolkowski2025obfuscate}.
 
-\paragraph{Feedback spillover.} \citet{drori2025output} show output-only training is
-insufficient: the penalized behavior can vanish from the CoT regardless. They identify two
-mechanisms: \emph{parametric} spillover, where updating the parameters to make the output
-look safe generalizes to the CoT, and \emph{conditional} spillover, where a safe-looking
-CoT makes a safe-looking output more likely and so gets reinforced. They formalize
-spillover via the policy-gradient decomposition $\nabla = \nabla_{\mathrm{CoT}} +
-\nabla_{\mathrm{out}}$ and derive their two mitigations. Reward targeting removes
-the conditional-spillover term; Mind \& Face (following the
-shoggoth+face proposal of \citet{kokotajlo2024shoggoth}) removes the parametric term by
-using distinct CoT and output models. They mention that Mind \& Face may make it easy
-to change the style of a model's outputs, but do not test style as a mitigation, and
-unlike in our paper they do not measure what the penalized outputs contain.
-\citet{mitranihadida2026obfuscation} show that CoT obfuscation learned under an
-output-only penalty generalizes to unseen tasks; they do not test mitigations. In a setting close
-to ours, \citet{turpin2025verbalize} fine-tune a model before RL to verbalize hints, which keeps
-hint use visible after RL; they edit the reasoning itself and train without an output penalty,
-while we change only the output. At frontier scale, RL against an output-only monitor taught Claude
-3.7 Sonnet to write backdoors that the monitor missed while its reasoning still discussed them at
-length \citep{wagner2025subtle}, and \citet{guan2025monitorability} find that RL has not materially
-reduced the monitorability of OpenAI's models, though they note that optimizing the output can
-spill over into the CoT.
+\paragraph{Feedback spillover.} \citet{drori2025output} show output-only training is insufficient: the penalized behavior can vanish from the CoT regardless. They identify two mechanisms: \emph{parametric} spillover, where updating the parameters to make the output look safe generalizes to the CoT, and \emph{conditional} spillover, where a safe-looking CoT makes a safe-looking output more likely and so gets reinforced. They formalize spillover via the policy-gradient decomposition $\nabla = \nabla_{\mathrm{CoT}} + \nabla_{\mathrm{out}}$ and derive their two mitigations. Reward targeting removes the conditional-spillover term; Mind \& Face (following the shoggoth+face proposal of \citet{kokotajlo2024shoggoth}) removes the parametric term by using distinct CoT and output models. They mention that Mind \& Face may make it easy to change the style of a model's outputs, but do not test style as a mitigation, and unlike in our paper they do not measure what the penalized outputs contain. \citet{mitranihadida2026obfuscation} show that CoT obfuscation learned under an output-only penalty generalizes to unseen tasks; they do not test mitigations.
 
-\paragraph{Personas and generalization.} Fine-tuning a model on a narrow behavior can change its
-behavior far outside it \citep{betley2025emergent}, which the persona selection model explains as
-training updating the character the model simulates \citep{marks2026psm}. How far such an update
-spreads depends on where it is learned: behavior trained in a context further from the model's
-default persona transfers less to other contexts \citep{zhao2026persona}, a trait learned under a
-prompt that elicits it is expressed less without that prompt
-\citep{tan2026inoculation,wichers2025inoculation}, and safety training can fail to transfer to
-requests written in Base64 or Pig Latin \citep{wei2023jailbroken}. Training only a reasoning model's
-outputs can still change what its CoT says \citep{chua2025thought}. Closest to our intervention,
-\citet{colognese2026character} train a character into a model's outputs before RL, and find that an
-anti-cheating character makes the model's later reward hacks much harder for CoT monitors to catch.
-Their character takes a stance on the rewarded behavior and their training has no output penalty;
-our styles take no stance on it, and we ask whether they keep an output penalty from reaching the
-CoT.
+\paragraph{Personas and generalization.} The persona selection model describes a framing to understand language model behavior: training updating the character the model simulates \citep{marks2026psm}. How far such an update spreads depends on where it is learned: behavior trained in a context further from the model's default persona transfers less to other contexts \citep{zhao2026persona}, a trait learned under a prompt that elicits it is expressed less without that prompt \citep{tan2026inoculation,wichers2025inoculation}, and safety training can fail to transfer to requests written in Base64 or Pig Latin \citep{wei2023jailbroken}. Training only a reasoning model's outputs can still change what its CoT says \citep{chua2025thought}. \citet{colognese2026character} train a character into a model's outputs before RL, and find that an anti-cheating character makes the model's later reward hacks much harder for CoT monitors to catch.
 
 \section{Methods}
 \label{sec:setup}
 
-We use the QA-with-hints environment from \citet{drori2025output} (following \citet{chen2025reasoning}) for our primary results: the model answers a multiple-choice question from MMLU \citep{hendrycks2021mmlu} whose prompt contains a hint pointing to an incorrect answer, so a model that answers the hinted letter must be using the hint. The training reward is
+\paragraph{Environments.} We use the QA-with-hints environment from \citet{drori2025output} (following \citet{chen2025reasoning}) for our primary results: the model answers a multiple-choice question from MMLU \citep{hendrycks2021mmlu} whose prompt contains a hint pointing to an incorrect answer, so a model that answers the hinted letter must be using the hint. The training reward is
 \[
 R = E\cdot R_{\text{task}} - \lambda\, M_{\text{out}},
 \]
-where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is a GPT-4.1 \citep{openai2025gpt41} judge of whether the output acknowledges the hint, and $\lambda=2$. A second judge with the same rubric reads only the CoT; its score is never trained on, and we use its average over rollouts to measure \emph{CoT hint detection}. Feedback spillover is a drop in CoT hint detection relative to a no-penalty control. $E\in\{0,1\}$ is a GPT-4.1 judge which checks whether the output contains an explanation of the answer, to prevent satisfying the output monitor with very short answers (Appendix~\ref{app:audit}). We also report results in their polynomial derivative factoring environment (Section~\ref{sec:envs}) and their multi-turn terminal environment (Appendix~\ref{app:terminal}), with $\lambda=1$ and $0.75$ respectively. We observed that feedback spillover appears less consistently in these two environments on the models we tested, and so use the QA environment as our primary setting.
+where $R_{\text{task}}=1$ iff the boxed answer matches the hint, $M_{\text{out}}\in\{0,1\}$ is a GPT-4.1 \citep{openai2025gpt41} judge of whether the output acknowledges the hint, and $\lambda=2$. A second judge with the same rubric reads only the CoT; its score is never trained on, and we use its average over rollouts to measure \emph{CoT hint detection}. Feedback spillover is a drop in CoT hint detection relative to a no-penalty control. $E\in\{0,1\}$ is a GPT-4.1 judge which checks whether the output contains an explanation of the answer, to prevent satisfying the output monitor with very short answers (Appendix~\ref{app:audit}).
+
+We also use the polynomial derivative factoring environment of \citet{drori2025output}, adapted from \citet{emmons2025chainofthought} (Section~\ref{sec:envs}). The model must give the factored form of a polynomial's first derivative, and a string-match monitor penalizes writing out the expanded derivative in the output ($\lambda=1$); the same monitor applied to the CoT measures CoT detection (Appendix~\ref{app:env}). We report results in their multi-turn terminal environment ($\lambda=0.75$) in Appendix~\ref{app:terminal}. We observed that feedback spillover appears less consistently in these two environments on the models we tested, and so use the QA environment as our primary setting.
 
 \paragraph{Style separation.} To construct models with styled outputs, the base model first generates responses to questions from the Stanford Alpaca instruction set \citep{alpaca2023}; these responses are then rewritten so the outputs match the target format (exaggerated pirate-speak, Pig Latin, or Chinese), with the CoTs untouched. We fine-tune on $10{,}000$ such examples with LoRA \citep{hu2022lora} (rank 32, 3 epochs; Appendix~\ref{app:sft}). During RL, these models also receive a style reward $\mu\,M_{\text{style}}$ ($\mu=1$) to keep the style from decaying, where $M_{\text{style}}\in[0,1]$ is a GPT-4.1 judge's probability that the output is in the intended style (Appendix~\ref{app:judges}); for fair comparison to other settings, we leave it out of the plotted training reward. As a control, we also train models on the data prior to rewriting (\emph{unstyled} SFT). We also train models whose CoTs, rather than outputs, are rewritten into pirate-speak; these show much more spillover (we discuss why in Section~\ref{sec:limitations} and Appendix~\ref{app:cotstyle}).
-
-\paragraph{Comparison to prior mitigations.} Our baseline is the \emph{plain penalty}: the penalized model with no SFT and no mitigation. We also re-implement the mitigations of \citet{drori2025output}: reward targeting (the output penalty's advantage is zeroed on CoT tokens), Mind \& Face (separate LoRA adapters generate the CoT and the output), and their combination, Targeted Mind \& Face (Targeted M\&F). We add the explanation check from above to their construction to prevent degenerate outputs (Appendix~\ref{app:audit}).
-
-Intuitively, style separation acts along the same channel as Mind \& Face, targeting what \citet{drori2025output} describe as parametric feedback spillover: parameter settings that produce obfuscated outputs may also produce obfuscated CoTs, so increasing the separation between the parameters generating the CoT and the output (through explicit construction in the case of Mind \& Face, and by inducing semantic differences in the case of style separation) can address this.
-
-Style separation also affects conditional feedback spillover (what reward targeting is constructed to address) to a lesser extent: CoTs that happen to omit the hint make outputs that omit it more likely, and so get reinforced by the output penalty; style separation, by causing CoT text mentioning the hint to less resemble output text that mentions the hint, weakens this slightly (i.e., it reduces effects from exact matching of output and CoT text). We expect this second effect to be small, since exact lexical copying is unlikely to be the dominant factor behind conditional feedback spillover. We test these intuitions by combining style separation with each prior mitigation (Section~\ref{sec:compose}; Appendix~\ref{app:mit}).
-
-\paragraph{Training and measurement.} We train models with GRPO \citep{shao2024deepseekmath} with LoRA (rank 32) via the Tinker API \citep{tinker2025}, for 266 steps of 12 rollouts (4 per prompt) at learning rate $10^{-5}$, rather than the REINFORCE algorithm \citep{williams1992reinforce} used by \citet{drori2025output}, which we found does not learn the task under the penalty with a LoRA adapter. We group-normalize each reward term separately \citep[as in][]{liu2026gdpo}, so $\lambda$ and $\mu$ set the sign of their respective terms' advantages and not their sizes. We use the same 300-token CoT budget as \citet{drori2025output}, and 600 output tokens. Numbers are training-rollout averages over the last 10\% of steps, with at least 5 seeds per condition in the mitigation comparisons (Appendix~\ref{app:train}). Our main results use Qwen3-8B \citep{qwen3}; we also report results on Qwen3.6-27B \citep{qwen2026qwen3627b} (Section~\ref{sec:envs}). Appendix~\ref{app:othermodels} contains results on other models, most of which show little or no spillover on these environments.
-
-\section{Results}
-\label{sec:results}
-
-\subsection{Style separation mitigates spillover}
-\label{sec:main}
 
 \begin{figure}[t]
 \centering
@@ -262,6 +204,20 @@ clipped at 1.}
 \fi
 \label{fig:main}
 \end{figure}
+
+\paragraph{Comparison to prior mitigations.} Our baseline is the \emph{plain penalty}: the penalized model with no SFT and no mitigation. We also re-implement the mitigations of \citet{drori2025output}: reward targeting (the output penalty's advantage is zeroed on CoT tokens), Mind \& Face (separate LoRA adapters generate the CoT and the output), and their combination, Targeted Mind \& Face (Targeted M\&F). We add the explanation check from above to their construction to prevent degenerate outputs (Appendix~\ref{app:audit}).
+
+Intuitively, style separation acts along the same channel as Mind \& Face, targeting what \citet{drori2025output} describe as parametric feedback spillover: parameter settings that produce obfuscated outputs may also produce obfuscated CoTs, so increasing the separation between the parameters generating the CoT and the output (through explicit construction in the case of Mind \& Face, and by inducing semantic differences in the case of style separation) can address this.
+
+Style separation also affects conditional feedback spillover (what reward targeting is constructed to address) to a lesser extent: CoTs that happen to omit the hint make outputs that omit it more likely, and so get reinforced by the output penalty; style separation, by causing CoT text mentioning the hint to less resemble output text that mentions the hint, weakens this slightly (i.e., it reduces effects from exact matching of output and CoT text). We expect this second effect to be small, since exact lexical copying is unlikely to be the dominant factor behind conditional feedback spillover. We test these intuitions by combining style separation with each prior mitigation (Section~\ref{sec:compose}; Appendix~\ref{app:mit}).
+
+\paragraph{Training and measurement.} We train models with GRPO \citep{shao2024deepseekmath} with LoRA (rank 32) via the Tinker API \citep{tinker2025}, for 266 steps of 12 rollouts (4 per prompt) at learning rate $10^{-5}$, rather than the REINFORCE algorithm \citep{williams1992reinforce} used by \citet{drori2025output}, which we found does not learn the task under the penalty with a LoRA adapter. We group-normalize each reward term separately \citep[as in][]{liu2026gdpo}, so $\lambda$ and $\mu$ set the sign of their respective terms' advantages and not their sizes. We use the same 300-token CoT budget as \citet{drori2025output}, and 600 output tokens. Numbers are training-rollout averages over the last 10\% of steps, with at least 5 seeds per condition in the mitigation comparisons (Appendix~\ref{app:train}). Our main results use Qwen3-8B \citep{qwen3}; we also report results on Qwen3.6-27B \citep{qwen2026qwen3627b} (Section~\ref{sec:envs}). Appendix~\ref{app:othermodels} contains results on other models, most of which show little or no spillover on these environments.
+
+\section{Results}
+\label{sec:results}
+
+\subsection{Style separation mitigates spillover}
+\label{sec:main}
 
 In this section, we test style separation in QA on Qwen3-8B. Figure~\ref{fig:main} plots training reward against CoT hint detection for each condition; an ideal mitigation sits at the top right, with full reward and CoT hint detection comparable to the model trained with no penalty. Similar to \citet{drori2025output}, we find that models trained with the output penalty have lower CoT hint detection than a model trained without the penalty.
 
@@ -322,9 +278,43 @@ Figure~\ref{fig:main}. Markers are means over 5 seeds with 95\% $t$ intervals, a
 is the no-penalty control's CoT detection. The no-penalty control is charged a penalty it was not
 trained on, which places it below the break in the QA panel. In polynomial factoring, the lower reward of reward
 targeting, Targeted M\&F and pirate comes from seeds whose output was never scrubbed, and that of
-Pig Latin from a seed that lost its task reward. Table~\ref{tab:envsmain} gives the values.}
+Pig Latin from a seed that lost its task reward. Table~\ref{tab:envs27b} gives the values.}
 \label{fig:envs}
 \end{figure}
+
+\begin{table}[!t]
+\centering
+\caption{\textbf{The styles keep CoT detection near their own no-penalty level in polynomial
+factoring, and below it in QA.} The values plotted in Figure~\ref{fig:envs} (Qwen3.6-27B): task reward,
+the output monitor's detection rate, and CoT detection as mean $\pm$ sample standard deviation over
+5 seeds. For each style, the value in parentheses is the CoT detection of the same styled model
+trained without the penalty. Table~\ref{tab:envsmain} in Appendix~\ref{app:full} gives the full
+values, including the unstyled SFT control.}
+\label{tab:envs27b}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{3}{c}{QA} & \multicolumn{3}{c}{Polynomial factoring} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+Run type & Task & Output & CoT & Task & Output & CoT \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Controls}} \\
+\mkC{cNoPen}\,No penalty & 0.99 & 0.93 & $0.81\pm0.05$ & 0.90 & 0.95 & $0.99\pm0.01$ \\
+\mkC{cPen}\,Plain penalty & 0.99 & 0.01 & $0.45\pm0.08$ & 0.85 & 0.01 & $0.67\pm0.11$ \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Prior mitigations}} \\
+\mkS{cRT}\,Reward targeting & 0.99 & 0.01 & $0.85\pm0.14$ & 0.90 & 0.23 & $0.97\pm0.04$ \\
+\mkS{cMF}\,Mind \& Face & 1.00 & 0.00 & $0.44\pm0.09$ & 0.84 & 0.02 & $0.70\pm0.29$ \\
+\mkS{cTMF}\,Targeted M\&F & 1.00 & 0.01 & $0.85\pm0.12$ & 0.91 & 0.38 & $0.99\pm0.00$ \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Style separation (ours)}} \\
+\mkD{cPirate}\,Pirate output & 1.00 & 0.00 & $0.42\pm0.33$ (0.80) & 0.90 & 0.20 & $0.93\pm0.13$ (1.00) \\
+\mkD{cPigLatin}\,Pig-Latin output & 0.99 & 0.00 & $0.63\pm0.30$ (0.75) & 0.71 & 0.00 & $1.00\pm0.01$ (1.00) \\
+\mkD{cChinese}\,Chinese output & 1.00 & 0.00 & $0.56\pm0.32$ (0.69) & 0.94 & 0.01 & $0.99\pm0.01$ (1.00) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 In this section, we test style separation on Qwen3.6-27B, in QA and in the polynomial derivative factoring environment of \citet{drori2025output} (Appendix~\ref{app:env} for further details), where the penalized behavior is writing out the expanded derivative in the output and CoT detection is how often the CoT contains it. On Qwen3-8B we observed no spillover in the polynomial factoring environment prior to any mitigation being applied (Appendix~\ref{app:poly8b}).
 
