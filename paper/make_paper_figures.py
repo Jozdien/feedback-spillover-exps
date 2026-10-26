@@ -176,6 +176,11 @@ def seeds(pat: str, p: dict) -> list[dict]:
     return out
 
 
+def cot_err(a) -> list:
+    """95% t interval on CoT detection, clipped to [0, 1]."""
+    return [[min(a["cot_ci"], a["cot"])], [min(a["cot_ci"], 1 - a["cot"])]]
+
+
 def ci(v) -> float:
     v = np.asarray(v, float)
     return float(stats.t.ppf(0.975, len(v) - 1) * v.std(ddof=1) / np.sqrt(len(v))) if len(v) > 1 else 0.0
@@ -297,7 +302,7 @@ def fig_main_scatter(d, path, legend=True, width=W * 0.62):
         a = d[k]
         label, color, marker, _ = COND[k]
         for ax in (top, bot):
-            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
+            ax.errorbar(a["cot"], a["reward"], xerr=cot_err(a), yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
                         ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
                         elinewidth=ELW, capsize=CAP, zorder=3)
     top.set_ylim(0.45, 1.03)
@@ -334,7 +339,7 @@ def fig_main_scatter_bars(d, path):
         a = d[k]
         _, color, marker, _ = COND[k]
         for ax in (top, bot):
-            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
+            ax.errorbar(a["cot"], a["reward"], xerr=cot_err(a), yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt=marker,
                         ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
                         elinewidth=ELW, capsize=CAP, zorder=3)
     top.set_ylim(0.45, 1.03)
@@ -556,7 +561,7 @@ def fig_points_pareto(points, path, ctrl_cot, legend, top=(0.45, 1.03), bot=(-0.
     t, b = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[1, 0])
     for a, color, marker, hollow in points:
         for ax in (t, b):
-            ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
+            ax.errorbar(a["cot"], a["reward"], xerr=cot_err(a), yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
                         fmt=marker, ms=MS if marker not in "D^" else MS_D, mfc="white" if hollow else color,
                         mec=color if hollow else "white", mew=1.1 if hollow else 0.6, color=color,
                         elinewidth=ELW, capsize=CAP, zorder=3)
@@ -631,7 +636,7 @@ def fig_cotstyle_pareto2(data, settings, path):
             for k, hollow in ((kc, True), (kp, False)):
                 a = d[k]
                 for ax in (t, b):
-                    ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"],
+                    ax.errorbar(a["cot"], a["reward"], xerr=cot_err(a),
                                 yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]], fmt="o",
                                 ms=MS, mfc="white" if hollow else color, mec=color if hollow else "white",
                                 mew=1.1 if hollow else 0.6, color=color, elinewidth=ELW, capsize=CAP, zorder=3)
@@ -691,7 +696,7 @@ def fig_envs_pareto(data, panels, path, height=W * 0.45, wspace=0.55, bottom=0.1
                     continue
                 a = d[k]
                 _, color, marker, _ = COND[k]
-                ax.errorbar(a["cot"], a["reward"], xerr=a["cot_ci"], yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
+                ax.errorbar(a["cot"], a["reward"], xerr=cot_err(a), yerr=[[a["reward_ci"]], [min(a["reward_ci"], 1 - a["reward"])]],
                             fmt=marker, ms=MS if marker != "D" else MS_D, mfc=color, mec="white", mew=0.6, color=color,
                             elinewidth=ELW, capsize=CAP, zorder=3)
             ax.axvline(d["ctrl"]["cot"], ls="--", lw=0.8, color=COND["ctrl"][1], zorder=1)
