@@ -15,9 +15,10 @@ latexmk -pdf -interaction=nonstopmode main.tex
 4.2 combined with the prior mitigations, testing the parametric/conditional account in Methods
 (Fig 3) · 4.3 Qwen3.6-27B in QA and polynomial factoring, closing on the other models (Fig 4) ·
 5 Discussion and Limitations · Appendices: A full results for the main settings, B styling the
-CoT (the pirate-CoT result, its explanation, the 27B runs), C results on other models (the
-spillover screen first), D the terminal environment, E the explanation check, then F to J
-reference material (training details, reward, environments, SFT data, judge prompts). The body
+CoT (the pirate-CoT result, its explanation, the 27B runs), C results on other models and
+environments (spillover screen first; C.1 other models in QA, C.2 polynomial factoring on
+Qwen3-8B, C.3 the terminal environment), D the explanation check, then E to I reference
+material (training details, reward, environments, SFT data, judge prompts). The body
 ends on page 7.
 
 ## Where the numbers come from
